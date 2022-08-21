@@ -1,7 +1,7 @@
 package example.webapp
 
 import cats.effect.IO
-import example.api.{Api}
+import example.api.Api
 import colibri.Observable
 
 import sloth.Client
