@@ -23,10 +23,10 @@
     chalk "^2.0.0"
     js-tokens "^4.0.0"
 
-"@fun-stack/fun-pack@0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@fun-stack/fun-pack/-/fun-pack-0.2.0.tgz#c7c0777327c03ccfced0eb904e16392105aa88ac"
-  integrity sha512-5ahmtGzS2EK78L4WvVkMYCvvMTT2JYWgljdUDGXKZaiNUNv078e1cYEEF8k/YopRSRjbIEMJsCVQm/OVKUmfGw==
+"@fun-stack/fun-pack@0.2.3":
+  version "0.2.3"
+  resolved "https://registry.yarnpkg.com/@fun-stack/fun-pack/-/fun-pack-0.2.3.tgz#821846a7afcd86b797347a7f188084d99c63cc51"
+  integrity sha512-G00Jh4JHbtDXps6h8Ji/qCKzrvTJYhTRfGsr4vHQK3AcVGxWROfo24bL8IN3WCoW9CZQKdbkxZ8jBTBY0AoxZA==
   dependencies:
     "@fun-stack/source-map-loader-no-warn" "^1.1.4"
     clean-webpack-plugin "^4.0.0"
