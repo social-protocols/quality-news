@@ -1,6 +1,6 @@
 package example.lambda
 
-import example.api.{Api, StreamsApi}
+import example.api.Api
 
 import funstack.backend.Fun
 import funstack.lambda.apigateway.Handler
@@ -16,7 +16,6 @@ import chameleon.ext.boopickle._
 
 object ApiImpl extends Api[Handler.IOKleisli] {
   private val client     = Client.contra(Fun.ws.sendTransport[ByteBuffer])
-  private val streamsApi = client.wire[StreamsApi[Kleisli[IO, *, Unit]]]
 
   def numberToString(number: Int) = Kleisli.pure(number.toString)
 
@@ -24,9 +23,7 @@ object ApiImpl extends Api[Handler.IOKleisli] {
     val userId = req.auth.map(_.sub)
     // val userAttrs = userId.traverse(Fun.auth.getUser(_))
 
-    val sendEvent = streamsApi.logs.apply(s"Api Request by ${userId}!")
-    val response  = IO(scala.util.Random.nextInt(1000))
+    IO(scala.util.Random.nextInt(1000))
 
-    sendEvent *> response
   }
 }

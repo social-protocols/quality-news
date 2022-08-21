@@ -33,11 +33,7 @@ yarn install --frozen-lockfile
 (npx fun-local-env \
     --auth $PORT_AUTH \
     --ws $PORT_WS \
-    --http $PORT_HTTP \
-    --http-api lambda/target/scala-2.13/scalajs-bundler/main/lambda-fastopt.js httpApi \
-    --http-rpc lambda/target/scala-2.13/scalajs-bundler/main/lambda-fastopt.js httpRpc \
     --ws-rpc lambda/target/scala-2.13/scalajs-bundler/main/lambda-fastopt.js wsRpc \
-    --ws-event-authorizer lambda/target/scala-2.13/scalajs-bundler/main/lambda-fastopt.js wsEventAuth \
     | prefix "BACKEND" 4 || kill 0) &
 
 sbt dev shell

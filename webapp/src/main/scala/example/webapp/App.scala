@@ -58,10 +58,7 @@ object App {
       case Page.Api  =>
         div(
           cls := "space-y-4",
-          Components.httpApi,
-          Components.httpRpcApi,
           Components.websocketRpcApi,
-          Components.websocketEvents,
         )
     },
   )

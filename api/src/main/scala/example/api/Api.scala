@@ -5,6 +5,3 @@ trait Api[F[_]] {
   def getRandomNumber: F[Int]
 }
 
-trait StreamsApi[F[_]] {
-  def logs: F[String]
-}
