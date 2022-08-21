@@ -1,0 +1,105 @@
+name: Build
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: coursier/cache-action@v6
+      - uses: olafurpg/setup-scala@v13
+
+
+
+      # https://github.com/actions/cache/blob/master/examples.md#node---yarn
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+
+      - uses: actions/cache@v3
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+
+      - uses: actions/cache@v3
+        name: Cache node_modules
+        with:
+          path: "node_modules"
+          key: ${{ runner.os }}-node_modules-${{ hashFiles('yarn.lock') }}
+          restore-keys: ${{ runner.os }}-node_modules
+
+      - uses: actions/cache@v3
+        name: Cache scalajs-bundler node_modules
+        with:
+          path: "*/target/**/main/node_modules"
+          key: ${{ runner.os }}-scalajsbundler-node_modules-${{ hashFiles('*/yarn.lock') }}
+          restore-keys: ${{ runner.os }}-scalajsbundler-node_modules
+
+      - name: Cache Scalablytyped transpilations
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.ivy2/local/org.scalablytyped
+            ~/.cache/scalablytyped
+          key: ${{ runner.os }}-scalablytyped-${{ hashfiles('build.sbt') }}-${{ hashFiles('*/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-scalablytyped-
+
+
+      - name: Compile and Bundle
+        run: |
+          # Runner has 7G of RAM, so 4G for sbt is ok here:
+          # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#supported-runners-and-hardware-resources
+          sbt --mem 4096 scalafmtCheck scalafmtSbtCheck compile {webapp,lambda}/fastOptJS/webpack prod
+
+      - uses: hashicorp/setup-terraform@v2
+      - name: Validate Terraform
+        run: |
+          cd terraform
+          terraform init
+          terraform validate
+
+      - name: Yarn install
+        run: yarn install --frozen-lockfile
+
+      - name: End-to-End Tests
+        run: |
+          # Start frontend dev-webserver
+          (sbt webapp/fastOptJS/startWebpackDevServer shell || kill 0) &
+
+          # Start the lambda backend
+          (npx fun-local-env \
+              --auth 8082 \
+              --ws 8081 \
+              --http 8080 \
+              --http-api lambda/target/scala-2.13/scalajs-bundler/main/lambda-fastopt.js httpApi \
+              --http-rpc lambda/target/scala-2.13/scalajs-bundler/main/lambda-fastopt.js httpRpc \
+              --ws-rpc lambda/target/scala-2.13/scalajs-bundler/main/lambda-fastopt.js wsRpc \
+              --ws-event-authorizer lambda/target/scala-2.13/scalajs-bundler/main/lambda-fastopt.js wsEventAuth \
+                > /dev/null || kill 0) &
+
+          # Test http api
+          until nc -z 127.0.0.1 8080 &>/dev/null; do sleep 0.5; done
+          [ "$(curl -v localhost:8080/books/drama/2011?limit=10)" == '[{"title":"Programming in Scala"}]' ]
+
+          # Wait until the dev server is running
+          npx wait-on http://localhost:12345
+
+      - name: Cypress run (UI tests)
+        uses: cypress-io/github-action@v4.2.0
+
+      # - name: Debug over SSH (tmate)
+      #   # if: ${{ failure() }}
+      #   uses: mxschmitt/action-tmate@v3
+      #   with:
+      #     limit-access-to-actor: true
