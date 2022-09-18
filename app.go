@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -60,7 +59,7 @@ func main() {
 
 func insertStory(db *sql.DB, story hn.Item) {
 	log.Println("Inserting story record ...")
-	insertStorySQL := `INSERT INTO stories(id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`
+	insertStorySQL := `INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`
 	statement, err := db.Prepare(insertStorySQL) // Prepare statement.
 	// This is good to avoid SQL injections
 	if err != nil {
@@ -72,7 +71,24 @@ func insertStory(db *sql.DB, story hn.Item) {
 	}
 }
 
+func updateLastItemId(db *sql.DB, lastStoryID int) {
+	sql := `update lastitemid set id=?`
+	statement, err := db.Prepare(sql) // Prepare statement.
+	// This is good to avoid SQL injections
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	_, err = statement.Exec(lastStoryID)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+}
+
+// func getNewStories
+
 func getNewStories() {
+	ticker := time.NewTicker(5 * time.Second)
+	quit := make(chan struct{})
 
 	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
 	if sqliteDataDir == "" {
@@ -82,6 +98,7 @@ func getNewStories() {
 	frontpageDatabaseFilename := fmt.Sprintf("%s/frontpage.sqlite", sqliteDataDir)
 	fmt.Println("Database file", frontpageDatabaseFilename)
 	db, err := sql.Open("sqlite3", frontpageDatabaseFilename)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,44 +109,57 @@ func getNewStories() {
 		Timeout: time.Duration(60 * time.Second),
 	})
 
-	ourMaxItem := 32891067
-	theirMaxItem, err := hn.Live.MaxItem()
-	if err != nil {
-		log.Fatal(err)
-	}
+	for {
+		select {
+		case <-ticker.C:
 
-	theirMaxItem = ourMaxItem + 10
+			ourMaxItem := 0
+			row := db.QueryRow("select id from lastitemid")
+			err = row.Scan(&ourMaxItem)
 
-	fmt.Println("Got max item", theirMaxItem)
+			fmt.Println("Got our max item", ourMaxItem)
 
-	//	Get the ID of the last story that has been submitted
-	//
-
-	//	Get the highest ID you have in the databse
-	//
-	var wg sync.WaitGroup
-
-	for i := ourMaxItem + 1; i <= theirMaxItem; i++ {
-
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
-
-			item, err := hn.Item(id)
+			theirMaxItem, err := hn.Live.MaxItem()
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Println("Item type", item.Type)
-			if item.Type == "story" {
-				fmt.Println("Inserting story", item)
-				insertStory(db, *item)
+
+			fmt.Println("Their max item", theirMaxItem)
+
+			//	Get the ID of the last story that has been submitted
+			//
+
+			//	Get the highest ID you have in the databse
+			//
+			// var wg sync.WaitGroup
+
+			for i := ourMaxItem + 1; i <= theirMaxItem; i++ {
+
+				// wg.Add(1)
+				// go func(id int) {
+				// 	defer wg.Done()
+				id := i
+				item, err := hn.Item(id)
+				if err != nil {
+					log.Fatal(err)
+				}
+				// fmt.Println("Item type", id, item.Type)
+				if item.Type == "story" {
+					fmt.Println("Inserting story", item)
+					insertStory(db, *item)
+				}
+
+				updateLastItemId(db, id)
+				// }(i)
 			}
 
-		}(i)
+			// wg.Wait()
+
+		case <-quit:
+			ticker.Stop()
+			return
+		}
 	}
-
-	wg.Wait()
-
 }
 
 func runCrawler() {
