@@ -60,7 +60,7 @@ func main() {
 
 func insertStory(db *sql.DB, story hn.Item) {
 	log.Println("Inserting story record ...")
-	insertStorySQL := `INSERT INTO stories(id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?)`
+	insertStorySQL := `INSERT INTO stories(id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`
 	statement, err := db.Prepare(insertStorySQL) // Prepare statement.
 	// This is good to avoid SQL injections
 	if err != nil {
