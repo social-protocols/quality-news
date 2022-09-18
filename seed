@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail # https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail
+
+sq3() (
+  sqlite3 -init <(echo) "$@"
+)
+
+DB="frontpage.sqlite"
+
+rm -rf "$DB"
+
+sq3 "$DB" 'CREATE TABLE stories(id int primary key, by text not null, title text not null, url text not null, text not null, timestamp int not null);'
+
