@@ -10,7 +10,13 @@ import (
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
+
+	hn "github.com/peterhellberg/hn"
 )
+
+type FrontPageData struct {
+	Stories []hn.Item
+}
 
 //go:embed templates/*
 var resources embed.FS
@@ -28,12 +34,25 @@ func main() {
 
 	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		data := map[string]string{
-			"Region": os.Getenv("FLY_REGION"),
-		}
+	tmpl := template.Must(template.ParseFiles("templates/index.html.tmpl"))
 
-		t.ExecuteTemplate(w, "index.html.tmpl", data)
+	sampleStory := hn.Item{
+		ID:          8863,
+		By:          "dhouston",
+		Parent:      8862,
+		Kids:        []int{},
+		Descendants: 71,
+		Score:       111,
+		Title:       "My YC app: Dropbox - Throw away your USB drive",
+		URL:         "http://www.getdropbox.com/u/2/screencast.html",
+		Timestamp:   1175714200,
+	}
+	sampleStories := []hn.Item{
+		sampleStory,
+	}
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		tmpl.Execute(w, FrontPageData{sampleStories})
 	})
 
 	log.Println("listening on", port)
