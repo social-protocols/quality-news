@@ -1,11 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style type="text/css">
+body {
+  background-color: #F6F6EF;
+  color: #000000;
+  font-family: sans-serif;
+}
+.storytitle {
+  font-size: 11pt;
+}
+
+.storyinfoline {
+  font-size: 9pt;
+  opacity: 50%;
+}
+</style>
+<title>News</title>
 </head>
-<body>
-<h1>Hello from Fly</h1>
-{{ if .Region }}
-<h2>I'm running in the {{.Region}} region</h2>
+<body >
+<ol>
+{{range .Stories}}
+<li>
+  <div class="storytitle">{{.Title}}</div>
+  <div class="storyinfoline">{{.Score}} points by {{.By}} x hour ago</div>
+</li>
 {{end}}
+<ol>
 </body>
 </html>
