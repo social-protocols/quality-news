@@ -17,5 +17,6 @@ DB="$SQLITE_DATA_DIR/frontpage.sqlite"
 rm -rf "$DB"
 
 sq3 "$DB" 'CREATE TABLE stories(id int primary key, by text not null, title text not null, url text not null, timestamp int not null);'
+sq3 "$DB" 'CREATE TABLE lastitemid(id int primary key);'
 
 echo "created $DB"
