@@ -5,9 +5,17 @@ sq3() (
   sqlite3 -init <(echo) "$@"
 )
 
-DB="frontpage.sqlite"
+if [ -z ${SQLITE_DATA_DIR+x} ]; then
+  echo "no SQLITE_DATA_DIR"
+  exit 1
+fi
+
+mkdir -p "$SQLITE_DATA_DIR"
+
+DB="$SQLITE_DATA_DIR/frontpage.sqlite"
 
 rm -rf "$DB"
 
 sq3 "$DB" 'CREATE TABLE stories(id int primary key, by text not null, title text not null, url text not null, text not null, timestamp int not null);'
 
+echo "created $DB"
