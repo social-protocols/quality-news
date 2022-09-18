@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -26,7 +28,7 @@ var t = template.Must(template.ParseFS(resources, "templates/*"))
 func main() {
 	fmt.Println("In main")
 
-	go runCrawler()
+	go getNewStories()
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -37,15 +39,12 @@ func main() {
 	tmpl := template.Must(template.ParseFiles("templates/index.html.tmpl"))
 
 	sampleStory := hn.Item{
-		ID:          8863,
-		By:          "dhouston",
-		Parent:      8862,
-		Kids:        []int{},
-		Descendants: 71,
-		Score:       111,
-		Title:       "My YC app: Dropbox - Throw away your USB drive",
-		URL:         "http://www.getdropbox.com/u/2/screencast.html",
-		Timestamp:   1175714200,
+		ID: 8863,
+		By: "dhouston",
+		//		Parent:      8862,
+		Title:     "My YC app: Dropbox - Throw away your USB drive",
+		URL:       "http://www.getdropbox.com/u/2/screencast.html",
+		Timestamp: 1175714200,
 	}
 	sampleStories := []hn.Item{
 		sampleStory,
@@ -59,38 +58,86 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
+func insertStory(db *sql.DB, story hn.Item) {
+	log.Println("Inserting story record ...")
+	insertStorySQL := `INSERT INTO stories(id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?)`
+	statement, err := db.Prepare(insertStorySQL) // Prepare statement.
+	// This is good to avoid SQL injections
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	_, err = statement.Exec(story.ID, story.By, story.Title, story.URL, story.Timestamp)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+}
+
 func getNewStories() {
+
+	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
+	if sqliteDataDir == "" {
+		panic("SQLITE_DATA_DIR not set")
+	}
+
+	frontpageDatabaseFilename := fmt.Sprintf("%s/frontpage.sqlite", sqliteDataDir)
+	fmt.Println("Database file", frontpageDatabaseFilename)
+	db, err := sql.Open("sqlite3", frontpageDatabaseFilename)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer db.Close()
+
+	hn := hn.NewClient(&http.Client{
+		Timeout: time.Duration(5 * time.Second),
+	})
+
+	ourMaxItem := 32891067
+	theirMaxItem, err := hn.Live.MaxItem()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	theirMaxItem = ourMaxItem + 10
+
+	fmt.Println("Got max item", theirMaxItem)
 
 	//	Get the ID of the last story that has been submitted
 	//
-	//
-	//	{
-	//		resp, err := http.Get("https://hacker-news.firebaseio.com/v0/maxitem.json")
-	//		if err != nil {
-	//		   log.Fatalln(err)
-	//		}
-	//
-	//	    i, err := strconv.Atoi(s)
-	//	    if err != nil {
-	//	        // ... handle error
-	//			log.Fatal(err)
-	//	    }
-	//
-	//	}
-	//
+
 	//	Get the highest ID you have in the databse
 	//
-	//		{
-	//			for i := maxInDatabase+1; i <= maxStoryId; i++ {
-	//				add story to database with:
-	//					https: //hacker-news.firebaseio.com/v0/item/8863.json
-	//			}
-	//		}
+	var wg sync.WaitGroup
+
+	for i := ourMaxItem + 1; i <= theirMaxItem; i++ {
+
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+
+			item, err := hn.Item(id)
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println("Item type", item.Type)
+			if item.Type == "story" {
+				fmt.Println("Inserting story", item)
+				insertStory(db, *item)
+			}
+
+		}(i)
+	}
+
+	wg.Wait()
 
 }
 
 func runCrawler() {
 	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
+
+	if sqliteDataDir == "" {
+		panic("SQLITE_DATA_DIR not set")
+	}
 
 	databaseFilename := fmt.Sprintf("%s/hacker-news.sqlite", sqliteDataDir)
 
