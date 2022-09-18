@@ -1,3 +1,7 @@
+# Requirements
+- go
+- [direnv](https://direnv.net/)
+
 To Run Locally:
 
 	Set SQLITE_DATA_DIR to the location of the directory containing hacker-news.sqlite (created by https://github.com/social-protocols)
