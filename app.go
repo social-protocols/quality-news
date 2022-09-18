@@ -89,7 +89,7 @@ func getNewStories() {
 	defer db.Close()
 
 	hn := hn.NewClient(&http.Client{
-		Timeout: time.Duration(5 * time.Second),
+		Timeout: time.Duration(60 * time.Second),
 	})
 
 	ourMaxItem := 32891067
