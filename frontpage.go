@@ -8,6 +8,11 @@ import (
 	"net/http"
 )
 
+// FrontPageData contains the data to populate the front page template.
+type FrontPageData struct {
+	Stories []Story
+}
+
 type Story struct {
 	ID      int
 	By      string
@@ -49,6 +54,7 @@ func frontpageHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rows, err := statement.Query()
 		if err != nil {
+			fmt.Println("Failed to get front page")
 			log.Fatal(err)
 		}
 		defer rows.Close()
@@ -60,6 +66,7 @@ func frontpageHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 
 			err = rows.Scan(&story.ID, &story.By, &story.Title, &story.Url, &story.Age, &story.Upvotes, &story.Quality)
 			if err != nil {
+				fmt.Println("Failed to scan row")
 				log.Fatal(err)
 			}
 			stories = append(stories, story)
@@ -69,18 +76,6 @@ func frontpageHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		// sampleStory := hn.Item{
-		// 	ID: 8863,
-		// 	By: "dhouston",
-		// 	//              Parent:      8862,
-		// 	Title:     "My YC app: Dropbox - Throw away your USB drive",
-		// 	URL:       "http://www.getdropbox.com/u/2/screencast.html",
-		// 	Timestamp: 1175714200,
-		// }
-		// sampleStories := []hn.Item{
-		// 	sampleStory,
-		// }
 
 		err = tmpl.Execute(w, FrontPageData{stories})
 		if err != nil {

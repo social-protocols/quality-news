@@ -12,14 +12,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-
-	hn "github.com/johnwarden/hn"
 )
-
-// FrontPageData contains the data to populate the front page template.
-type FrontPageData struct {
-	Stories []Story
-}
 
 //go:embed templates/*
 var resources embed.FS
