@@ -16,5 +16,9 @@ DB="$SQLITE_DATA_DIR/frontpage.sqlite"
 
 rm -rf "$DB"
 
+sq3 "$DB" 'CREATE TABLE stories(id int primary key, by text not null, title text not null, url text not null, timestamp int not null);'
+sq3 "$DB" 'CREATE TABLE dataset ( id integer not null, score integer, descendants integer not null, submissionTime integer not null, sampleTime integer not null, topRank integer, newRank integer, bestRank integer, askRank integer, showRank integer);'
+
 
 echo "created $DB"
+
