@@ -80,16 +80,20 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 
 		// No insert all the stories
 
-		fmt.Println("inserting", len(items), "items")
-		for _, item := range items {
-			if item.Type == "story" {
-				// fmt.Println("Inserting story", item.ID)
-				err := insertStory(db, item)
-				if err != nil {
-					fmt.Println("failed to insert story", item.ID, err)
-					return
+		if len(items) > 0 {
+			var count int
+			for _, item := range items {
+				if item.Type == "story" {
+					count++
+					// fmt.Println("Inserting story", item.ID)
+					err := insertStory(db, item)
+					if err != nil {
+						fmt.Println("failed to insert story", item.ID, err)
+						return
+					}
 				}
 			}
+			fmt.Println("Inserted", count, "stories")
 		}
 
 		// If we successfully inserted all items, update ourMaxItem so
