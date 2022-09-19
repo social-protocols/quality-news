@@ -5,28 +5,57 @@
 <style type="text/css">
 body {
   background-color: #F6F6EF;
-  color: #000000;
-  font-family: sans-serif;
+  font-size:10pt;
+  color:#828282;
+  font-family:Verdana, Geneva, sans-serif;
+  margin: 0;
 }
+
 .storytitle {
   font-size: 11pt;
 }
 
 .storyinfoline {
   font-size: 9pt;
-  opacity: 50%;
+  color: #828282;
 }
+
+.quality-label {
+  color: #0A94ff;
+}
+
+.stories li::marker {
+  font-size: 10pt;
+  color: #828282;
+}
+
+a:link    { color:#000000; text-decoration:none; }
+a:visited { color:#828282; text-decoration:none; }
+
+.header {
+  height: 24px;
+  background-color: #FF6600;
+  padding: 5px;
+  color: #000000;
+}
+
+.header-title {
+  font-weight: bold;
+  font-size: 15px;
+}
+
 </style>
 <title>News</title>
 </head>
-<body >
-<ol>
+<body>
+<div class="header"><span class="header-title">Quality News</span></div>
+<ol class="stories">
 {{range .Stories}}
 <li>
-  <div class="storytitle">{{.Title}}</div>
-  <div class="storyinfoline">{{.Score}} points by {{.By}} x hour ago</div>
+  <a class="storytitle" href="{{.URL}}">{{.Title}}</a>
+  <div class="storyinfoline"><span class="quality-label">1.6x quality</span> | {{.Score}} points by {{.By}} x hour ago</div>
 </li>
 {{end}}
-<ol>
+</ol>
 </body>
 </html>
