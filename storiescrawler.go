@@ -74,7 +74,7 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 		fmt.Println("Their max item", theirMaxItem)
 		fmt.Println("We are", (theirMaxItem - ourMaxItem), "items behind")
 
-		items, err := GetItems(hnclient, makeRange(ourMaxItem+1, theirMaxItem))
+		items, err := hnclient.GetItems(makeRange(ourMaxItem+1, theirMaxItem))
 		if err != nil {
 			fmt.Println("GetItems failed", err)
 			return

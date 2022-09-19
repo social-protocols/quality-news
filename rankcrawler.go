@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/peterhellberg/hn"
+	"github.com/johnwarden/hn"
 )
 
 type getStoriesFunc func() ([]int, error)
