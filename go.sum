@@ -1,3 +1,7 @@
+github.com/johnwarden/hn v0.0.0-20220919133654-c7d901b238f7 h1:Pq6w35hFjEHRvE9/meJCfUmnNs+nXVWiWl0DlryEzxI=
+github.com/johnwarden/hn v0.0.0-20220919133654-c7d901b238f7/go.mod h1:kNqkj76tng7D/af7JrKgHcFhAfKlZIPoFi1E4/1H0Ek=
+github.com/johnwarden/hn v0.0.0-20220919134222-0f9462ddb07b h1:O7YUWYbWfLBJCSLtSufGnCM9CxGly3MaboA+qrYZZDk=
+github.com/johnwarden/hn v0.0.0-20220919134222-0f9462ddb07b/go.mod h1:kNqkj76tng7D/af7JrKgHcFhAfKlZIPoFi1E4/1H0Ek=
 github.com/mattn/go-sqlite3 v1.14.15 h1:vfoHhTN1af61xCRSWzFIWzx2YskyMTwHLrExkBOjvxI=
 github.com/mattn/go-sqlite3 v1.14.15/go.mod h1:2eHXhiwb8IkHr+BDWZGa96P6+rkvnG63S2DGjv9HUNg=
 github.com/peterhellberg/hn v0.0.0-20200407070403-5537ecc08ef1 h1:rrx0kfNLD1Kua2nY4hjy0kjkPe12pmgki5D+xlRP1EU=
