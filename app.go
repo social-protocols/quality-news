@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -44,36 +45,40 @@ func main() {
 
 	defer db.Close()
 
+	t := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   2 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		MaxIdleConns:          0,
+		MaxIdleConnsPerHost:   100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
 	c := hn.NewClient(&http.Client{
-		Timeout: time.Duration(60 * time.Second),
+		Timeout:   time.Duration(60 * time.Second),
+		Transport: t,
 	})
 
 	go storiesCrawler(db, c)
 	go rankCrawler(db, c)
+
+	httpServer()
+
+}
+
+func httpServer() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 
 	}
-
-	tmpl := template.Must(template.ParseFiles("templates/index.html.tmpl"))
-
-	sampleStory := hn.Item{
-		ID: 8863,
-		By: "dhouston",
-		//		Parent:      8862,
-		Title:     "My YC app: Dropbox - Throw away your USB drive",
-		URL:       "http://www.getdropbox.com/u/2/screencast.html",
-		Timestamp: 1175714200,
-	}
-	sampleStories := []hn.Item{
-		sampleStory,
-	}
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		tmpl.Execute(w, FrontPageData{sampleStories})
-	})
+	http.HandleFunc("/", frontpageHandler())
 
 	log.Println("listening on", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
