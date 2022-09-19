@@ -8,10 +8,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 
-	hn "github.com/peterhellberg/hn"
+	hn "github.com/johnwarden/hn"
 )
 
 // FrontPageData contains the data to populate the front page template.
@@ -27,7 +28,28 @@ var t = template.Must(template.ParseFS(resources, "templates/*"))
 func main() {
 	fmt.Println("In main")
 
-	go storiesCrawler()
+	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
+	if sqliteDataDir == "" {
+		panic("SQLITE_DATA_DIR not set")
+	}
+
+	frontpageDatabaseFilename := fmt.Sprintf("%s/frontpage.sqlite", sqliteDataDir)
+	fmt.Println("Database file", frontpageDatabaseFilename)
+
+	db, err := sql.Open("sqlite3", frontpageDatabaseFilename)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer db.Close()
+
+	c := hn.NewClient(&http.Client{
+		Timeout: time.Duration(60 * time.Second),
+	})
+
+	go storiesCrawler(db, c)
+	// go rankCrawler(db, hn)
 
 	port := os.Getenv("PORT")
 	if port == "" {

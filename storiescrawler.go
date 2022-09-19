@@ -4,13 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"sync"
-	"sync/atomic"
 	"time"
 
-	hn "github.com/peterhellberg/hn"
+	hn "github.com/johnwarden/hn"
 )
 
 func insertStory(db *sql.DB, story hn.Item) error {
@@ -29,7 +26,15 @@ func insertStory(db *sql.DB, story hn.Item) error {
 
 }
 
-func storiesCrawler() {
+func makeRange(min, max int) []int {
+	a := make([]int, max-min+1)
+	for i := range a {
+		a[i] = min + i
+	}
+	return a
+}
+
+func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 
 	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
 	if sqliteDataDir == "" {
@@ -38,24 +43,16 @@ func storiesCrawler() {
 
 	frontpageDatabaseFilename := fmt.Sprintf("%s/frontpage.sqlite", sqliteDataDir)
 	fmt.Println("Database file", frontpageDatabaseFilename)
-	db, err := sql.Open("sqlite3", frontpageDatabaseFilename)
 
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer db.Close()
-
-	hn := hn.NewClient(&http.Client{
-		Timeout: time.Duration(60 * time.Second),
-	})
-
-	var ourMaxItem uint64 = 0
+	var ourMaxItem int = 0
 	// Get the max item ID from the database. The crawler will pick
 	// up from here.
 	{
 		row := db.QueryRow("select max(id) from stories")
-		err = row.Scan(&ourMaxItem)
+		err := row.Scan(&ourMaxItem)
+		if err != nil {
+			panic("Failed to get ourMaxItem")
+		}
 
 		fmt.Println("Got our max item", ourMaxItem)
 		if ourMaxItem == 0 {
@@ -67,74 +64,46 @@ func storiesCrawler() {
 	// theirMaxItem, the latest item ID. It then fetches all items between
 	// ourLastItem and theirMaxItem. If successful, it updates ourMaxItem
 	getLatestItems := func() {
-		maxItem, err := hn.Live.MaxItem()
-
+		fmt.Println("Getting the max itemID from the API")
+		theirMaxItem, err := hnclient.Live.MaxItem()
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println("Failed to get MaxItem", err)
+			return
 		}
-
-		var theirMaxItem uint64 = uint64(maxItem)
 
 		fmt.Println("Their max item", theirMaxItem)
 		fmt.Println("We are", (theirMaxItem - ourMaxItem), "items behind")
 
-		// Use a channel as a rate limiter. If there are more than
-		// nGoroutines running reading from the channel will block
-		// until one goroutine releases.
-		nGoroutines := 100
-		sem := make(chan struct{}, nGoroutines)
-		acquire := func() { sem <- struct{}{} }
-		release := func() { <-sem }
-
-		var wg sync.WaitGroup
-
-		var nSuccess uint64 = 0
-
-		for i := ourMaxItem + 1; i <= theirMaxItem; i++ {
-			acquire()
-			wg.Add(1)
-			go func(id uint64) {
-				defer release()
-				defer wg.Done()
-				item, err := hn.Item(int(id))
-				if err != nil {
-					fmt.Println("failed to fetch story", item.ID, err)
-					return
-				}
-
-				if item.Type == "story" {
-					fmt.Println("Inserting story", item.ID)
-					err := insertStory(db, *item)
-					if err != nil {
-						fmt.Println("failed to insert story", item.ID, err)
-						return
-					}
-					atomic.AddUint64(&nSuccess, 1)
-					fmt.Println("Success", nSuccess)
-				} else {
-					atomic.AddUint64(&nSuccess, 1)
-				}
-			}(i)
+		items, err := GetItems(hnclient, makeRange(ourMaxItem+1, theirMaxItem))
+		if err != nil {
+			fmt.Println("GetItems failed", err)
+			return
 		}
 
-		wg.Wait()
+		// No insert all the stories
+
+		for _, item := range items {
+			if item.Type == "story" {
+				fmt.Println("Inserting story", item.ID)
+				err := insertStory(db, item)
+				if err != nil {
+					fmt.Println("failed to insert story", item.ID, err)
+					return
+				}
+			}
+		}
 
 		// If we successfully inserted all items, update ourMaxItem so
 		// next time we only start downloading items from tha tpoint. But
 		// if there are any errors, start over.
-		fmt.Println("Inserted nSuccess items", nSuccess, "out of ", (theirMaxItem - ourMaxItem))
-		if nSuccess == (theirMaxItem - ourMaxItem) {
-			ourMaxItem = theirMaxItem
-		} else {
-			fmt.Println("Didn't successfully insert all items. Will try again.")
-			fmt.Println("ourMaxItem=", theirMaxItem)
-		}
 
+		ourMaxItem = theirMaxItem
+		fmt.Println("ourMaxItem=", theirMaxItem)
+		return
 	}
 
-	// Set up a ticker that periodically checks for the max
-	// item ID and then downloads all items from the last one
-	// we downloaded to that ID.
+	getLatestItems()
+
 	ticker := time.NewTicker(5 * time.Second)
 	quit := make(chan struct{})
 	for {
