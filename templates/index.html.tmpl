@@ -24,6 +24,10 @@ body {
   color: #0A94ff;
 }
 
+.stories li {
+  margin-bottom: 6px;
+}
+
 .stories li::marker {
   font-size: 10pt;
   color: #828282;
@@ -52,8 +56,8 @@ a:visited { color:#828282; text-decoration:none; }
 <ol class="stories">
 {{range .Stories}}
 <li>
-  <a class="storytitle" href="{{.URL}}">{{.Title}}</a>
-  <div class="storyinfoline"><span class="quality-label">1.6x quality</span> | {{.Score}} points by {{.By}} x hour ago</div>
+  <a class="storytitle" href="{{.Url}}">{{.Title}}</a>
+  <div class="storyinfoline"><span class="quality-label">{{.Quality}}x</span> quality | {{.Upvotes}} points by {{.By}} x hour ago</div>
 </li>
 {{end}}
 </ol>

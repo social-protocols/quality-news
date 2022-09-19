@@ -66,7 +66,7 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 
 		if ourMaxItem == 0 {
 			fmt.Println("No max item in our database. Starting with ", theirMaxItem)
-			ourMaxItem = theirMaxItem
+			ourMaxItem = theirMaxItem - 1000
 		}
 
 		fmt.Println("Their max item", theirMaxItem)

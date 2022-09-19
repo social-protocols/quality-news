@@ -47,7 +47,7 @@ func frontpageHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		rows, err := statement.Query(statement)
+		rows, err := statement.Query()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -62,7 +62,6 @@ func frontpageHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			fmt.Println("Got Story", story)
 			stories = append(stories, story)
 
 		}
@@ -83,6 +82,9 @@ func frontpageHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 		// 	sampleStory,
 		// }
 
-		tmpl.Execute(w, FrontPageData{stories})
+		err = tmpl.Execute(w, FrontPageData{stories})
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 }
