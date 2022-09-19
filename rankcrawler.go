@@ -47,6 +47,16 @@ func rankCrawler(db *sql.DB, client *hn.Client) {
 	}
 }
 
+	func getKeys[T interface{}](m map[int]T) []int {
+		keys := make([]int, len(m))
+		i := 0
+		for key, _ := range m {
+			keys[i] = key
+			i++
+		}
+		return keys
+	}
+
 func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 
 	sampleTime := time.Now().Unix()
@@ -86,39 +96,61 @@ func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 		}
 	}
 
-	// get story details
-	fmt.Printf("Getting details for %d stories\n", len(storyRanksMap))
 
-	uniqueStoryIds := make([]int, len(storyRanksMap))
-	{
-		i := 0
-		for storyID, _ := range storyRanksMap {
-			uniqueStoryIds[i] = storyID
-			i++
+
+
+
+
+	uniqueStoryIds := getKeys(storyRanksMap)
+	const maxTries = 5
+	const retryDelay = 60*time.Second
+	var tries int
+
+	TRIES: for tries < maxTries {
+		// get story details
+		fmt.Printf("Getting details for %d stories\n", len(uniqueStoryIds))
+
+		items, err := client.GetItems(uniqueStoryIds)
+
+		if err != nil {
+			fmt.Println("Failed to fetch some story IDs",err)
+			failedIDs := map[int]bool{}
+
+			for i, item := range items {
+				// If item is empty
+				if item.ID == 0 {
+					failedIDs[uniqueStoryIds[i]] = true
+				}
+			}
+
+			uniqueStoryIds = getKeys(failedIDs)
+			tries++;
+			fmt.Printf("Sleeping and then retrying (%d) %d stories\n", tries, len(uniqueStoryIds))
+			time.Sleep(time.Second*60)
+			continue TRIES
 		}
-	}
 
-	items, err := client.GetItems(uniqueStoryIds)
-	if err != nil {
-		log.Fatal(err)
-	}
+		log.Printf("Inserting rank data for %d items\n", len(storyRanksMap))
+		for _, item := range items {
+			storyID := item.ID
+			ranks := storyRanksMap[storyID]
 
-	log.Printf("Inserting rank data for %d items\n", len(storyRanksMap))
-	for _, item := range items {
-		storyID := item.ID
-		ranks := storyRanksMap[storyID]
-
-		datapoint := DataPoint{
-			id:             storyID,
-			score:          item.Score,
-			descendants:    item.Descendants,
-			submissionTime: int64(item.Time().Unix()),
-			sampleTime:     sampleTime,
-			ranks:          ranks,
+			datapoint := DataPoint{
+				id:             storyID,
+				score:          item.Score,
+				descendants:    item.Descendants,
+				submissionTime: int64(item.Time().Unix()),
+				sampleTime:     sampleTime,
+				ranks:          ranks,
+			}
+			err := insertDataPoint(db, datapoint)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
-		insertDataPoint(db, datapoint)
+		// get details for every unique story
+		break TRIES
 	}
-	// get details for every unique story
 }
 
 func insertDataPoint(db *sql.DB, d DataPoint) error {
