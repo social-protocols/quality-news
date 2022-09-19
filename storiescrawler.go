@@ -44,7 +44,7 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 	frontpageDatabaseFilename := fmt.Sprintf("%s/frontpage.sqlite", sqliteDataDir)
 	fmt.Println("Database file", frontpageDatabaseFilename)
 
-	var ourMaxItem int = 0
+	var ourMaxItem int
 	// Get the max item ID from the database. The crawler will pick
 	// up from here.
 	{
@@ -54,10 +54,8 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 			panic("Failed to get ourMaxItem")
 		}
 
+		// TODO:
 		fmt.Println("Got our max item", ourMaxItem)
-		if ourMaxItem == 0 {
-			panic("Failed to get ourMaxItem")
-		}
 	}
 
 	// getLatestItems first queries the hacker news API for
@@ -69,6 +67,11 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 		if err != nil {
 			fmt.Println("Failed to get MaxItem", err)
 			return
+		}
+
+		if ourMaxItem == 0 {
+			fmt.Println("No max item in our database. Starting with ", theirMaxItem)
+			ourMaxItem = theirMaxItem
 		}
 
 		fmt.Println("Their max item", theirMaxItem)
@@ -105,7 +108,7 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 	getLatestItems()
 
 	ticker := time.NewTicker(5 * time.Second)
-	quit := make(chan struct{})
+	// quit := make(chan struct{})
 	for {
 		select {
 		case <-ticker.C:
