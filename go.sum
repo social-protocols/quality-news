@@ -1,3 +1,5 @@
+github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4zYo=
+github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/johnwarden/hn v0.0.0-20220919140357-c857a4a1400a h1:OpjXqmTg3hUcSEOvBNh+CkvH79mOxvkzEpcl+ZnO/O8=
 github.com/johnwarden/hn v0.0.0-20220919140357-c857a4a1400a/go.mod h1:ubxUzxsrubrX1QPup1CJhSgDWo+e9MtofcU7hbzdns4=
 github.com/johnwarden/hn v0.0.0-20220919143828-be0fd4a6e0cd h1:e6wml/M/rqa178M48jXb1tdBgG/hagrfbdMpaZG2UQc=

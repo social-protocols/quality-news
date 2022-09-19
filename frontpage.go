@@ -6,6 +6,9 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"time"
+
+	humanize "github.com/dustin/go-humanize"
 )
 
 // FrontPageData contains the data to populate the front page template.
@@ -18,7 +21,7 @@ type Story struct {
 	By      string
 	Title   string
 	Url     string
-	Age     int
+	Age     string
 	Upvotes int
 	Quality float64
 	//	score   float
@@ -32,7 +35,7 @@ const frontPageSQL = `
 		limit 3000
 	)
 	select
-		id, by, title, url, age, upvotes
+		id, by, title, url, submissionTime, upvotes
 		, upvotes/cumulativeAttention as quality 
 	from attentionWithAge join stories using(id)
 	order by 
@@ -64,7 +67,12 @@ func frontpageHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			var story Story
 
-			err = rows.Scan(&story.ID, &story.By, &story.Title, &story.Url, &story.Age, &story.Upvotes, &story.Quality)
+			var submissionTime int
+			err = rows.Scan(&story.ID, &story.By, &story.Title, &story.Url, &submissionTime, &story.Upvotes, &story.Quality)
+
+			ageString := humanize.Time(time.Unix(int64(submissionTime), 0))
+			story.Age = ageString
+
 			if err != nil {
 				fmt.Println("Failed to scan row")
 				log.Fatal(err)
