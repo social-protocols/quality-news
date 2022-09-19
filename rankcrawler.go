@@ -103,6 +103,7 @@ func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 		log.Fatal(err)
 	}
 
+	log.Printf("Inserting rank data for %d items\n", len(storyRanksMap))
 	for _, item := range items {
 		storyID := item.ID
 		ranks := storyRanksMap[storyID]
@@ -121,7 +122,6 @@ func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 }
 
 func insertDataPoint(db *sql.DB, d DataPoint) error {
-	log.Println("Inserting rank data point", d.id)
 	insertStorySQL := `INSERT INTO dataset (id, score, descendants, submissionTime, sampleTime, topRank, newRank, bestRank, askRank, showRank) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	statement, err := db.Prepare(insertStorySQL) // Prepare statement.
 
