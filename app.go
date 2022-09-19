@@ -67,61 +67,19 @@ func main() {
 	go storiesCrawler(db, c)
 	go rankCrawler(db, c)
 
-	httpServer()
+	httpServer(db)
 
 }
 
-func httpServer() {
+func httpServer(db *sql.DB) {
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 
 	}
-	http.HandleFunc("/", frontpageHandler())
+	http.HandleFunc("/", frontpageHandler(db))
 
 	log.Println("listening on", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
-}
-
-func runCrawler() {
-	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
-
-	if sqliteDataDir == "" {
-		panic("SQLITE_DATA_DIR not set")
-	}
-
-	rankDatasetDatabaseFilename := fmt.Sprintf("%s/dataset.sqlite", sqliteDataDir)
-
-	fmt.Println("Database file", rankDatasetDatabaseFilename)
-	db, err := sql.Open("sqlite3", rankDatasetDatabaseFilename)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer db.Close()
-
-	sqlQuery := "select id, gain from dataset limit 2"
-
-	rows, err := db.Query(sqlQuery)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var id int
-		var gain int
-		err = rows.Scan(&id, &gain)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println("Got Row", id, gain)
-	}
-	err = rows.Err()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Successfully executed select query")
 }
