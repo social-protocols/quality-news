@@ -49,7 +49,7 @@ func main() {
 	})
 
 	go storiesCrawler(db, c)
-	// go rankCrawler(db, hn)
+	go rankCrawler(db, c)
 
 	port := os.Getenv("PORT")
 	if port == "" {
