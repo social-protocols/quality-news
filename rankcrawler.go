@@ -102,8 +102,8 @@ func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 
 
 	uniqueStoryIds := getKeys(storyRanksMap)
-	const maxTries = 5
-	const retryDelay = 60*time.Second
+	const maxTries = 3
+	const retryDelay = 10*time.Second
 	var tries int
 
 	TRIES: for tries < maxTries {
@@ -112,9 +112,9 @@ func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 
 		items, err := client.GetItems(uniqueStoryIds)
 
+		failedIDs := map[int]bool{}
 		if err != nil {
 			fmt.Println("Failed to fetch some story IDs",err)
-			failedIDs := map[int]bool{}
 
 			for i, item := range items {
 				// If item is empty
@@ -122,16 +122,14 @@ func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 					failedIDs[uniqueStoryIds[i]] = true
 				}
 			}
-
-			uniqueStoryIds = getKeys(failedIDs)
-			tries++;
-			fmt.Printf("Sleeping and then retrying (%d) %d stories\n", tries, len(uniqueStoryIds))
-			time.Sleep(time.Second*60)
-			continue TRIES
 		}
 
-		log.Printf("Inserting rank data for %d items\n", len(storyRanksMap))
-		for _, item := range items {
+		log.Printf("Inserting rank data for %d items\n", len(items))
+		ITEM: for _, item := range items {
+			// Skip any items that were not fetched successfully.
+			if item.ID == 0 {
+				continue ITEM;
+			}
 			storyID := item.ID
 			ranks := storyRanksMap[storyID]
 
@@ -148,6 +146,16 @@ func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 				log.Fatal(err)
 			}
 		}
+		log.Printf("Successfully insertd rank data for %d items\n", len(items))
+
+		if(len(failedIDs) > 0) {
+			uniqueStoryIds = getKeys(failedIDs)
+			tries++;
+			fmt.Printf("Sleeping and then retrying (%d) %d stories\n", tries, len(uniqueStoryIds))
+			time.Sleep(retryDelay)
+			continue TRIES
+		}
+
 		// get details for every unique story
 		break TRIES
 	}
