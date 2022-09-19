@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 )
 
 func insertStory(db *sql.DB, story hn.Item) error {
-	log.Println("Inserting story", story.ID)
 	insertStorySQL := `INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`
 	statement, err := db.Prepare(insertStorySQL) // Prepare statement.
 	// This is good to avoid SQL injections
@@ -82,9 +80,10 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 
 		// No insert all the stories
 
+		fmt.Println("inserting", len(items), "items")
 		for _, item := range items {
 			if item.Type == "story" {
-				fmt.Println("Inserting story", item.ID)
+				// fmt.Println("Inserting story", item.ID)
 				err := insertStory(db, item)
 				if err != nil {
 					fmt.Println("failed to insert story", item.ID, err)
