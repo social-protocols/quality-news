@@ -26,7 +26,7 @@ type Story struct {
 
 const frontPageSQL = `
 	with attentionWithAge as (
-		select *, datetime('now','utc')-submissionTime as age
+		select *, unixepoch()-submissionTime as age
 		from attention
 		order by id desc
 		limit 3000
