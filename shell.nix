@@ -10,7 +10,7 @@ in
       docker
       gcc
 
-      go
+      go_1_18
     ];
 
 

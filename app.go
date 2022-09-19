@@ -18,7 +18,7 @@ import (
 
 // FrontPageData contains the data to populate the front page template.
 type FrontPageData struct {
-	Stories []hn.Item
+	Stories []Story
 }
 
 //go:embed templates/*

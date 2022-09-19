@@ -47,7 +47,7 @@ func frontpageHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		rows, err := statement.Exec(statement)
+		rows, err := statement.Query(statement)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -58,7 +58,7 @@ func frontpageHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			var story Story
 
-			err = rows.Scan(&story.ID, &story.By, &story.Title, &story.URL, &story.Age, &story.Upvotes, &story.Quality)
+			err = rows.Scan(&story.ID, &story.By, &story.Title, &story.Url, &story.Age, &story.Upvotes, &story.Quality)
 			if err != nil {
 				log.Fatal(err)
 			}
