@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -15,6 +17,7 @@ import (
 	hn "github.com/peterhellberg/hn"
 )
 
+// FrontPageData contains the data to populate the front page template.
 type FrontPageData struct {
 	Stories []hn.Item
 }
@@ -57,38 +60,23 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-func insertStory(db *sql.DB, story hn.Item) {
-	log.Println("Inserting story record ...")
+func insertStory(db *sql.DB, story hn.Item) error {
+	log.Println("Inserting story", story.ID)
 	insertStorySQL := `INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`
 	statement, err := db.Prepare(insertStorySQL) // Prepare statement.
 	// This is good to avoid SQL injections
 	if err != nil {
-		log.Fatalln(err.Error())
+		return err
 	}
 	_, err = statement.Exec(story.ID, story.By, story.Title, story.URL, story.Timestamp)
 	if err != nil {
-		log.Fatalln(err.Error())
+		return err
 	}
-}
+	return nil
 
-func updateLastItemId(db *sql.DB, lastStoryID int) {
-	sql := `update lastitemid set id=?`
-	statement, err := db.Prepare(sql) // Prepare statement.
-	// This is good to avoid SQL injections
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-	_, err = statement.Exec(lastStoryID)
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
 }
-
-// func getNewStories
 
 func getNewStories() {
-	ticker := time.NewTicker(5 * time.Second)
-	quit := make(chan struct{})
 
 	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
 	if sqliteDataDir == "" {
@@ -109,51 +97,83 @@ func getNewStories() {
 		Timeout: time.Duration(60 * time.Second),
 	})
 
+	var ourMaxItem uint64 = 0
+
+	row := db.QueryRow("select max(id) from stories")
+	err = row.Scan(&ourMaxItem)
+
+	fmt.Println("Got our max item", ourMaxItem)
+	if ourMaxItem == 0 {
+		panic("Failed to get ourMaxItem")
+	}
+
+	// Set up a ticker that periodically checks for the max
+	// item ID and then downloads all items from the last one
+	// we downloaded to that ID.
+	ticker := time.NewTicker(5 * time.Second)
+	quit := make(chan struct{})
 	for {
 		select {
 		case <-ticker.C:
 
-			ourMaxItem := 0
-			row := db.QueryRow("select id from lastitemid")
-			err = row.Scan(&ourMaxItem)
+			maxItem, err := hn.Live.MaxItem()
 
-			fmt.Println("Got our max item", ourMaxItem)
+			var theirMaxItem uint64 = uint64(maxItem)
 
-			theirMaxItem, err := hn.Live.MaxItem()
 			if err != nil {
 				log.Fatal(err)
 			}
 
 			fmt.Println("Their max item", theirMaxItem)
+			fmt.Println("We are", (theirMaxItem - ourMaxItem), "items behind")
 
-			//	Get the ID of the last story that has been submitted
-			//
+			n := 100
+			sem := make(chan struct{}, n)
+			acquire := func() { sem <- struct{}{} }
+			release := func() { <-sem }
 
-			//	Get the highest ID you have in the databse
-			//
-			// var wg sync.WaitGroup
+			var wg sync.WaitGroup
+
+			var nSuccess uint64 = 0
 
 			for i := ourMaxItem + 1; i <= theirMaxItem; i++ {
-
-				// wg.Add(1)
-				// go func(id int) {
-				// 	defer wg.Done()
-				id := i
-				item, err := hn.Item(id)
-				if err != nil {
-					log.Fatal(err)
-				}
-				// fmt.Println("Item type", id, item.Type)
-				if item.Type == "story" {
-					fmt.Println("Inserting story", item)
-					insertStory(db, *item)
-				}
-
-				updateLastItemId(db, id)
-				// }(i)
+				acquire()
+				wg.Add(1)
+				go func(id uint64) {
+					defer release()
+					defer wg.Done()
+					item, err := hn.Item(int(id))
+					if err != nil {
+						log.Fatal(err)
+					}
+					// fmt.Println("Item type", id, item.Type)
+					if item.Type == "story" {
+						fmt.Println("Inserting story", item.ID)
+						err := insertStory(db, *item)
+						if err != nil {
+							fmt.Println("failed to insert story", item.ID)
+						} else {
+							atomic.AddUint64(&nSuccess, 1)
+							fmt.Println("Success", nSuccess)
+						}
+					} else {
+						atomic.AddUint64(&nSuccess, 1)
+					}
+				}(i)
 			}
 
-			// wg.Wait()
+			wg.Wait()
+
+			// If we successfully inserted all items, update ourMaxItem so
+			// next time we only start downloading items from tha tpoint. But
+			// if there are any errors, start over.
+			fmt.Println("Inserted nSuccess items", nSuccess, "out of ", (theirMaxItem - ourMaxItem))
+			if nSuccess == (theirMaxItem - ourMaxItem) {
+				ourMaxItem = theirMaxItem
+			} else {
+				fmt.Println("Didn't successfully insert all items. Will try again.")
+				fmt.Println("ourMaxItem=", theirMaxItem)
+			}
 
 		case <-quit:
 			ticker.Stop()
@@ -169,10 +189,10 @@ func runCrawler() {
 		panic("SQLITE_DATA_DIR not set")
 	}
 
-	databaseFilename := fmt.Sprintf("%s/hacker-news.sqlite", sqliteDataDir)
+	rankDatasetDatabaseFilename := fmt.Sprintf("%s/dataset.sqlite", sqliteDataDir)
 
-	fmt.Println("Database file", databaseFilename)
-	db, err := sql.Open("sqlite3", databaseFilename)
+	fmt.Println("Database file", rankDatasetDatabaseFilename)
+	db, err := sql.Open("sqlite3", rankDatasetDatabaseFilename)
 
 	if err != nil {
 		log.Fatal(err)
