@@ -49,10 +49,7 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 	// up from here.
 	{
 		row := db.QueryRow("select max(id) from stories")
-		err := row.Scan(&ourMaxItem)
-		if err != nil {
-			panic("Failed to get ourMaxItem")
-		}
+		_ = row.Scan(&ourMaxItem)
 
 		// TODO:
 		fmt.Println("Got our max item", ourMaxItem)
@@ -108,11 +105,10 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 	getLatestItems()
 
 	ticker := time.NewTicker(5 * time.Second)
-	// quit := make(chan struct{})
+	quit := make(chan struct{})
 	for {
 		select {
 		case <-ticker.C:
-
 			getLatestItems()
 
 		case <-quit:
