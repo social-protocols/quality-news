@@ -37,7 +37,6 @@ func main() {
 
 	logger := newLogger(logLevelInfo)
 
-
 	retryClient := retryablehttp.NewClient()
 	retryClient.RetryMax = 3
 	retryClient.RetryWaitMin = 1 * time.Second
@@ -47,7 +46,7 @@ func main() {
 
 	c := hn.NewClient(retryClient.StandardClient())
 
-	go rankCrawler(db, c)
+	go rankCrawler(db, c, logger)
 
 	httpServer(db)
 

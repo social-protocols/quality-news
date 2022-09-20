@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"time"
 
@@ -32,14 +31,14 @@ func rankToNullableInt(rank int32) (result sql.NullInt32) {
 	return
 }
 
-func rankCrawler(ndb newsDatabase, client *hn.Client) {
+func rankCrawler(ndb newsDatabase, client *hn.Client, logger leveledLogger) {
 	ticker := time.NewTicker(60 * time.Second)
 	quit := make(chan struct{})
-	rankCrawlerStep(ndb, client)
+	rankCrawlerStep(ndb, client, logger)
 	for {
 		select {
 		case <-ticker.C:
-			rankCrawlerStep(ndb, client)
+			rankCrawlerStep(ndb, client, logger)
 
 		case <-quit:
 			ticker.Stop()
@@ -49,7 +48,7 @@ func rankCrawler(ndb newsDatabase, client *hn.Client) {
 
 }
 
-func rankCrawlerStep(ndb newsDatabase, client *hn.Client) {
+func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) {
 
 	sampleTime := time.Now().Unix()
 
@@ -99,67 +98,43 @@ func rankCrawlerStep(ndb newsDatabase, client *hn.Client) {
 	}
 
 	uniqueStoryIds := getKeys(ranksMap)
-	const maxTries = 3
-	const retryDelay = 10 * time.Second
-	var tries int
 
-TRIES:
-	for tries < maxTries {
-		// get story details
-		fmt.Printf("Getting details for %d stories\n", len(uniqueStoryIds))
+	// get story details
+	logger.Info("Getting details for %d stories\n", len(uniqueStoryIds))
 
-		items, err := client.GetItems(uniqueStoryIds)
-
-		failedIDs := map[int]ranksArray{}
-		if err != nil {
-			fmt.Println("Failed to fetch some story IDs", err)
-
-			for i, item := range items {
-				// If item is empty
-				if item.ID == 0 {
-					failedIDs[uniqueStoryIds[i]] = ranksArray{}
-				}
-			}
-		}
-
-		log.Printf("Inserting rank data for %d items\n", len(items))
-	ITEM:
-		for _, item := range items {
-			// Skip any items that were not fetched successfully.
-			if item.ID == 0 {
-				continue ITEM
-			}
-			storyID := item.ID
-			ranks := ranksMap[storyID]
-
-			datapoint := dataPoint{
-				id:             storyID,
-				score:          item.Score,
-				descendants:    item.Descendants,
-				submissionTime: int64(item.Time().Unix()),
-				sampleTime:     sampleTime,
-				ranks:          ranks,
-			}
-			err := ndb.insertDataPoint(datapoint)
-			if err != nil {
-				log.Fatal(err)
-			}
-			err = ndb.insertOrReplaceStory(item)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-		log.Printf("Successfully insertd rank data for %d items\n", len(items))
-
-		if len(failedIDs) > 0 {
-			uniqueStoryIds = getKeys(failedIDs)
-			tries++
-			fmt.Printf("Sleeping and then retrying (%d) %d stories\n", tries, len(uniqueStoryIds))
-			time.Sleep(retryDelay)
-			continue TRIES
-		}
-
-		// get details for every unique story
-		break TRIES
+	items, err := client.GetItems(uniqueStoryIds)
+	if err != nil {
+		logger.Err(err)
 	}
+
+	logger.Info("Inserting rank data", "nitems", len(items))
+	// get details for every unique story
+ITEM:
+	for _, item := range items {
+		// Skip any items that were not fetched successfully.
+		if item.ID == 0 {
+			continue ITEM
+		}
+		storyID := item.ID
+		ranks := ranksMap[storyID]
+
+		datapoint := dataPoint{
+			id:             storyID,
+			score:          item.Score,
+			descendants:    item.Descendants,
+			submissionTime: int64(item.Time().Unix()),
+			sampleTime:     sampleTime,
+			ranks:          ranks,
+		}
+		err := ndb.insertDataPoint(datapoint)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = ndb.insertOrReplaceStory(item)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	logger.Info("Successfully inserted rank data", "nitems", len(items))
+
 }
