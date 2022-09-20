@@ -100,7 +100,7 @@ func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) 
 	uniqueStoryIds := getKeys(ranksMap)
 
 	// get story details
-	logger.Info("Getting details for %d stories\n", len(uniqueStoryIds))
+	logger.Info("Getting details for stories", "num_stories", len(uniqueStoryIds))
 
 	items, err := client.GetItems(uniqueStoryIds)
 	if err != nil {
