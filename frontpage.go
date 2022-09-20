@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"html/template"
 	"log"
@@ -44,11 +43,11 @@ const frontPageSQL = `
 	limit 90;
 `
 
-func frontpageHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
+func frontpageHandler(ndb newsDatabase) func(w http.ResponseWriter, r *http.Request) {
 
 	tmpl := template.Must(template.ParseFiles("templates/index.html.tmpl"))
 
-	statement, err := db.Prepare(frontPageSQL) // Prepare statement.
+	statement, err := ndb.db.Prepare(frontPageSQL) // Prepare statement.
 	if err != nil {
 		log.Fatal(err)
 	}

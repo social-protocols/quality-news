@@ -32,23 +32,24 @@ func rankToNullableInt(rank int32) (result sql.NullInt32) {
 	return
 }
 
-func rankCrawler(db *sql.DB, client *hn.Client) {
+func rankCrawler(ndb newsDatabase, client *hn.Client) {
 	ticker := time.NewTicker(60 * time.Second)
 	quit := make(chan struct{})
-	rankCrawlerStep(db, client)
+	rankCrawlerStep(ndb, client)
 	for {
 		select {
 		case <-ticker.C:
-			rankCrawlerStep(db, client)
+			rankCrawlerStep(ndb, client)
 
 		case <-quit:
 			ticker.Stop()
 			return
 		}
 	}
+
 }
 
-func rankCrawlerStep(db *sql.DB, client *hn.Client) {
+func rankCrawlerStep(ndb newsDatabase, client *hn.Client) {
 
 	sampleTime := time.Now().Unix()
 
@@ -139,7 +140,11 @@ TRIES:
 				sampleTime:     sampleTime,
 				ranks:          ranks,
 			}
-			err := insertDataPoint(db, datapoint)
+			err := ndb.insertDataPoint(datapoint)
+			if err != nil {
+				log.Fatal(err)
+			}
+			err = ndb.insertOrReplaceStory(item)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -158,19 +163,3 @@ TRIES:
 		break TRIES
 	}
 }
-
-func insertDataPoint(db *sql.DB, d dataPoint) error {
-	insertDatapointSQL := `INSERT INTO dataset (id, score, descendants, submissionTime, sampleTime, topRank, newRank, bestRank, askRank, showRank) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	statement, err := db.Prepare(insertDatapointSQL) // Prepare statement.
-
-	if err != nil {
-		return err
-	}
-	_, err = statement.Exec(d.id, d.score, d.descendants, d.submissionTime, d.sampleTime, rankToNullableInt(d.ranks[0]), rankToNullableInt(d.ranks[1]), rankToNullableInt(d.ranks[2]), rankToNullableInt(d.ranks[3]), rankToNullableInt(d.ranks[4]))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-
