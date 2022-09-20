@@ -9,20 +9,6 @@ import (
 	hn "github.com/johnwarden/hn"
 )
 
-func insertStory(db *sql.DB, story hn.Item) error {
-	insertStorySQL := `INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`
-	statement, err := db.Prepare(insertStorySQL) // Prepare statement.
-	// This is good to avoid SQL injections
-	if err != nil {
-		return err
-	}
-	_, err = statement.Exec(story.ID, story.By, story.Title, story.URL, story.Timestamp)
-	if err != nil {
-		return err
-	}
-	return nil
-
-}
 
 func makeRange(min, max int) []int {
 	a := make([]int, max-min+1)
@@ -32,7 +18,7 @@ func makeRange(min, max int) []int {
 	return a
 }
 
-func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
+func storiesCrawler(db newsDatabase, hnclient *hn.Client) {
 
 	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
 	if sqliteDataDir == "" {
@@ -46,7 +32,7 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 	// Get the max item ID from the database. The crawler will pick
 	// up from here.
 	{
-		row := db.QueryRow("select max(id) from stories")
+		row := db.db.QueryRow("select max(id) from stories")
 		_ = row.Scan(&ourMaxItem)
 
 		// TODO:
@@ -70,7 +56,7 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 		}
 
 		fmt.Println("Their max item", theirMaxItem)
-		fmt.Println("We are", (theirMaxItem - ourMaxItem), "items behind")
+		fmt.Println("Getting",(theirMaxItem - ourMaxItem), "items")
 
 		items, err := hnclient.GetItems(makeRange(ourMaxItem+1, theirMaxItem))
 		if err != nil {
@@ -85,8 +71,7 @@ func storiesCrawler(db *sql.DB, hnclient *hn.Client) {
 			for _, item := range items {
 				if item.Type == "story" {
 					count++
-					// fmt.Println("Inserting story", item.ID)
-					err := insertStory(db, item)
+					err := db.insertStory(item)
 					if err != nil {
 						fmt.Println("failed to insert story", item.ID, err)
 						return
