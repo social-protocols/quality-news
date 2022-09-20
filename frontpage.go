@@ -11,16 +11,15 @@ import (
 	humanize "github.com/dustin/go-humanize"
 )
 
-// FrontPageData contains the data to populate the front page template.
-type FrontPageData struct {
-	Stories []Story
+type frontPageData struct {
+	Stories []story
 }
 
-type Story struct {
+type story struct {
 	ID      int
 	By      string
 	Title   string
-	Url     string
+	URL     string
 	Age     string
 	Upvotes int
 	Quality float64
@@ -62,22 +61,22 @@ func frontpageHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 		}
 		defer rows.Close()
 
-		stories := make([]Story, 0, 90)
+		stories := make([]story, 0, 90)
 
 		for rows.Next() {
-			var story Story
+			var s story
 
 			var submissionTime int
-			err = rows.Scan(&story.ID, &story.By, &story.Title, &story.Url, &submissionTime, &story.Upvotes, &story.Quality)
+			err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &submissionTime, &s.Upvotes, &s.Quality)
 
 			ageString := humanize.Time(time.Unix(int64(submissionTime), 0))
-			story.Age = ageString
+			s.Age = ageString
 
 			if err != nil {
 				fmt.Println("Failed to scan row")
 				log.Fatal(err)
 			}
-			stories = append(stories, story)
+			stories = append(stories, s)
 
 		}
 		err = rows.Err()
@@ -85,7 +84,7 @@ func frontpageHandler(db *sql.DB) func(w http.ResponseWriter, r *http.Request) {
 			log.Fatal(err)
 		}
 
-		err = tmpl.Execute(w, FrontPageData{stories})
+		err = tmpl.Execute(w, frontPageData{stories})
 		if err != nil {
 			fmt.Println(err)
 		}

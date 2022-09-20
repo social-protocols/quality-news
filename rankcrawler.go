@@ -11,22 +11,23 @@ import (
 
 type getStoriesFunc func() ([]int, error)
 
-type StoryRanks [5]int32
+type ranksArray [5]int32
 
-type DataPoint struct {
+type dataPoint struct {
 	id             int
 	score          int
 	descendants    int
 	submissionTime int64
 	sampleTime     int64
-	ranks          StoryRanks
+	ranks          ranksArray
 }
 
 func rankToNullableInt(rank int32) (result sql.NullInt32) {
 	if rank == 0 {
-		result = sql.NullInt32{0, false}
+		result = sql.NullInt32{}
 	} else {
-		result = sql.NullInt32{rank, true}
+		result = sql.NullInt32{Int32: rank, Valid: true}
+
 	}
 	return
 }
@@ -47,16 +48,6 @@ func rankCrawler(db *sql.DB, client *hn.Client) {
 	}
 }
 
-	func getKeys[T interface{}](m map[int]T) []int {
-		keys := make([]int, len(m))
-		i := 0
-		for key, _ := range m {
-			keys[i] = key
-			i++
-		}
-		return keys
-	}
-
 func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 
 	sampleTime := time.Now().Unix()
@@ -69,7 +60,17 @@ func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 		4: "show",
 	}
 
-	storyRanksMap := map[int]StoryRanks{}
+	ranksMap := map[int]ranksArray{}
+
+	getKeys := func(m map[int]ranksArray) []int {
+		keys := make([]int, len(m))
+		i := 0
+		for key := range m {
+			keys[i] = key
+			i++
+		}
+		return keys
+	}
 
 	// calculate ranks
 	for pageType, pageTypeString := range pageTypes {
@@ -79,15 +80,15 @@ func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 		}
 
 		for i, id := range ids {
-			var storyRanks StoryRanks
+			var ranks ranksArray
 			var ok bool
 
-			if storyRanks, ok = storyRanksMap[id]; !ok {
-				storyRanks = StoryRanks{}
+			if ranks, ok = ranksMap[id]; !ok {
+				ranks = ranksArray{}
 			}
 
-			storyRanks[pageType] = int32(i + 1)
-			storyRanksMap[id] = storyRanks
+			ranks[pageType] = int32(i + 1)
+			ranksMap[id] = ranks
 
 			// only take the first 90 ranks
 			if i+1 >= 90 {
@@ -96,44 +97,41 @@ func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 		}
 	}
 
-
-
-
-
-
-	uniqueStoryIds := getKeys(storyRanksMap)
+	uniqueStoryIds := getKeys(ranksMap)
 	const maxTries = 3
-	const retryDelay = 10*time.Second
+	const retryDelay = 10 * time.Second
 	var tries int
 
-	TRIES: for tries < maxTries {
+TRIES:
+	for tries < maxTries {
 		// get story details
 		fmt.Printf("Getting details for %d stories\n", len(uniqueStoryIds))
 
 		items, err := client.GetItems(uniqueStoryIds)
 
-		failedIDs := map[int]bool{}
+		failedIDs := map[int]ranksArray{}
 		if err != nil {
-			fmt.Println("Failed to fetch some story IDs",err)
+			fmt.Println("Failed to fetch some story IDs", err)
 
 			for i, item := range items {
 				// If item is empty
 				if item.ID == 0 {
-					failedIDs[uniqueStoryIds[i]] = true
+					failedIDs[uniqueStoryIds[i]] = ranksArray{}
 				}
 			}
 		}
 
 		log.Printf("Inserting rank data for %d items\n", len(items))
-		ITEM: for _, item := range items {
+	ITEM:
+		for _, item := range items {
 			// Skip any items that were not fetched successfully.
 			if item.ID == 0 {
-				continue ITEM;
+				continue ITEM
 			}
 			storyID := item.ID
-			ranks := storyRanksMap[storyID]
+			ranks := ranksMap[storyID]
 
-			datapoint := DataPoint{
+			datapoint := dataPoint{
 				id:             storyID,
 				score:          item.Score,
 				descendants:    item.Descendants,
@@ -148,9 +146,9 @@ func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 		}
 		log.Printf("Successfully insertd rank data for %d items\n", len(items))
 
-		if(len(failedIDs) > 0) {
+		if len(failedIDs) > 0 {
 			uniqueStoryIds = getKeys(failedIDs)
-			tries++;
+			tries++
 			fmt.Printf("Sleeping and then retrying (%d) %d stories\n", tries, len(uniqueStoryIds))
 			time.Sleep(retryDelay)
 			continue TRIES
@@ -161,9 +159,9 @@ func rankCrawlerStep(db *sql.DB, client *hn.Client) {
 	}
 }
 
-func insertDataPoint(db *sql.DB, d DataPoint) error {
-	insertStorySQL := `INSERT INTO dataset (id, score, descendants, submissionTime, sampleTime, topRank, newRank, bestRank, askRank, showRank) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	statement, err := db.Prepare(insertStorySQL) // Prepare statement.
+func insertDataPoint(db *sql.DB, d dataPoint) error {
+	insertDatapointSQL := `INSERT INTO dataset (id, score, descendants, submissionTime, sampleTime, topRank, newRank, bestRank, askRank, showRank) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	statement, err := db.Prepare(insertDatapointSQL) // Prepare statement.
 
 	if err != nil {
 		return err
@@ -174,3 +172,5 @@ func insertDataPoint(db *sql.DB, d DataPoint) error {
 	}
 	return nil
 }
+
+

@@ -60,6 +60,7 @@ func main() {
 	})
 
 	go storiesCrawler(db, c)
+
 	go rankCrawler(db, c)
 
 	httpServer(db)
@@ -71,7 +72,6 @@ func httpServer(db *sql.DB) {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
-
 	}
 	http.HandleFunc("/", frontpageHandler(db))
 
