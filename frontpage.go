@@ -38,7 +38,7 @@ const frontPageSQL = `
 	from attentionWithAge join stories using(id)
 	order by 
 		upvotes
-			/ ( cumulativeAttention * (age * age) )
+			/ ( cumulativeAttention  )
 	    desc
 	limit 90;
 `
