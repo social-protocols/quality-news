@@ -1,13 +1,18 @@
 package main
 
 import (
-	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
+	"log"
 	"os"
 )
 
 func newLogger(level logLevel) leveledLogger {
-	w := log.NewSyncWriter(os.Stderr)
-	logger := log.NewLogfmtLogger(w)
+	w := kitlog.NewSyncWriter(os.Stderr)
+	logger := kitlog.NewLogfmtLogger(w)
+
+	// logger := kitlog.NewJSONLogger(kitlog.NewSyncWriter(os.Stdout))
+	log.SetOutput(kitlog.NewStdlibAdapter(logger))
+
 	return leveledLogger{
 		logger: logger,
 		level:  level,
@@ -15,7 +20,7 @@ func newLogger(level logLevel) leveledLogger {
 }
 
 type leveledLogger struct {
-	logger log.Logger
+	logger kitlog.Logger
 	level  logLevel
 }
 
@@ -46,7 +51,7 @@ func (l leveledLogger) Warn(msg string, keysAndValues ...interface{}) {
 	if l.level > logLevelWarn {
 		return
 	}
-	k := append(keysAndValues, "message", msg, "level", "WAR")
+	k := append(keysAndValues, "message", msg, "level", "WARN")
 	l.logger.Log(k...)
 
 }
