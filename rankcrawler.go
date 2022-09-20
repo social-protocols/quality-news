@@ -10,7 +10,7 @@ import (
 
 type getStoriesFunc func() ([]int, error)
 
-type ranksArray [5]int32
+type ranksArray [5]int
 
 type dataPoint struct {
 	id             int
@@ -21,11 +21,11 @@ type dataPoint struct {
 	ranks          ranksArray
 }
 
-func rankToNullableInt(rank int32) (result sql.NullInt32) {
+func rankToNullableInt(rank int) (result sql.NullInt32) {
 	if rank == 0 {
 		result = sql.NullInt32{}
 	} else {
-		result = sql.NullInt32{Int32: rank, Valid: true}
+		result = sql.NullInt32{Int32: int32(rank), Valid: true}
 
 	}
 	return
@@ -87,7 +87,7 @@ func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) 
 				ranks = ranksArray{}
 			}
 
-			ranks[pageType] = int32(i + 1)
+			ranks[pageType] = i + 1
 			ranksMap[id] = ranks
 
 			// only take the first 90 ranks
@@ -118,11 +118,12 @@ ITEM:
 		storyID := item.ID
 		ranks := ranksMap[storyID]
 
+		submissionTime := int64(item.Time().Unix())
 		datapoint := dataPoint{
 			id:             storyID,
 			score:          item.Score,
 			descendants:    item.Descendants,
-			submissionTime: int64(item.Time().Unix()),
+			submissionTime: submissionTime,
 			sampleTime:     sampleTime,
 			ranks:          ranks,
 		}
@@ -134,6 +135,11 @@ ITEM:
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		for pageType, rank := range ranks {
+			accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, item.Score, submissionTime)
+		}
+
 	}
 	logger.Info("Successfully inserted rank data", "nitems", len(items))
 

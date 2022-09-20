@@ -13,9 +13,10 @@ type newsDatabase struct {
 	db                            *sql.DB
 	insertDataPointStatement      *sql.Stmt
 	insertOrReplaceStoryStatement *sql.Stmt
+	upsertAttentionStatement      *sql.Stmt
 }
 
-func (ndb newsDatabase ) close() {
+func (ndb newsDatabase) close() {
 	ndb.db.Close()
 }
 
@@ -34,7 +35,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	}
 
 	{
-		sql := `INSERT OR REPLACE INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`
+		sql := `INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url`
 		ndb.insertOrReplaceStoryStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
@@ -50,12 +51,28 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		}
 	}
 
+	{
+		sql := `INSERT INTO attention (id, upvotes, submissionTime, cumulativeAttention, lastUpdateSampleTime) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET cumulativeAttention = cumulativeAttention + excluded.cumulativeAttention, lastUpdateSampleTime = excluded.lastUpdateSampleTime`
+		ndb.upsertAttentionStatement, err = ndb.db.Prepare(sql)
+		if err != nil {
+			return ndb, err
+		}
+	}
+
 	return ndb, nil
 
 }
 
 func (ndb newsDatabase) insertDataPoint(d dataPoint) error {
 	_, err := ndb.insertDataPointStatement.Exec(d.id, d.score, d.descendants, d.submissionTime, d.sampleTime, rankToNullableInt(d.ranks[0]), rankToNullableInt(d.ranks[1]), rankToNullableInt(d.ranks[2]), rankToNullableInt(d.ranks[3]), rankToNullableInt(d.ranks[4]))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (ndb newsDatabase) upsertAttention(id int, upvotes int, submissionTime int64, cumulativeAttention float64, lastUpdateSampleTime int64) error {
+	_, err := ndb.upsertAttentionStatement.Exec(id, upvotes, submissionTime, cumulativeAttention, lastUpdateSampleTime)
 	if err != nil {
 		return err
 	}
