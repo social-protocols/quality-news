@@ -136,7 +136,11 @@ ITEM:
 			log.Fatal(err)
 		}
 
+	RANKS:
 		for pageType, rank := range ranks {
+			if rank == 0 {
+				continue RANKS
+			}
 			accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, item.Score, submissionTime)
 		}
 
