@@ -26,7 +26,13 @@ const logLevelInfo logLevel = 1
 const logLevelWarn logLevel = 2
 const logLevelError logLevel = 3
 
-
+func (l leveledLogger) Err(err error, keysAndValues ...interface{}) {
+	if l.level > logLevelError {
+		return
+	}
+	k := append(keysAndValues, "message", err.Error(), "level", "ERROR")
+	l.logger.Log(k...)
+}
 
 func (l leveledLogger) Error(msg string, keysAndValues ...interface{}) {
 	if l.level > logLevelError {
