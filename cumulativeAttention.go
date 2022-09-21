@@ -13,12 +13,16 @@ type pageCoefficients = struct {
 	rankCoefficients    [nPages]float64
 }
 
+// These coefficients are the output of regression-pagetype-page-and-rank.R
+// from the hacker-news-data repository. The rank coefficients for the
+// ask and best pages looked pretty questionable, due to a sparsity of data,
+// so I manually estimated some values
 var coefficients = [nPageTypes]pageCoefficients{
-	{2.0, 0.3, [nPages]float64{.3, .15, .6}},
-	{1.0, .3, [nPages]float64{.3, .15, .6}},
-	{0.5, .3, [nPages]float64{.3, .15, .6}},
-	{0.4, .3, [nPages]float64{.3, .15, .6}},
-	{0.3, .3, [nPages]float64{.3, .15, .6}},
+	{0.13963, -3.54835, [nPages]float64{-0.64128, -0.36647, -0.19429}},
+	{-3.05791, -2.45658, [nPages]float64{-0.64681, -0.29721, -0.11946}},
+	{-4.25609, -1.84011, [nPages]float64{-0.44322, -0.16904, -0.08}},
+	{-2.46316, -5.67281, [nPages]float64{-0.38478, -0.14, -0.06}},
+	{-5.40623, -4.08824, [nPages]float64{-4, -0.2, -0.05}},
 }
 
 func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, storyID int, oneBasedRank int, sampleTime int64, upvotes int, submissionTime int64) {
