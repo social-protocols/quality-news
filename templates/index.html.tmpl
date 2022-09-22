@@ -58,7 +58,7 @@ a:visited { color:#828282; text-decoration:none; }
 {{range .Stories}}
 <li>
   <a class="storytitle" href="{{.URL}}">{{.Title}}</a>
-  <div class="storyinfoline"><span class="quality-label">{{.Quality}}x</span> quality | {{.Upvotes}} points by {{.By}} {{.Age}} | <a href="https://news.ycombinator.com/item?id={{.ID}}">comments</a></div>
+  <div class="storyinfoline"><span class="quality-label">{{.Quality}}</span> quality | {{.Upvotes}} points by {{.By}} {{.Age}} | <a href="https://news.ycombinator.com/item?id={{.ID}}">comments</a></div>
 </li>
 {{end}}
 </ol>

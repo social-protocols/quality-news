@@ -22,7 +22,7 @@ type story struct {
 	URL     string
 	Age     string
 	Upvotes int
-	Quality float64
+	Quality string
 	//	score   float
 }
 
@@ -92,10 +92,13 @@ func frontpageHandler(ndb newsDatabase) func(w http.ResponseWriter, r *http.Requ
 			var s story
 
 			var submissionTime int
-			err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &submissionTime, &s.Upvotes, &s.Quality)
+			var quality float64
+			err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &submissionTime, &s.Upvotes, &quality)
 
 			ageString := humanize.Time(time.Unix(int64(submissionTime), 0))
 			s.Age = ageString
+
+			s.Quality = fmt.Sprintf("%.2f", quality)
 
 			if err != nil {
 				fmt.Println("Failed to scan row")
