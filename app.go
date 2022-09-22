@@ -15,6 +15,12 @@ import (
 func main() {
 	fmt.Println("In main")
 
+	logLevelString := os.Getenv("LOG_LEVEL")
+
+	if logLevelString == "" {
+		logLevelString = "DEBUG"
+	}
+
 	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
 	if sqliteDataDir == "" {
 		panic("SQLITE_DATA_DIR not set")
@@ -28,14 +34,18 @@ func main() {
 
 	defer db.close()
 
-	logger := newLogger(logLevelInfo)
+	logger := newLogger(logLevelString)
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.RetryMax = 3
 	retryClient.RetryWaitMin = 1 * time.Second
 	retryClient.RetryWaitMax = 5 * time.Second
 
-	retryClient.Logger = logger
+	{
+		l := logger
+		l.level = logLevelInfo
+		retryClient.Logger = l // ignore debug messages from this retry client.
+	}
 
 	c := hn.NewClient(retryClient.StandardClient())
 

@@ -6,15 +6,29 @@ import (
 	"os"
 )
 
-func newLogger(level logLevel) leveledLogger {
+func newLogger(levelString string) leveledLogger {
 	// logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stderr))
 
 	logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
 	log.SetOutput(kitlog.NewStdlibAdapter(logger))
 
+
+	logLevels := map[string]logLevel{
+		"DEBUG": logLevelDebug,
+		"INFO":  logLevelInfo,
+		"WARN":  logLevelWarn,
+		"ERROR": logLevelError,
+	}
+
+
+	l, ok := logLevels[levelString]
+	if  !ok {
+		panic("Unrecognized log level: " + levelString)
+	}
+
 	return leveledLogger{
 		logger: logger,
-		level:  level,
+		level:  l,
 	}
 }
 

@@ -12,6 +12,7 @@ processes = []
 [env]
   PORT = "8080"
   SQLITE_DATA_DIR="/data"
+  LOG_LEVEL="INFO"
 
 [experimental]
   allowed_public_ports = []
