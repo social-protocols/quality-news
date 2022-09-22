@@ -155,7 +155,7 @@ ITEM:
 			if rank == 0 {
 				continue RANKS
 			}
-			accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes, submissionTime)
+			accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes, item.Score, item.Descendants, submissionTime)
 		}
 
 	}

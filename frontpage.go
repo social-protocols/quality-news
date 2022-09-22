@@ -16,13 +16,14 @@ type frontPageData struct {
 }
 
 type story struct {
-	ID      int
-	By      string
-	Title   string
-	URL     string
-	Age     string
-	Upvotes int
-	Quality string
+	ID       int
+	By       string
+	Title    string
+	URL      string
+	Age      string
+	Upvotes  int
+	Comments int
+	Quality  string
 	//	score   float
 }
 
@@ -34,7 +35,7 @@ const frontPageSQL = `
 		limit 3000
 	)
 	select
-		id, by, title, url, submissionTime, upvotes
+		id, by, title, url, submissionTime, totalUpvotes, totalComments
 		, power((upvotes/cumulativeAttention),(upvotes/(upvotes+2.2956))) as quality 
 	from attentionWithAge join stories using(id)
 	order by 
@@ -93,7 +94,7 @@ func frontpageHandler(ndb newsDatabase) func(w http.ResponseWriter, r *http.Requ
 
 			var submissionTime int
 			var quality float64
-			err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &submissionTime, &s.Upvotes, &quality)
+			err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &submissionTime, &s.Upvotes, &s.Comments, &quality)
 
 			ageString := humanize.Time(time.Unix(int64(submissionTime), 0))
 			s.Age = ageString
