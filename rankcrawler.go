@@ -66,7 +66,7 @@ func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) 
 
 	getKeys := func(m map[int]ranksArray) []int {
 		keys := make([]int, len(m))
-		i := 0
+		var i int
 		for key := range m {
 			keys[i] = key
 			i++
@@ -96,6 +96,7 @@ func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) 
 			if i+1 >= 90 {
 				break
 			}
+
 		}
 	}
 
@@ -111,8 +112,12 @@ func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) 
 
 	logger.Info("Inserting rank data", "nitems", len(items))
 	// get details for every unique story
+
+	var sitewideUpvotes int 
+	var deltaUpvotes = make([]int, len(items))
+
 ITEM:
-	for _, item := range items {
+	for i, item := range items {
 		// Skip any items that were not fetched successfully.
 		if item.ID == 0 {
 			continue ITEM
@@ -130,16 +135,19 @@ ITEM:
 			ranks:          ranks,
 		}
 
-		var deltaUpvotes int
 		{
 			lastSeenScore, err := ndb.selectLastSeenScore(storyID)
 			if err != nil {
-				logger.Err(errors.Wrap(err, "selectLastSeenScore"))
-				deltaUpvotes = 0
+				if !errors.Is(err, sql.ErrNoRows) {
+					logger.Err(errors.Wrap(err, "selectLastSeenScore"))
+
+				}
 			} else {
-				deltaUpvotes = item.Score - lastSeenScore
+				deltaUpvotes[i] = item.Score - lastSeenScore
 			}
 		}
+
+		sitewideUpvotes += deltaUpvotes[i]
 
 		err := ndb.insertDataPoint(datapoint)
 		if err != nil {
@@ -150,15 +158,37 @@ ITEM:
 			log.Fatal(err)
 		}
 
+	}
+
+	logger.Debug("sitewideUpvotes", "value",sitewideUpvotes)
+
+	var totalDeltaAttention float64
+	var totalAttentionShare float64
+	var j int
+	for i, item := range items {
+
+		storyID := item.ID
+		ranks := ranksMap[storyID]
+		submissionTime := int64(item.Time().Unix())
+
 	RANKS:
 		for pageType, rank := range ranks {
 			if rank == 0 {
 				continue RANKS
 			}
-			accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes, item.Score, item.Descendants, submissionTime)
+			d := accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes[i], item.Score, item.Descendants, sitewideUpvotes, submissionTime)
+			totalDeltaAttention += d[0]
+			totalAttentionShare += d[1]
 		}
-
+		j = i
 	}
+
+	logger.Debug("Totals", 
+		"deltaAttention", totalDeltaAttention, 
+		"sitewideUpvotes", sitewideUpvotes, 
+		"totalAttentionShare", totalAttentionShare, 
+		"dataPoints", j)
+
 	logger.Info("Successfully inserted rank data", "nitems", len(items))
 
 }

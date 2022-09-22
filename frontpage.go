@@ -36,7 +36,7 @@ const frontPageSQL = `
 	)
 	select
 		id, by, title, url, submissionTime, totalUpvotes, totalComments
-		, power((upvotes/cumulativeAttention),(upvotes/(upvotes+2.2956))) as quality 
+		, power((upvotes/cumulativeAttention),(cumulativeAttention/(cumulativeAttention+2.2956))) as quality 
 	from attentionWithAge join stories using(id)
 	order by 
 		quality desc
@@ -59,7 +59,7 @@ const frontPageSQL = `
    		v = upvotes
    		k = constant (strength of prior)
 
-   		log(q) = log(v/a)*v / ( v = K )
+   		log(q) = log(v/a)*a / ( a + k )
 
 
    Now we want the quality, not log quality. With a little math, we get
