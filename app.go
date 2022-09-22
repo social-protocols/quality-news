@@ -1,9 +1,7 @@
 package main
 
 import (
-	"embed"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -13,11 +11,6 @@ import (
 
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
 )
-
-//go:embed templates/*
-var resources embed.FS
-
-var t = template.Must(template.ParseFS(resources, "templates/*"))
 
 func main() {
 	fmt.Println("In main")

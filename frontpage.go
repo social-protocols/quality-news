@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"html/template"
 	"log"
@@ -65,9 +66,12 @@ const frontPageSQL = `
    		q = (v/a)^(v/(v+k))
 */
 
-func frontpageHandler(ndb newsDatabase) func(w http.ResponseWriter, r *http.Request) {
+//go:embed templates/*
+var resources embed.FS
 
-	tmpl := template.Must(template.ParseFiles("templates/index.html.tmpl"))
+var t = template.Must(template.ParseFS(resources, "templates/*"))
+
+func frontpageHandler(ndb newsDatabase) func(w http.ResponseWriter, r *http.Request) {
 
 	statement, err := ndb.db.Prepare(frontPageSQL) // Prepare statement.
 	if err != nil {
@@ -105,7 +109,7 @@ func frontpageHandler(ndb newsDatabase) func(w http.ResponseWriter, r *http.Requ
 			log.Fatal(err)
 		}
 
-		err = tmpl.Execute(w, frontPageData{stories})
+		err = t.ExecuteTemplate(w, "index.html.tmpl", frontPageData{stories})
 		if err != nil {
 			fmt.Println(err)
 		}
