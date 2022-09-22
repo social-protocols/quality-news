@@ -24,6 +24,8 @@ github.com/multiprocessio/go-sqlite3-stdlib v0.0.0-20220822170115-9f6825a1cd25 h
 github.com/multiprocessio/go-sqlite3-stdlib v0.0.0-20220822170115-9f6825a1cd25/go.mod h1:RrGEZqqiyEcLyTVLDSgtNZVLqJykj0F4vwuuqvMdT60=
 github.com/ojroques/leveledlog v0.0.0-20191127150409-5cca07b423ee h1:60qFvGN0faTnWgEm3GJ5hQ0yUdDXze6tnATCqcpqNtA=
 github.com/ojroques/leveledlog v0.0.0-20191127150409-5cca07b423ee/go.mod h1:vBSORFTcO+Ckej1UjLgseAAi9wrwDrfMNRT+CeSSoQ0=
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
+github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/rivo/uniseg v0.1.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/scylladb/termtables v0.0.0-20191203121021-c4c0b6d42ff4/go.mod h1:C1a7PQSMz9NShzorzCiG2fk9+xuCgLkPeCvMHYR2OWg=

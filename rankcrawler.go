@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/johnwarden/hn"
+
+	"github.com/pkg/errors"
 )
 
 type getStoriesFunc func() ([]int, error)
@@ -104,7 +106,7 @@ func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) 
 
 	items, err := client.GetItems(uniqueStoryIds)
 	if err != nil {
-		logger.Err(err)
+		logger.Err(errors.Wrap(err, "client.GetItems"))
 	}
 
 	logger.Info("Inserting rank data", "nitems", len(items))
@@ -132,7 +134,7 @@ ITEM:
 		{
 			lastSeenScore, err := ndb.selectLastSeenScore(storyID)
 			if err != nil {
-				logger.Err(err)
+				logger.Err(errors.Wrap(err, "selectLastSeenScore"))
 				deltaUpvotes = 0
 			} else {
 				deltaUpvotes = item.Score - lastSeenScore

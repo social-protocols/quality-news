@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/pkg/errors"
 	"math"
 )
 
@@ -36,6 +37,6 @@ func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, s
 
 	err := ndb.upsertAttention(storyID, deltaUpvotes, submissionTime, deltaAttention, sampleTime)
 	if err != nil {
-		logger.Err(err)
+		logger.Err(errors.Wrap(err, "upsertAttention"))
 	}
 }
