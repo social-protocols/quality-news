@@ -10,6 +10,10 @@ import (
 
 	stdlib "github.com/multiprocessio/go-sqlite3-stdlib"
 
+	"os"
+
+	"errors"
+	"log"
 )
 
 type newsDatabase struct {
@@ -24,9 +28,40 @@ func (ndb newsDatabase) close() {
 	ndb.db.Close()
 }
 
+const sqliteDataFilename = "frontpage.sqlite"
+
+func createDataDirIfNotExists(sqliteDataDir string) {
+
+	if _, err := os.Stat(sqliteDataDir); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir(sqliteDataDir, os.ModePerm)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func (ndb newsDatabase) init() {
+
+	seedStatements := []string{
+		"CREATE TABLE IF NOT EXISTS stories(id int primary key, by text not null, title text not null, url text not null, timestamp int not null);",
+		"CREATE TABLE IF NOT EXISTS dataset (id integer not null, score integer, descendants integer not null, submissionTime integer not null, sampleTime integer not null, topRank integer, newRank integer, bestRank integer, askRank integer, showRank integer);",
+		"CREATE INDEX IF NOT EXISTS dataset_sampletime_id ON dataset(sampletime, id);",
+		"CREATE TABLE IF NOT EXISTS attention(id int primary key, upvotes int, submissionTime int, cumulativeAttention real, lastUpdateSampleTime int);",
+	}
+
+	for _, s := range seedStatements {
+		_, err := ndb.db.Exec(s)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
 func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
-	frontpageDatabaseFilename := fmt.Sprintf("%s/frontpage.sqlite", sqliteDataDir)
+	createDataDirIfNotExists(sqliteDataDir)
+
+	frontpageDatabaseFilename := fmt.Sprintf("%s/%s", sqliteDataDir, sqliteDataFilename)
 
 	ndb := newsDatabase{}
 
@@ -39,6 +74,8 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	if err != nil {
 		return ndb, err
 	}
+
+	ndb.init()
 
 	{
 		sql := `INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url`
