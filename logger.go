@@ -9,7 +9,7 @@ import (
 func newLogger(level logLevel) leveledLogger {
 	// logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stderr))
 
-	logger := kitlog.NewJSONLogger(kitlog.NewSyncWriter(os.Stdout))
+	logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
 	log.SetOutput(kitlog.NewStdlibAdapter(logger))
 
 	return leveledLogger{
