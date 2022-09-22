@@ -34,14 +34,37 @@ const frontPageSQL = `
 	)
 	select
 		id, by, title, url, submissionTime, upvotes
-		, upvotes/cumulativeAttention as quality 
+		, power((upvotes/cumulativeAttention),(upvotes/(upvotes+2.2956))) as quality 
 	from attentionWithAge join stories using(id)
 	order by 
-		upvotes
-			/ ( cumulativeAttention  )
-	    desc
+		quality desc
 	limit 90;
-`
+
+*/
+`;
+
+/* The Bayesian averaging constant/formula from bayesian-average-quality.R
+   (in the hacker-news-data repo). 
+
+   stories$bayesianAverageLogQuality = (log(stories$qualityRatio)*stories$upvotes) / (stories$upvotes + k) 
+
+   The constant value k from running this model on a sample of 100 stories is 2.2956
+
+   To make this more readable:
+
+   		q = quality
+   		a = attention
+   		v = upvotes
+   		k = constant (strength of prior)
+
+   		log(q) = log(v/a)*v / ( v = K )
+
+
+   Now we want the quality, not log quality. With a little math, we get
+
+   		q = (v/a)^(v/(v+k)) 
+ */
+
 
 func frontpageHandler(ndb newsDatabase) func(w http.ResponseWriter, r *http.Request) {
 

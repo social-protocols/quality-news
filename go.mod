@@ -1,4 +1,4 @@
-module github.com/fly-apps/go-example
+module github.com/social-protocols/news
 
 go 1.19
 
@@ -8,11 +8,17 @@ require (
 )
 
 require (
+	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.1 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.1 // indirect
+	github.com/multiprocessio/go-sqlite3-stdlib v0.0.0-20220822170115-9f6825a1cd25 // indirect
 	github.com/ojroques/leveledlog v0.0.0-20191127150409-5cca07b423ee // indirect
+	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
+	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
+	gonum.org/v1/gonum v0.11.0 // indirect
 )
 
+replace github.com/johnwarden/hn => ../hn

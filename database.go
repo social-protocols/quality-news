@@ -7,6 +7,9 @@ import (
 	"github.com/johnwarden/hn"
 
 	_ "github.com/mattn/go-sqlite3"
+
+	stdlib "github.com/multiprocessio/go-sqlite3-stdlib"
+
 )
 
 type newsDatabase struct {
@@ -29,7 +32,9 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	var err error
 
-	ndb.db, err = sql.Open("sqlite3", frontpageDatabaseFilename)
+	// Register some extension functions from go-sqlite3-stdlib so we can actually do math in sqlite3.
+	stdlib.Register("sqlite3_ext")
+	ndb.db, err = sql.Open("sqlite3_ext", frontpageDatabaseFilename)
 
 	if err != nil {
 		return ndb, err
