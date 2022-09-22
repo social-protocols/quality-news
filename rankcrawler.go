@@ -127,6 +127,18 @@ ITEM:
 			sampleTime:     sampleTime,
 			ranks:          ranks,
 		}
+
+		var deltaUpvotes int
+		{
+			lastSeenScore, err := ndb.selectLastSeenScore(storyID)
+			if err != nil {
+				logger.Err(err)
+				deltaUpvotes = 0
+			} else {
+				deltaUpvotes = item.Score - lastSeenScore
+			}
+		}
+
 		err := ndb.insertDataPoint(datapoint)
 		if err != nil {
 			log.Fatal(err)
@@ -141,7 +153,7 @@ ITEM:
 			if rank == 0 {
 				continue RANKS
 			}
-			accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, item.Score, submissionTime)
+			accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes, submissionTime)
 		}
 
 	}

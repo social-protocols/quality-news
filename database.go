@@ -14,6 +14,7 @@ type newsDatabase struct {
 	insertDataPointStatement      *sql.Stmt
 	insertOrReplaceStoryStatement *sql.Stmt
 	upsertAttentionStatement      *sql.Stmt
+	selectLastSeenScoreStatement  *sql.Stmt
 }
 
 func (ndb newsDatabase) close() {
@@ -52,8 +53,16 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	}
 
 	{
-		sql := `INSERT INTO attention (id, upvotes, submissionTime, cumulativeAttention, lastUpdateSampleTime) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET cumulativeAttention = cumulativeAttention + excluded.cumulativeAttention, lastUpdateSampleTime = excluded.lastUpdateSampleTime`
+		sql := `INSERT INTO attention (id, upvotes, submissionTime, cumulativeAttention, lastUpdateSampleTime) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET cumulativeAttention = cumulativeAttention + excluded.cumulativeAttention, upvotes = upvotes + excluded.upvotes, lastUpdateSampleTime = excluded.lastUpdateSampleTime`
 		ndb.upsertAttentionStatement, err = ndb.db.Prepare(sql)
+		if err != nil {
+			return ndb, err
+		}
+	}
+
+	{
+		sql := `SELECT score FROM dataset WHERE id = ? ORDER BY sampleTime DESC LIMIT 1`
+		ndb.selectLastSeenScoreStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
 		}
@@ -71,8 +80,8 @@ func (ndb newsDatabase) insertDataPoint(d dataPoint) error {
 	return nil
 }
 
-func (ndb newsDatabase) upsertAttention(id int, upvotes int, submissionTime int64, cumulativeAttention float64, lastUpdateSampleTime int64) error {
-	_, err := ndb.upsertAttentionStatement.Exec(id, upvotes, submissionTime, cumulativeAttention, lastUpdateSampleTime)
+func (ndb newsDatabase) upsertAttention(id int, deltaUpvotes int, submissionTime int64, cumulativeAttention float64, lastUpdateSampleTime int64) error {
+	_, err := ndb.upsertAttentionStatement.Exec(id, deltaUpvotes, submissionTime, cumulativeAttention, lastUpdateSampleTime)
 	if err != nil {
 		return err
 	}
@@ -91,4 +100,13 @@ func (ndb newsDatabase) insertOrReplaceStory(story hn.Item) error {
 	}
 	return nil
 
+}
+
+func (ndb newsDatabase) selectLastSeenScore(id int) (int, error) {
+	var score int
+	err := ndb.selectLastSeenScoreStatement.QueryRow(id).Scan(&score)
+	if err != nil {
+		return score, err
+	}
+	return score, nil
 }

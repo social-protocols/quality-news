@@ -25,7 +25,7 @@ var coefficients = [nPageTypes]pageCoefficients{
 	{-5.40623, -4.08824, [nPages]float64{-4, -0.2, -0.05}},
 }
 
-func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, storyID int, oneBasedRank int, sampleTime int64, upvotes int, submissionTime int64) {
+func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, storyID int, oneBasedRank int, sampleTime int64, deltaUpvotes int, submissionTime int64) {
 	zeroBasedPage := (oneBasedRank - 1) / 30
 
 	cs := coefficients[pageType]
@@ -34,7 +34,7 @@ func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, s
 
 	deltaAttention := math.Exp(cs.pageTypeCoefficient - cs.pageCoefficient*math.Log(float64(zeroBasedPage+1)) - cs.rankCoefficients[zeroBasedPage]*math.Log(float64(oneBasedRank)))
 
-	err := ndb.upsertAttention(storyID, upvotes, submissionTime, deltaAttention, sampleTime)
+	err := ndb.upsertAttention(storyID, deltaUpvotes, submissionTime, deltaAttention, sampleTime)
 	if err != nil {
 		logger.Err(err)
 	}
