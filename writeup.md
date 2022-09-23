@@ -6,7 +6,7 @@ Quality News reorders the Hacker News front page based on a ranking formula desi
 
 
 
-Success on HN is partly a matter of luck. A few early upvotes can catapult a new story to the front page, resulting in a feedback loop of even more upvotes. But there are some very high quality stories don't ever get caught up in this feedback loop (thus the [second chance queue]). So there are false positives and false negatives: mediocre stories that got lucky, and high quality stories that didn't. We discussed this in our article on [Improving the Hacker News Ranking Formula].
+Success on HN is partly a matter of luck. A few early upvotes can catapult a new story to the front page, resulting in a feedback loop of even more upvotes. But there are some very high quality stories that don't ever get caught up in this feedback loop (thus the [second chance queue]). So there are false positives and false negatives: mediocre stories that got lucky, and high quality stories that didn't. We discussed this in our article on [Improving the Hacker News Ranking Formula].
 
 We define "quality" like this: story A has a higher quality than story B, if story A **would** receive more upvotes than story B if it were shown at the same position on the HN front page. In other words, quality represents a "tendency to upvote": a measure of HN users' subjective preferences, but not an objective measure of how "good" a story is (Sometimes HN users upvote bad content simply because it makes for interesting conversation).
 
@@ -31,15 +31,15 @@ This question can be answered with a Bayesian hierarchical model. Using historic
 
 Once we have run the model, we can simplify the calculation using a technique called [Bayesian Averaging]. For example, if our prior belief about story quality is a Beta distribution with mean alpha/kappa, then the posterior after observing a sample of U upvotes and A units of attention will be approximately (U+alpha)/(A+kappa), which is actually a weighted average of the prior mean and the sample mean. Since the average story by definition has quality=1, the average is:
 
-	( Upvotes + C ) / (Alpha + C)
+	( Upvotes + C ) / (Attention + C)
 
-Where the constant C represents the strength of the prior.
+Where the constant C represents the strength of the prior. Our prior isn't actually a beta distribution but Bayesian averaging still works. C is the constant that best approximates the posterior quality estimates from Stan. 
 
 ## Code
 
 The application is a Go process running on a fly.io instance. 
 
-The application crawls the [Hacker News API] every minute. For each story, we record the current rank and page (top, new, best, etc.), and how many upvotes it has received. The HN API has an endpoint that returns the IDS of all the stories on each page in order. But in order to get the current number of upvotes we need to make a separate API call for each story. We make several requests in parallel so that this is fast and represents a point-in-time "snapshot". For each story, we calculate how many upvotes the average story at that rank is expected to receive and update the accumulated attention for that story. The data is stored in a Sqlite database.
+The application crawls the [Hacker News API] every minute. For each story, we record the current rank and page (top, new, best, etc.), and how many upvotes it has received. The HN API has an endpoint that returns the IDs of all the stories on each page in order. But in order to get the current number of upvotes we need to make a separate API call for each story. We make several requests in parallel so that this is fast and represents a point-in-time "snapshot". For each story, we calculate how many upvotes the average story at that rank is expected to receive and update the accumulated attention for that story. The data is stored in a Sqlite database.
 
 The frontpage generator queries the database and calculates the Bayesian average quality in the SQL query on the fly. It then uses the Go templating library to generate very HTML that mimic the original HN site.
 
