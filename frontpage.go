@@ -36,7 +36,7 @@ const frontPageSQL = `
 	)
 	select
 		id, by, title, url, submissionTime, totalUpvotes, totalComments
-		, power((upvotes/cumulativeAttention),(cumulativeAttention/(cumulativeAttention+2.2956))) as quality 
+		, (upvotes + 2.2956)/(cumulativeAttention+2.2956) as quality 
 	from attentionWithAge join stories using(id)
 	order by 
 		quality desc
