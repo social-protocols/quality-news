@@ -61,6 +61,9 @@ func httpServer(db newsDatabase) {
 	if port == "" {
 		port = "8080"
 	}
+
+	// TODO how to serve assets under / ?
+	http.Handle("/assets", http.FileServer(http.Dir("./assets")))
 	http.HandleFunc("/", frontpageHandler(db))
 
 	log.Println("listening on", port)
