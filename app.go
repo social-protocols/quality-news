@@ -1,7 +1,9 @@
 package main
 
 import (
+	"embed"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -56,6 +58,9 @@ func main() {
 
 }
 
+//go:embed static
+var staticFS embed.FS
+
 func httpServer(db newsDatabase) {
 
 	port := os.Getenv("PORT")
@@ -63,8 +68,13 @@ func httpServer(db newsDatabase) {
 		port = "8080"
 	}
 
+	staticRoot, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	router := httprouter.New()
-	router.ServeFiles("/static/*filepath", http.Dir("static"))
+	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
 	router.GET("/", frontpageHandler(db))
 
 	log.Println("listening on", port)

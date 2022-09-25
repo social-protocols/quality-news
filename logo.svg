@@ -12,6 +12,8 @@
    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
    xmlns:cc="http://creativecommons.org/ns#"
    xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs1221" />
   <metadata
      id="metadata4611">
     <rdf:RDF>
@@ -39,9 +41,9 @@
      inkscape:snap-object-midpoints="true"
      inkscape:snap-bbox="true"
      inkscape:snap-page="true"
-     inkscape:zoom="1.7539179"
-     inkscape:cx="16.534411"
-     inkscape:cy="216.08765"
+     inkscape:zoom="4"
+     inkscape:cx="117.875"
+     inkscape:cy="123.5"
      inkscape:window-x="0"
      inkscape:window-y="1104"
      inkscape:window-maximized="1"
@@ -50,10 +52,24 @@
      inkscape:pagecheckerboard="0"
      showguides="false" />
   <circle
-     style="display:inline;opacity:1;fill:#ffa369;fill-opacity:1;fill-rule:nonzero;stroke:#2594ff;stroke-width:45.57;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
+     style="display:inline;opacity:1;fill:#94caff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:59.3609;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
      id="path4613"
      cx="100"
      cy="100"
-     r="76"
-     inkscape:label="path4613" />
+     inkscape:label="path4613"
+     r="99" />
+  <circle
+     style="display:inline;fill:#4a9ced;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:34.3389;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
+     id="path4613-3"
+     cx="100"
+     cy="100"
+     inkscape:label="path4613"
+     r="57.269165" />
+  <circle
+     style="display:inline;fill:#005fbe;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:18.1607;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
+     id="path4613-3-6"
+     cx="100"
+     cy="100"
+     inkscape:label="path4613"
+     r="30.287827" />
 </svg>
