@@ -75,7 +75,8 @@ func httpServer(db newsDatabase) {
 
 	router := httprouter.New()
 	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
-	router.GET("/", frontpageHandler(db))
+	router.GET("/", frontpageHandler(db, "quality"))
+	router.GET("/hntop", frontpageHandler(db, "hntop"))
 
 	log.Println("listening on", port)
 	log.Fatal(http.ListenAndServe(":"+port, router))

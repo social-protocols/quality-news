@@ -25,7 +25,6 @@ type story struct {
 	Upvotes  int
 	Comments int
 	Quality  string
-	//	score   float
 }
 
 const frontPageSQL = `
@@ -43,6 +42,24 @@ const frontPageSQL = `
   join dataset using(id)
   where sampleTime = (select max(sampleTime) from dataset)
   order by quality / pow(cast(unixepoch()-submissionTime as real)/3600 + 2, 1.2) desc
+  limit 90;
+`
+
+const hnTopPageSQL = `
+  select
+    id
+    , by
+    , title
+    , url
+    , submissionTime
+    , score
+    , descendants
+    , (upvotes + 2.2956)/(cumulativeAttention+2.2956) as quality 
+  from attention
+  join stories using(id)
+  join dataset using(id)
+  where sampleTime = (select max(sampleTime) from dataset) and toprank is not null
+  order by toprank asc
   limit 90;
 `
 
@@ -79,9 +96,16 @@ var resources embed.FS
 
 var t = template.Must(template.ParseFS(resources, "templates/*"))
 
-func frontpageHandler(ndb newsDatabase) func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func frontpageHandler(ndb newsDatabase, ranking string) func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
-	statement, err := ndb.db.Prepare(frontPageSQL) // Prepare statement.
+	var sql string
+	if ranking == "quality" {
+		sql = frontPageSQL
+	} else if ranking == "hntop" {
+		sql = hnTopPageSQL
+	}
+
+	statement, err := ndb.db.Prepare(sql)
 	if err != nil {
 		log.Fatal(err)
 	}
