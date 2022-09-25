@@ -23,13 +23,25 @@ body {
   margin: 0;
 }
 
-.storytitle {
+.story-item {
+  display: flex;
+  align-items: baseline;
+}
+
+a:link.upvote-button, a:visited.upvote-button {
+  color: #9A9A9A;
+  margin-right: 0.5rem;
+  font-size: 10pt;
+  align-self: flex-start;
+}
+
+.story-title {
   font-size: 11pt;
 }
 
-.storyinfoline {
+.story-details {
   font-size: 9pt;
-  color: #6f6f6f;
+  color: #828282;
 }
 
 .quality-label {
@@ -41,13 +53,13 @@ body {
 }
 
 .stories li::marker {
-  font-size: 10pt;
+  font-size: 11pt;
   color: #828282;
 }
 
 a:link    { color:#000000; text-decoration:none; }
-a:visited { color:#6f6f6f; text-decoration:none; }
-.storyinfoline a:link { color:#6f6f6f; text-decoration:none; }
+a:visited { color:#828282; text-decoration:none; }
+.story-details a:link { color:#828282; text-decoration:none; }
 
 .header {
   background-color: #FF6600;
@@ -88,8 +100,13 @@ a:link.header-title, a:visited.header-title {
 <ol class="stories">
 {{range .Stories}}
 <li>
-  <a class="storytitle" href="{{.URL}}">{{.Title}}</a>
-  <div class="storyinfoline"><span class="quality-label">{{.Quality}}</span> quality | {{.Upvotes}} points by {{.By}} {{.Age}} | <a href="https://news.ycombinator.com/item?id={{.ID}}">{{.Comments}} comments</a></div>
+  <div class="story-item">
+  <a class="upvote-button" href="https://news.ycombinator.com/item?id={{.ID}}" target="_blank">▲</a>
+  <div>
+    <a class="story-title" href="{{.URL}}">{{.Title}}</a>
+    <div class="story-details"><span class="quality-label">{{.Quality}}</span> quality | {{.Upvotes}} points by {{.By}} {{.Age}} | <a href="https://news.ycombinator.com/item?id={{.ID}}">{{.Comments}} comments</a></div>
+  </div>
+  </div>
 </li>
 {{end}}
 </ol>
