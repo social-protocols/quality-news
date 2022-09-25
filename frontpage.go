@@ -42,7 +42,7 @@ const frontPageSQL = `
   join stories using(id)
   join dataset using(id)
   where sampleTime = (select max(sampleTime) from dataset)
-  order by quality / sqrt(unixepoch()-submissionTime) desc
+  order by quality / sqrt(3600 + unixepoch()-submissionTime) desc
   limit 90;
 `
 
