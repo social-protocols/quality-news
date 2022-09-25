@@ -42,7 +42,7 @@ const frontPageSQL = `
   join stories using(id)
   join dataset using(id)
   where sampleTime = (select max(sampleTime) from dataset)
-  order by quality / sqrt(3600 + unixepoch()-submissionTime) desc
+  order by quality / pow(cast(unixepoch()-submissionTime as real)/3600 + 2, 1.2) desc
   limit 90;
 `
 
@@ -66,6 +66,12 @@ const frontPageSQL = `
    Now we want the quality, not log quality. With a little math, we get
 
    		q = (v/a)^(v/(v+k))
+
+   Age penalty ordering mimics the original HN formula:
+   pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
+
+   Assuming cumulativeAttention ~ ageHours^0.6, this becomes
+   upvotes / (cumulativeAttention * (ageHours + 2)^1.2)
 */
 
 //go:embed templates/*
