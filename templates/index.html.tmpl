@@ -2,6 +2,18 @@
 <html lang="en">
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="apple-touch-icon" sizes="180x180" href="static/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="static/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="static/favicon-16x16.png">
+<link rel="manifest" href="static/site.webmanifest">
+<link rel="mask-icon" href="static/safari-pinned-tab.svg" color="#4a9ced">
+<link rel="shortcut icon" href="static/favicon.ico">
+<meta name="msapplication-TileColor" content="#4a9ced">
+<meta name="msapplication-config" content="static/browserconfig.xml">
+<meta name="theme-color" content="#ffffff">
+
+
 <style type="text/css">
 body {
   background-color: #F6F6EF;
@@ -17,11 +29,11 @@ body {
 
 .storyinfoline {
   font-size: 9pt;
-  color: #828282;
+  color: #6f6f6f;
 }
 
 .quality-label {
-  color: #0A94ff;
+  color: #0089f4;
 }
 
 .stories li {
@@ -35,25 +47,31 @@ body {
 
 a:link    { color:#000000; text-decoration:none; }
 a:visited { color:#828282; text-decoration:none; }
-.storyinfoline a:link { color:#828282; text-decoration:none; }
+.storyinfoline a:link { color:#6f6f6f; text-decoration:none; }
 
 .header {
-  height: 24px;
   background-color: #FF6600;
-  padding: 5px;
+  padding: 6px;
   color: #000000;
+  display:flex;
+  align-items: center;
 }
 
 .header-title {
+  margin-left: 0.5rem;
   font-weight: bold;
   font-size: 15px;
 }
-
 </style>
-<title>News</title>
+<title>Quality News</title>
 </head>
 <body>
-<div class="header"><span class="header-title">Quality News</span></div>
+
+<div class="header">
+<svg width="16" height="16" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="99" fill="#94caff" paint-order="markers fill stroke"/><circle cx="100" cy="100" r="57.269" fill="#4a9ced" paint-order="markers fill stroke"/><circle cx="100" cy="100" r="30.288" fill="#005fbe" paint-order="markers fill stroke"/></svg>
+<span class="header-title">Quality News</span>
+</div>
+
 <ol class="stories">
 {{range .Stories}}
 <li>
@@ -62,5 +80,6 @@ a:visited { color:#828282; text-decoration:none; }
 </li>
 {{end}}
 </ol>
+
 </body>
 </html>

@@ -1,13 +1,16 @@
 package main
 
 import (
+	"embed"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/johnwarden/hn"
+	"github.com/julienschmidt/httprouter"
 
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
 )
@@ -55,14 +58,25 @@ func main() {
 
 }
 
+//go:embed static
+var staticFS embed.FS
+
 func httpServer(db newsDatabase) {
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-	http.HandleFunc("/", frontpageHandler(db))
+
+	staticRoot, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	router := httprouter.New()
+	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
+	router.GET("/", frontpageHandler(db))
 
 	log.Println("listening on", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(http.ListenAndServe(":"+port, router))
 }

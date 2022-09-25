@@ -9,6 +9,7 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/julienschmidt/httprouter"
 )
 
 type frontPageData struct {
@@ -72,14 +73,14 @@ var resources embed.FS
 
 var t = template.Must(template.ParseFS(resources, "templates/*"))
 
-func frontpageHandler(ndb newsDatabase) func(w http.ResponseWriter, r *http.Request) {
+func frontpageHandler(ndb newsDatabase) func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	statement, err := ndb.db.Prepare(frontPageSQL) // Prepare statement.
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		rows, err := statement.Query()
 		if err != nil {
 			fmt.Println("Failed to get front page")

@@ -12,6 +12,8 @@
    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
    xmlns:cc="http://creativecommons.org/ns#"
    xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs1221" />
   <metadata
      id="metadata4611">
     <rdf:RDF>
@@ -32,48 +34,42 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="1211"
-     inkscape:window-height="1380"
+     inkscape:window-width="2560"
+     inkscape:window-height="1416"
      id="namedview4609"
      showgrid="false"
      inkscape:snap-object-midpoints="true"
      inkscape:snap-bbox="true"
      inkscape:snap-page="true"
-     inkscape:zoom="1.7539179"
-     inkscape:cx="108.3289"
-     inkscape:cy="216.08765"
-     inkscape:window-x="486"
-     inkscape:window-y="50"
+     inkscape:zoom="4"
+     inkscape:cx="117.875"
+     inkscape:cy="123.5"
+     inkscape:window-x="0"
+     inkscape:window-y="1104"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg4607"
      inkscape:document-rotation="0"
      inkscape:pagecheckerboard="0"
      showguides="false" />
-  <defs
-     id="defs4603">
-    <linearGradient
-       id="linearGradient5126"
-       x1="9.9746"
-       x2="190.46"
-       y1="75.844"
-       y2="75.844"
-       gradientTransform="matrix(1.0942 0 0 1.0942 -9.6582 17.013)"
-       gradientUnits="userSpaceOnUse">
-      <stop
-         stop-color="#ffbd4a"
-         offset="0"
-         id="stop4598" />
-      <stop
-         stop-color="#ff6647"
-         offset="1"
-         id="stop4600" />
-    </linearGradient>
-  </defs>
-  <ellipse
-     style="opacity:1;fill:#ffa369;fill-opacity:1;fill-rule:nonzero;stroke:#2594ff;stroke-width:45.57;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
+  <circle
+     style="display:inline;opacity:1;fill:#94caff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:59.3609;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
      id="path4613"
      cx="100"
      cy="100"
-     rx="75.975998"
-     ry="75.976334" />
+     inkscape:label="path4613"
+     r="99" />
+  <circle
+     style="display:inline;fill:#4a9ced;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:34.3389;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
+     id="path4613-3"
+     cx="100"
+     cy="100"
+     inkscape:label="path4613"
+     r="57.269165" />
+  <circle
+     style="display:inline;fill:#005fbe;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:18.1607;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
+     id="path4613-3-6"
+     cx="100"
+     cy="100"
+     inkscape:label="path4613"
+     r="30.287827" />
 </svg>
