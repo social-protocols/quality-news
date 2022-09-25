@@ -29,21 +29,21 @@ type story struct {
 }
 
 const frontPageSQL = `
-	with attentionWithAge as (
-		select *, unixepoch()-submissionTime as age
-		from attention
-		order by id desc
-		limit 3000
-	)
-	select
-		id, by, title, url, submissionTime, totalUpvotes, totalComments
-		, (upvotes + 2.2956)/(cumulativeAttention+2.2956) as quality 
-	from attentionWithAge join stories using(id)
-	order by 
-		quality desc
-	limit 90;
-
-*/
+  select
+    id
+    , by
+    , title
+    , url
+    , submissionTime
+    , score
+    , descendants
+    , (upvotes + 2.2956)/(cumulativeAttention+2.2956) as quality 
+  from attention
+  join stories using(id)
+  join dataset using(id)
+  where sampleTime = (select max(sampleTime) from dataset)
+  order by quality / pow(cast(unixepoch()-submissionTime as real)/3600 + 2, 1.2) desc
+  limit 90;
 `
 
 /* The Bayesian averaging constant/formula from bayesian-average-quality.R
@@ -66,6 +66,12 @@ const frontPageSQL = `
    Now we want the quality, not log quality. With a little math, we get
 
    		q = (v/a)^(v/(v+k))
+
+   Age penalty ordering mimics the original HN formula:
+   pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
+
+   Assuming cumulativeAttention ~ ageHours^0.6, this becomes
+   upvotes / (cumulativeAttention * (ageHours + 2)^1.2)
 */
 
 //go:embed templates/*

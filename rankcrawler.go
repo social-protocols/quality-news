@@ -113,7 +113,7 @@ func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) 
 	logger.Info("Inserting rank data", "nitems", len(items))
 	// get details for every unique story
 
-	var sitewideUpvotes int 
+	var sitewideUpvotes int
 	var deltaUpvotes = make([]int, len(items))
 
 ITEM:
@@ -160,7 +160,7 @@ ITEM:
 
 	}
 
-	logger.Debug("sitewideUpvotes", "value",sitewideUpvotes)
+	logger.Debug("sitewideUpvotes", "value", sitewideUpvotes)
 
 	var totalDeltaAttention float64
 	var totalAttentionShare float64
@@ -169,24 +169,23 @@ ITEM:
 
 		storyID := item.ID
 		ranks := ranksMap[storyID]
-		submissionTime := int64(item.Time().Unix())
 
 	RANKS:
 		for pageType, rank := range ranks {
 			if rank == 0 {
 				continue RANKS
 			}
-			d := accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes[i], item.Score, item.Descendants, sitewideUpvotes, submissionTime)
+			d := accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes[i], sitewideUpvotes)
 			totalDeltaAttention += d[0]
 			totalAttentionShare += d[1]
 		}
 		j = i
 	}
 
-	logger.Debug("Totals", 
-		"deltaAttention", totalDeltaAttention, 
-		"sitewideUpvotes", sitewideUpvotes, 
-		"totalAttentionShare", totalAttentionShare, 
+	logger.Debug("Totals",
+		"deltaAttention", totalDeltaAttention,
+		"sitewideUpvotes", sitewideUpvotes,
+		"totalAttentionShare", totalAttentionShare,
 		"dataPoints", j)
 
 	logger.Info("Successfully inserted rank data", "nitems", len(items))
