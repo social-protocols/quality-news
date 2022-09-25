@@ -29,21 +29,21 @@ type story struct {
 }
 
 const frontPageSQL = `
-	with attentionWithAge as (
-		select *, unixepoch()-submissionTime as age
-		from attention
-		order by id desc
-		limit 3000
-	)
-	select
-		id, by, title, url, submissionTime, totalUpvotes, totalComments
-		, (upvotes + 2.2956)/(cumulativeAttention+2.2956) as quality 
-	from attentionWithAge join stories using(id)
-	order by 
-		quality desc
-	limit 90;
-
-*/
+  select
+    id
+    , by
+    , title
+    , url
+    , submissionTime
+    , score
+    , descendants
+    , (upvotes + 2.2956)/(cumulativeAttention+2.2956) as quality 
+  from attention
+  join stories using(id)
+  join dataset using(id)
+  where sampleTime = (select max(sampleTime) from dataset)
+  order by quality / sqrt(unixepoch()-submissionTime) desc
+  limit 90;
 `
 
 /* The Bayesian averaging constant/formula from bayesian-average-quality.R

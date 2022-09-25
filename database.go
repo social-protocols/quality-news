@@ -46,7 +46,7 @@ func (ndb newsDatabase) init() {
 		"CREATE TABLE IF NOT EXISTS stories(id int primary key, by text not null, title text not null, url text not null, timestamp int not null);",
 		"CREATE TABLE IF NOT EXISTS dataset (id integer not null, score integer, descendants integer not null, submissionTime integer not null, sampleTime integer not null, topRank integer, newRank integer, bestRank integer, askRank integer, showRank integer);",
 		"CREATE INDEX IF NOT EXISTS dataset_sampletime_id ON dataset(sampletime, id);",
-		"CREATE TABLE IF NOT EXISTS attention(id int primary key, upvotes int, totalUpvotes int, totalComments int, submissionTime int, cumulativeAttention real, lastUpdateSampleTime int);",
+		"CREATE TABLE IF NOT EXISTS attention(id int primary key, upvotes int, cumulativeAttention real, lastUpdateSampleTime int);",
 	}
 
 	for _, s := range seedStatements {
@@ -95,7 +95,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	}
 
 	{
-		sql := `INSERT INTO attention (id, upvotes, totalUpvotes, totalComments, submissionTime, cumulativeAttention, lastUpdateSampleTime) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET cumulativeAttention = cumulativeAttention + excluded.cumulativeAttention, upvotes = upvotes + excluded.upvotes, totalUpvotes = excluded.totalUpvotes, totalComments = excluded.totalComments, lastUpdateSampleTime = excluded.lastUpdateSampleTime`
+		sql := `INSERT INTO attention (id, upvotes, cumulativeAttention, lastUpdateSampleTime) VALUES (?, ?, ?, ?) ON CONFLICT DO UPDATE SET cumulativeAttention = cumulativeAttention + excluded.cumulativeAttention, upvotes = upvotes + excluded.upvotes, lastUpdateSampleTime = excluded.lastUpdateSampleTime`
 		ndb.upsertAttentionStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
@@ -122,8 +122,8 @@ func (ndb newsDatabase) insertDataPoint(d dataPoint) error {
 	return nil
 }
 
-func (ndb newsDatabase) upsertAttention(id int, deltaUpvotes int, totalUpvotes int, totalComments int, submissionTime int64, cumulativeAttention float64, lastUpdateSampleTime int64) error {
-	_, err := ndb.upsertAttentionStatement.Exec(id, deltaUpvotes, totalUpvotes, totalComments, submissionTime, cumulativeAttention, lastUpdateSampleTime)
+func (ndb newsDatabase) upsertAttention(id int, deltaUpvotes int, cumulativeAttention float64, lastUpdateSampleTime int64) error {
+	_, err := ndb.upsertAttentionStatement.Exec(id, deltaUpvotes, cumulativeAttention, lastUpdateSampleTime)
 	if err != nil {
 		return err
 	}
