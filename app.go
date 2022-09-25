@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/johnwarden/hn"
+	"github.com/julienschmidt/httprouter"
 
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
 )
@@ -62,10 +63,10 @@ func httpServer(db newsDatabase) {
 		port = "8080"
 	}
 
-	// TODO how to serve assets under / ?
-	http.Handle("/assets", http.FileServer(http.Dir("./assets")))
-	http.HandleFunc("/", frontpageHandler(db))
+	router := httprouter.New()
+	router.ServeFiles("/static/*filepath", http.Dir("static"))
+	router.GET("/", frontpageHandler(db))
 
 	log.Println("listening on", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(http.ListenAndServe(":"+port, router))
 }

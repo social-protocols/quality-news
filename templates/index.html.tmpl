@@ -3,12 +3,14 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="manifest" href="/site.webmanifest">
-<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#2095ff">
+<link rel="apple-touch-icon" sizes="180x180" href="static/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="static/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="static/favicon-16x16.png">
+<link rel="manifest" href="static/site.webmanifest">
+<link rel="shortcut icon" href="static/favicon.ico">
 <meta name="msapplication-TileColor" content="#f6f6ef">
+<meta name="msapplication-config" content="static/browserconfig.xml">
+<link rel="mask-icon" href="static/safari-pinned-tab.svg" color="#2095ff">
 <meta name="theme-color" content="#ff6600">
 
 <style type="text/css">
@@ -50,9 +52,12 @@ a:visited { color:#828282; text-decoration:none; }
   background-color: #FF6600;
   padding: 5px;
   color: #000000;
+  display:flex;
+  align-items: center;
 }
 
 .header-title {
+  margin-left: 0.5rem;
   font-weight: bold;
   font-size: 15px;
 }
@@ -61,7 +66,9 @@ a:visited { color:#828282; text-decoration:none; }
 <title>Quality News</title>
 </head>
 <body>
-<div class="header"><span class="header-title">Quality News</span></div>
+<div class="header">
+<svg width="16" height="16" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="76" fill="#ffa369" stroke="#2594ff" stroke-width="45.57" stroke-linecap="round" stroke-linejoin="round" paint-order="markers fill stroke"/></svg>
+<span class="header-title">Quality News</span></div>
 <ol class="stories">
 {{range .Stories}}
 <li>
