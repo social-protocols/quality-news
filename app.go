@@ -50,18 +50,23 @@ func main() {
 		retryClient.Logger = l // ignore debug messages from this retry client.
 	}
 
+	err = renderFrontPages(db, logger)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 	c := hn.NewClient(retryClient.StandardClient())
 
 	go rankCrawler(db, c, logger)
 
-	httpServer(db)
+	httpServer(db, logger)
 
 }
 
 //go:embed static
 var staticFS embed.FS
 
-func httpServer(db newsDatabase) {
+func httpServer(db newsDatabase, l leveledLogger) {
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -75,8 +80,8 @@ func httpServer(db newsDatabase) {
 
 	router := httprouter.New()
 	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
-	router.GET("/", frontpageHandler(db, "quality"))
-	router.GET("/hntop", frontpageHandler(db, "hntop"))
+	router.GET("/", frontpageHandler(db, "quality", l))
+	router.GET("/hntop", frontpageHandler(db, "hntop", l))
 
 	log.Println("listening on", port)
 	log.Fatal(http.ListenAndServe(":"+port, router))

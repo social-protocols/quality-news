@@ -190,4 +190,6 @@ ITEM:
 
 	logger.Info("Successfully inserted rank data", "nitems", len(items))
 
+	renderFrontPages(ndb, logger)
+
 }

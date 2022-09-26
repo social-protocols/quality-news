@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"database/sql"
 	"embed"
 	"fmt"
+	"github.com/pkg/errors"
 	"html/template"
-	"log"
 	"net/http"
 	"time"
 
@@ -94,57 +96,110 @@ var resources embed.FS
 
 var t = template.Must(template.ParseFS(resources, "templates/*"))
 
-func frontpageHandler(ndb newsDatabase, ranking string) func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+var pages map[string][]byte
+var statements map[string]*sql.Stmt
 
-	var sql string
-	if ranking == "quality" {
-		sql = frontPageSQL
-	} else if ranking == "hntop" {
-		sql = hnTopPageSQL
-	}
-
-	statement, err := ndb.db.Prepare(sql)
+func renderFrontPages(ndb newsDatabase, logger leveledLogger) error {
+	err := renderFrontPage(ndb, "quality", logger)
 	if err != nil {
-		log.Fatal(err)
+		return errors.Wrap(err, "render quality page")
 	}
+	err = renderFrontPage(ndb, "hntop", logger)
+	if err != nil {
+		return errors.Wrap(err, "render hntop page")
+	}
+	return err
+}
+func renderFrontPage(ndb newsDatabase, ranking string, logger leveledLogger) error {
+
+	logger.Info("Rendering front page", "ranking", ranking)
+
+	stories, err := getFrontPageStories(ndb, ranking)
+	if err != nil {
+		return errors.Wrap(err, "getFrontPageStories")
+	}
+
+	var b bytes.Buffer
+
+	if err = t.ExecuteTemplate(&b, "index.html.tmpl", frontPageData{stories}); err != nil {
+		return errors.Wrap(err, "executing front page template")
+	}
+
+	if pages == nil {
+		pages = make(map[string][]byte)
+	}
+	pages[ranking] = b.Bytes()
+
+	return nil
+}
+
+func getFrontPageStories(ndb newsDatabase, ranking string) (stories []story, err error) {
+
+	if statements == nil {
+		statements = make(map[string]*sql.Stmt)
+	}
+
+	if statements[ranking] == nil {
+		var sql string
+		if ranking == "quality" {
+			sql = frontPageSQL
+		} else if ranking == "hntop" {
+			sql = hnTopPageSQL
+		}
+
+		s, err := ndb.db.Prepare(sql)
+		if err != nil {
+			return stories, errors.Wrap(err, "preparing front page SQL")
+		}
+
+		statements[ranking] = s
+	}
+
+	statement := statements[ranking]
+
+	rows, err := statement.Query()
+	if err != nil {
+		return stories, errors.Wrap(err, "executing front page SQL")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var s story
+
+		var submissionTime int
+		var quality float64
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &submissionTime, &s.Upvotes, &s.Comments, &quality)
+
+		ageString := humanize.Time(time.Unix(int64(submissionTime), 0))
+		s.Age = ageString
+
+		s.Quality = fmt.Sprintf("%.2f", quality)
+
+		if err != nil {
+			return stories, errors.Wrap(err, "Scanning row")
+		}
+		stories = append(stories, s)
+
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return stories, err
+	}
+
+	return stories, nil
+
+}
+
+func frontpageHandler(ndb newsDatabase, ranking string, logger leveledLogger) func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		rows, err := statement.Query()
+
+		_, err := w.Write(pages[ranking])
 		if err != nil {
-			fmt.Println("Failed to get front page")
-			log.Fatal(err)
-		}
-		defer rows.Close()
-
-		stories := make([]story, 0, 90)
-
-		for rows.Next() {
-			var s story
-
-			var submissionTime int
-			var quality float64
-			err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &submissionTime, &s.Upvotes, &s.Comments, &quality)
-
-			ageString := humanize.Time(time.Unix(int64(submissionTime), 0))
-			s.Age = ageString
-
-			s.Quality = fmt.Sprintf("%.2f", quality)
-
-			if err != nil {
-				fmt.Println("Failed to scan row")
-				log.Fatal(err)
-			}
-			stories = append(stories, s)
-
-		}
-		err = rows.Err()
-		if err != nil {
-			log.Fatal(err)
+			w.WriteHeader(400)
+			logger.Err(errors.Wrap(err, "writeFrontPage"))
 		}
 
-		err = t.ExecuteTemplate(w, "index.html.tmpl", frontPageData{stories})
-		if err != nil {
-			fmt.Println(err)
-		}
 	}
 }
