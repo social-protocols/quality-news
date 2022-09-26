@@ -2,13 +2,14 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"database/sql"
 	"embed"
 	"fmt"
 	"github.com/pkg/errors"
-	"compress/gzip"
 	"html/template"
 	"net/http"
+	"strconv"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -30,6 +31,8 @@ type story struct {
 	Quality  string
 }
 
+const defaultGravity = 0.8
+
 const frontPageSQL = `
   select
     id
@@ -44,7 +47,7 @@ const frontPageSQL = `
   join stories using(id)
   join dataset using(id)
   where sampleTime = (select max(sampleTime) from dataset)
-  order by quality / pow(cast(unixepoch()-submissionTime as real)/3600 + 2, 1.2) desc
+  order by quality / pow(cast(unixepoch()-submissionTime as real)/3600 + 2, %f) desc
   limit 90;
 `
 
@@ -77,7 +80,7 @@ const hnTopPageSQL = `
 	   pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
 
 	The age penalty actually serves two purposes: 1) a proxy for attention and 2) to make
-	sure stories cycle through the home page. 
+	sure stories cycle through the home page.
 
 	But if we find that cumulativeAttention roughly equals ageHours^f, then an
 	age penalty is already "built in" to our formula. But our guess is that
@@ -101,23 +104,26 @@ var pages map[string][]byte
 var statements map[string]*sql.Stmt
 
 func renderFrontPages(ndb newsDatabase, logger leveledLogger) error {
-	err := renderFrontPage(ndb, "quality", logger)
-	if err != nil {
-		return errors.Wrap(err, "render quality page")
+	rankings := []string{"quality", "hntop"}
+
+	for _, ranking := range rankings {
+		bytes, err := renderFrontPage(ndb, logger, ranking, -1)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("render %s page", ranking))
+		}
+		pages[ranking] = bytes
 	}
-	err = renderFrontPage(ndb, "hntop", logger)
-	if err != nil {
-		return errors.Wrap(err, "render hntop page")
-	}
-	return err
+
+	return nil
 }
-func renderFrontPage(ndb newsDatabase, ranking string, logger leveledLogger) error {
+
+func renderFrontPage(ndb newsDatabase, logger leveledLogger, ranking string, gravity float64) ([]byte, error) {
 
 	logger.Info("Rendering front page", "ranking", ranking)
 
-	stories, err := getFrontPageStories(ndb, ranking)
+	stories, err := getFrontPageStories(ndb, ranking, gravity)
 	if err != nil {
-		return errors.Wrap(err, "getFrontPageStories")
+		return nil, errors.Wrap(err, "getFrontPageStories")
 	}
 
 	var b bytes.Buffer
@@ -126,7 +132,7 @@ func renderFrontPage(ndb newsDatabase, ranking string, logger leveledLogger) err
 	defer zw.Close()
 
 	if err = t.ExecuteTemplate(zw, "index.html.tmpl", frontPageData{stories}); err != nil {
-		return errors.Wrap(err, "executing front page template")
+		return nil, errors.Wrap(err, "executing front page template")
 	}
 
 	if pages == nil {
@@ -134,18 +140,20 @@ func renderFrontPage(ndb newsDatabase, ranking string, logger leveledLogger) err
 	}
 	zw.Close()
 
-	pages[ranking] = b.Bytes()
-
-	return nil
+	return b.Bytes(), nil
 }
 
-func getFrontPageStories(ndb newsDatabase, ranking string) (stories []story, err error) {
+func getFrontPageStories(ndb newsDatabase, ranking string, gravity float64) (stories []story, err error) {
 
 	if statements == nil {
 		statements = make(map[string]*sql.Stmt)
 	}
 
-	if statements[ranking] == nil {
+	var s *sql.Stmt
+
+	// Prepare statement if it hasn't already been prepared or if we are using
+	// custom gravity
+	if statements[ranking] == nil || gravity != -1 {
 		var sql string
 		if ranking == "quality" {
 			sql = frontPageSQL
@@ -153,17 +161,23 @@ func getFrontPageStories(ndb newsDatabase, ranking string) (stories []story, err
 			sql = hnTopPageSQL
 		}
 
-		s, err := ndb.db.Prepare(sql)
+		if gravity == -1 {
+			gravity = defaultGravity
+		}
+
+		s, err = ndb.db.Prepare(fmt.Sprintf(sql, gravity))
 		if err != nil {
 			return stories, errors.Wrap(err, "preparing front page SQL")
 		}
 
-		statements[ranking] = s
+		if gravity == -1 {
+			statements[ranking] = s
+		}
+	} else {
+		s = statements[ranking]
 	}
 
-	statement := statements[ranking]
-
-	rows, err := statement.Query()
+	rows, err := s.Query()
 	if err != nil {
 		return stories, errors.Wrap(err, "executing front page SQL")
 	}
@@ -204,11 +218,36 @@ func frontpageHandler(ndb newsDatabase, ranking string, logger leveledLogger) fu
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Encoding", "gzip")
 
-		_, err := w.Write(pages[ranking])
+		gravityStr := r.URL.Query().Get("gravity")
+
+		var b []byte
+		var err error
+		if gravityStr != "" {
+			gravity, err := strconv.ParseFloat(gravityStr, 64)
+			if err != nil {
+				logger.Err(errors.Wrap(err, "ParseFloat(gravityStr)"))
+				w.WriteHeader(400)
+				w.Write([]byte("bad request"))
+				return
+			}
+			logger.Info("Generating front page with custom gravity", "gravity", gravity)
+			b, err = renderFrontPage(ndb, logger, ranking, gravity)
+			if err != nil {
+				w.WriteHeader(500)
+				logger.Err(errors.Wrap(err, "renderFrontPage"))
+				w.Write([]byte("internal server error"))
+				return
+			}
+		} else {
+			b = pages[ranking]
+		}
+
+		_, err = w.Write(b)
 
 		if err != nil {
-			w.WriteHeader(400)
+			w.WriteHeader(500)
 			logger.Err(errors.Wrap(err, "writeFrontPage"))
+			w.Write([]byte("internal server error"))
 		}
 
 	}
