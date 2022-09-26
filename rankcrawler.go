@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"log"
 	"time"
 
 	"github.com/johnwarden/hn"
@@ -40,7 +39,11 @@ func rankCrawler(ndb newsDatabase, client *hn.Client, logger leveledLogger) {
 	for {
 		select {
 		case <-ticker.C:
-			rankCrawlerStep(ndb, client, logger)
+			err := rankCrawlerStep(ndb, client, logger)
+			if(err != nil) {
+				logger.Err(err)
+				continue
+			} 
 
 		case <-quit:
 			ticker.Stop()
@@ -50,7 +53,7 @@ func rankCrawler(ndb newsDatabase, client *hn.Client, logger leveledLogger) {
 
 }
 
-func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) {
+func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) error {
 
 	sampleTime := time.Now().Unix()
 
@@ -78,7 +81,7 @@ func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) 
 	for pageType, pageTypeString := range pageTypes {
 		ids, err := client.Stories(pageTypeString)
 		if err != nil {
-			log.Fatal(err)
+			return errors.Wrap(err, "client.Stories")
 		}
 
 		for i, id := range ids {
@@ -107,7 +110,7 @@ func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) 
 
 	items, err := client.GetItems(uniqueStoryIds)
 	if err != nil {
-		logger.Err(errors.Wrap(err, "client.GetItems"))
+		return(errors.Wrap(err, "client.GetItems"))
 	}
 
 	logger.Info("Inserting rank data", "nitems", len(items))
@@ -140,7 +143,6 @@ ITEM:
 			if err != nil {
 				if !errors.Is(err, sql.ErrNoRows) {
 					logger.Err(errors.Wrap(err, "selectLastSeenScore"))
-
 				}
 			} else {
 				deltaUpvotes[i] = item.Score - lastSeenScore
@@ -151,11 +153,11 @@ ITEM:
 
 		err := ndb.insertDataPoint(datapoint)
 		if err != nil {
-			log.Fatal(err)
+			return errors.Wrap(err, "insertDataPoint")
 		}
 		err = ndb.insertOrReplaceStory(item)
 		if err != nil {
-			log.Fatal(err)
+			return errors.Wrap(err, "insertOrReplaceStory")
 		}
 
 	}
@@ -190,6 +192,6 @@ ITEM:
 
 	logger.Info("Successfully inserted rank data", "nitems", len(items))
 
-	renderFrontPages(ndb, logger)
+	return nil
 
 }

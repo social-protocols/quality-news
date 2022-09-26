@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -16,7 +15,6 @@ import (
 )
 
 func main() {
-	fmt.Println("In main")
 
 	logLevelString := os.Getenv("LOG_LEVEL")
 
