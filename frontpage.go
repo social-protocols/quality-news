@@ -63,32 +63,30 @@ const hnTopPageSQL = `
   limit 90;
 `
 
-/* The Bayesian averaging constant/formula from bayesian-average-quality.R
-   (in the hacker-news-data repo).
+/* The constant k comes from bayesian-average-quality.R (in the hacker-news-data repo).
 
-   stories$bayesianAverageLogQuality = (log(stories$qualityRatio)*stories$upvotes) / (stories$upvotes + k)
+   Bayesian Average Quality Formula
 
-   The constant value k from running this model on a sample of 100 stories is 2.2956
+   	quality ≈ (upvotes+k)/(cumulativeAttention+k)
 
-   To make this more readable:
+   Then add age. We want the age penalty to mimic the original HN formula:
 
-   		q = quality
-   		a = attention
-   		v = upvotes
-   		k = constant (strength of prior)
+	   pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
 
-   		log(q) = log(v/a)*a / ( a + k )
+	The age penalty actually serves two purposes: 1) a proxy for attention and 2) to make
+	sure stories cycle through the home page. 
+
+	But if we find that cumulativeAttention roughly equals ageHours^f, then an
+	age penalty is already "built in" to our formula. But our guess is that
+	f is something like 0.6, so we need to add an addition penalty of:
 
 
-   Now we want the quality, not log quality. With a little math, we get
+		(ageHours+2)^(1.8-f)
 
-   		q = (v/a)^(v/(v+k))
+	So the ranking formula is:
 
-   Age penalty ordering mimics the original HN formula:
-   pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
+   	quality ≈ (upvotes+k)/(cumulativeAttention+k)/(ageHours+2)^(1.8-f)
 
-   Assuming cumulativeAttention ~ ageHours^0.6, this becomes
-   upvotes / (cumulativeAttention * (ageHours + 2)^1.2)
 */
 
 //go:embed templates/*
