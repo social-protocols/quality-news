@@ -83,6 +83,6 @@ func httpServer(db newsDatabase, l leveledLogger) {
 	router.GET("/", frontpageHandler(db, "quality", l))
 	router.GET("/hntop", frontpageHandler(db, "hntop", l))
 
-	log.Println("listening on", port)
-	log.Fatal(http.ListenAndServe(":"+port, router))
+	l.Info("HTTP server listening", "port", port)
+	l.Fatal(http.ListenAndServe(":"+port, router))
 }

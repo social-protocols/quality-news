@@ -6,6 +6,7 @@ import (
 	"embed"
 	"fmt"
 	"github.com/pkg/errors"
+	"compress/gzip"
 	"html/template"
 	"net/http"
 	"time"
@@ -121,13 +122,18 @@ func renderFrontPage(ndb newsDatabase, ranking string, logger leveledLogger) err
 
 	var b bytes.Buffer
 
-	if err = t.ExecuteTemplate(&b, "index.html.tmpl", frontPageData{stories}); err != nil {
+	zw := gzip.NewWriter(&b)
+	defer zw.Close()
+
+	if err = t.ExecuteTemplate(zw, "index.html.tmpl", frontPageData{stories}); err != nil {
 		return errors.Wrap(err, "executing front page template")
 	}
 
 	if pages == nil {
 		pages = make(map[string][]byte)
 	}
+	zw.Close()
+
 	pages[ranking] = b.Bytes()
 
 	return nil
@@ -195,7 +201,11 @@ func frontpageHandler(ndb newsDatabase, ranking string, logger leveledLogger) fu
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Content-Encoding", "gzip")
+
 		_, err := w.Write(pages[ranking])
+
 		if err != nil {
 			w.WriteHeader(400)
 			logger.Err(errors.Wrap(err, "writeFrontPage"))
