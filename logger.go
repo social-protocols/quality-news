@@ -44,6 +44,14 @@ const logLevelInfo logLevel = 1
 const logLevelWarn logLevel = 2
 const logLevelError logLevel = 3
 
+
+
+func (l leveledLogger) Fatal(err error, keysAndValues ...interface{}) {
+	l.Err(err, keysAndValues...)
+	os.Exit(1)
+}
+
+
 func (l leveledLogger) Err(err error, keysAndValues ...interface{}) {
 	if l.level > logLevelError {
 		return
