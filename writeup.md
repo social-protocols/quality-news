@@ -6,7 +6,7 @@ Quality News implements a new ranking formula for Hacker News designed to give s
 
 Success on HN is partly a matter of timing and luck. A few early upvotes can catapult a new story to the front page, resulting in a feedback loop of even more upvotes. But many great submission don't ever get caught up in this feedback loop. We discussed this in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html).
 
-The problem is that the ranking algorithm only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **timing** and 4)  **rank**. For example, a story that receives 100 upvotes at rank 1 at midday US time should not have the same rank as one that receives the same number of upvotes at rank 50 at midnight. 
+The problem is that the ranking algorithm only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **timing** and 4)  **rank**. For example, a story that receives 100 upvotes at rank 1 at midday US time should not have the same ranking score as one that receives the same number of upvotes at rank 50 at midnight. 
 
 
 ## Expected Upvotes
@@ -45,7 +45,7 @@ We assume that each story has some "true" upvote rate. In the long run, the obse
 
     upvoteRate ≈ upvotes / attention ≈ upvoteRatio 
 
-## Bayesian Averaging and the "True" Upvote Rate
+## Bayesian Averaging
 
 But if we don't have a lot of data for a story, the upvote ratio may be more a reflection of pure chance than of the true upvote rate.
 
@@ -55,7 +55,7 @@ Since the probability distribution in this case is continuous and complex, Bayes
 
 When we run this model we find that the posterior estimate of the true upvote rate for each story "shrinks": it falls somewhere between the upvote ratio for that story, and the average upvote ratio of 1. The more data we have for each story, the closer the posterior is to the actual upvote ratio. 
 
-In fact, the posterior is always just a weighted average of the observed upvote pate and the prior of 1.0. The weights are, respectively, the amount of attention and a constant representing the strength of the prior. If we know this constant, we can then estimate quality using the following formula -- a technique known as Bayesian averaging. Our calculations are shown [here].
+In fact, the posterior is always just a weighted average of the observed upvote rate and the prior of 1.0. The weights are, respectively, the amount of attention and a constant representing the strength of the prior. If we know this constant, we can then estimate upoteRate using the following formula -- a technique known as Bayesian averaging. Our calculations are shown [here].
       
 
                             
@@ -71,28 +71,13 @@ In fact, the posterior is always just a weighted average of the observed upvote 
 
 
 
-<!-- 
-
-    upvotes[t] ~ upvoteRate * expectedUpvotes[t, r]
-
-The total upvotes a story receives will roughly equal upvoteRate * attention.
-
-    upvotes         ≈ sum{t} upvoteRate * expectedUpvotes[t, r]
-                    = upvoteRate * sum{t} expectedUpvotes[t, r]
-                    = upvoteRate * attention
-
-However, 
-
- -->
-
-
 ## Hypothetical Upvotes
 
-Now that we have an estimate for the the true upvote rate for a story, we can estimate how many upvotes that story would have received if it had the same history as the average story:
+Now that we have an estimate for the true upvote rate for a story, we can estimate how many upvotes that story would have received if it had the same history as the average story:
 
-    hypotheticalUpvotes ≈ sum{t} upvoteRate * sitewideAverageUpvotes[t] 
-                        ≈ upvoteRate * sum{t} * sitewideAverageUpvotes[t] 
-                        ≈ upvoteRate * age * c
+    hypotheticalUpvotes = sum{t} upvoteRate * sitewideAverageUpvotes[t] 
+                        = upvoteRate * sum{t} * sitewideAverageUpvotes[t] 
+                        = upvoteRate * age * c
 
 Where c is the same for all stories. 
 
@@ -114,7 +99,7 @@ Despite the [guideline](https://news.ycombinator.com/newsguidelines.html) not to
 
 This effect is largest for very new stories: even a handful of upvotes can result in a very high rank when the denominator (the age penalty) is still very small. This results of course in a feedback loop of ever higher rank and upvotes until the quadratic age penalty "catches up". 
 
-Our proposed formula does not have such a feedback loop, because although stories at higher ranks accumulate upvotes more quickly, they also accumulate attention more quickly. So a story that "brings its own upvotes" will enjoy a higher rank for a moment, but it will not be able to sustain that rank unless upvotes increase in proportion to the increase in attention. In fact, the more successful an attacker is, the quicker it will accumulate attention, and thus the sooner the score will approach the "true" upvote rate among HN users.
+Our proposed formula does not have such a feedback loop, because although stories at higher ranks accumulate upvotes more quickly, they also accumulate attention more quickly. So a story that "brings its own upvotes" will enjoy a higher rank for a moment, but it will not be able to sustain that rank unless upvotes increase in proportion to the increase in attention. In fact, the more successful an attacker is, the quicker the story will accumulate attention, and thus the sooner the score will approach the "true" upvote rate among HN users.
 
 ## Code
 
@@ -122,7 +107,7 @@ The application is a Go process running on a fly.io instance. The code is open s
 
 The application crawls the [Hacker News API] every minute. For each story, it records the current rank and page (top, new, best, etc.), and how many upvotes it has received. The HN API has an endpoint that returns the IDs of all the stories on each page in order, but getting the current number of upvotes for each story requires making a separate API call for each story. The application makes these requests in parallel so that this is fast and represents a point-in-time "snapshot". For each story, it calculates how many upvotes the average story at that rank is expected to receive and updates the accumulated attention for that story. The data is stored in a Sqlite database.
 
-The frontpage generator queries the database and calculates the Bayesian average quality in the SQL query onf the fly. It then uses the Go templating library to generate very HTML that mimic the original HN site.
+The frontpage generator queries the database and calculates the Bayesian average quality in the SQL query. It then uses the Go templating library to generate very HTML that mimic the original HN site. The frontpage is regenerated every minute and served compressed directly from memory.
 
 
 
