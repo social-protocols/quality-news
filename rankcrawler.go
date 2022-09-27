@@ -41,7 +41,12 @@ func rankCrawler(ndb newsDatabase, client *hn.Client, logger leveledLogger) {
 		case <-ticker.C:
 			err := rankCrawlerStep(ndb, client, logger)
 			if(err != nil) {
-				logger.Err(err)
+				logger.Err(errors.Wrap(err, "rankCrawlerStep"))
+				continue
+			} 
+			err = renderFrontPages(ndb, logger)
+			if(err != nil) {
+				logger.Err(errors.Wrap(err, "renderFrontPages"))
 				continue
 			} 
 
