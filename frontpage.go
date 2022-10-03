@@ -17,18 +17,37 @@ import (
 )
 
 type frontPageData struct {
-	Stories []story
+	Stories                []story
+	AverageAge             float64
+	AverageQuality float64
+}
+
+func (d frontPageData) AverageAgeString() string {
+	return humanize.Time(time.Unix(time.Now().Unix() - int64(d.AverageAge), 0))
+
+}
+
+func (d frontPageData) AverageQualityString() string {
+	return fmt.Sprintf("%.2f", d.AverageQuality)
 }
 
 type story struct {
-	ID       int
-	By       string
-	Title    string
-	URL      string
-	Age      string
-	Upvotes  int
-	Comments int
-	Quality  string
+	ID             int
+	By             string
+	Title          string
+	URL            string
+	SubmissionTime int64
+	Upvotes        int
+	Comments       int
+	Quality        float64
+}
+
+func (s story) AgeString() string {
+	return humanize.Time(time.Unix(int64(s.SubmissionTime), 0))
+}
+
+func (s story) QualityString() string {
+	return fmt.Sprintf("%.2f", s.Quality)
 }
 
 const defaultGravity = 1.8
@@ -42,7 +61,7 @@ const frontPageSQL = `
     , title
     , url
     , submissionTime
-    , cast(unixepoch()-submissionTime as real)/3600 as age
+    , cast(unixepoch()-submissionTime as real)/3600 as ageHours
     , score
     , descendants
     , (upvotes + %f)/(cumulativeAttention + %f) as quality 
@@ -51,7 +70,7 @@ const frontPageSQL = `
   join dataset using(id)
   where sampleTime = (select max(sampleTime) from dataset)
   -- newRankingScore = pow((totalUpvotes + weight) / (totalAttention + weight) * age, 0.8) / pow(age + 2, 1.8)
-  order by pow((upvotes + %f)/(cumulativeAttention + %f) * age*3600, 0.8) / pow(age + 2, %f) desc
+  order by pow((upvotes + %f)/(cumulativeAttention + %f) * ageHours, 0.8) / pow(ageHours+ 2, %f) desc
   limit 90;
 `
 
@@ -131,12 +150,26 @@ func renderFrontPage(ndb newsDatabase, logger leveledLogger, ranking string, gra
 		return nil, errors.Wrap(err, "getFrontPageStories")
 	}
 
+	nStories := len(stories)
+
+	var totalAgeSeconds int64
+	var weightedAverageQuality float64
+	for zeroBasedRank, s := range stories {
+		totalAgeSeconds += (sampleTime - s.SubmissionTime)
+		weightedAverageQuality += expectedUpvoteShare(0, zeroBasedRank+1) * s.Quality
+	}
+
 	var b bytes.Buffer
 
 	zw := gzip.NewWriter(&b)
 	defer zw.Close()
 
-	if err = t.ExecuteTemplate(zw, "index.html.tmpl", frontPageData{stories}); err != nil {
+	d := frontPageData{
+		stories,
+		float64(totalAgeSeconds) / float64(nStories),
+		weightedAverageQuality,
+	}
+	if err = t.ExecuteTemplate(zw, "index.html.tmpl", d); err != nil {
 		return nil, errors.Wrap(err, "executing front page template")
 	}
 
@@ -192,21 +225,13 @@ func getFrontPageStories(ndb newsDatabase, ranking string, gravity float64) (sto
 
 		var s story
 
-		var submissionTime int
-		var quality float64
-		var age float64
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &submissionTime, &age, &s.Upvotes, &s.Comments, &quality)
-
-		ageString := humanize.Time(time.Unix(int64(submissionTime), 0))
-		s.Age = ageString
-
-		s.Quality = fmt.Sprintf("%.2f", quality)
+		var ageHours float64
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &ageHours, &s.Upvotes, &s.Comments, &s.Quality)
 
 		if err != nil {
 			return stories, errors.Wrap(err, "Scanning row")
 		}
 		stories = append(stories, s)
-
 	}
 
 	err = rows.Err()

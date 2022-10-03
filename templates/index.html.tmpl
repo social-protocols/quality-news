@@ -100,6 +100,12 @@ a:link.header-title, a:visited.header-title {
   width: 20px;
   height: 20px;
 }
+
+.stats {
+  margin-left:  5px;
+  margin-right:  7px;
+}
+
 </style>
 <title>Quality News</title>
 </head>
@@ -122,12 +128,20 @@ a:link.header-title, a:visited.header-title {
   <a class="upvote-button" href="https://news.ycombinator.com/item?id={{.ID}}" target="_blank">▲</a>
   <div>
     <a class="story-title" href="{{.URL}}">{{.Title}}</a>
-    <div class="story-details"><span class="quality-label">{{.Quality}}</span> quality | {{.Upvotes}} points by {{.By}} {{.Age}} | <a href="https://news.ycombinator.com/item?id={{.ID}}">{{.Comments}}&nbsp;comments</a></div>
+    <div class="story-details"><span class="quality-label">{{.QualityString}}×</span> upvotes | {{.Upvotes}} points by {{.By}} {{.AgeString}} | <a href="https://news.ycombinator.com/item?id={{.ID}}">{{.Comments}}&nbsp;comments</a></div>
   </div>
   </div>
 </li>
 {{end}}
 </ol>
+
+<div class="stats">
+<h2>stats</h2>
+<ul class="stats">
+<li>Average Submission Time: {{.AverageAgeString}}</li>
+<li>Estimated Overall Upvote Rate: {{.AverageQualityString}}×</li>
+</ul>
+</div>
 
 </body>
 </html>

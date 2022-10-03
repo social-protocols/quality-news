@@ -27,7 +27,7 @@ var coefficients = [nPageTypes]pageCoefficients{
 	{-5.40623, -4.08824, [nPages]float64{-0.64128, -0.21784, 0.85713}},
 }
 
-func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, storyID int, oneBasedRank int, sampleTime int64, deltaUpvotes int, sitewideUpvotes int) [2]float64 {
+func expectedUpvoteShare(pageType, oneBasedRank int) float64 {
 	zeroBasedPage := (oneBasedRank - 1) / 30
 	oneBasedRankOnPage := ((oneBasedRank - 1) % 30) + 1
 
@@ -37,26 +37,33 @@ func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, s
 		cs.pageCoefficient*math.Log(float64(zeroBasedPage+1)) +
 		cs.rankCoefficients[zeroBasedPage]*math.Log(float64(oneBasedRankOnPage))
 
-	deltaAttention := float64(sitewideUpvotes) * math.Exp(logAttentionShare)
+	return math.Exp(logAttentionShare)
+}
 
-	logger.Debug(
-		"Updating cumulative attention",
-		"pageType", pageType,
-		"oneBasedPage", zeroBasedPage+1,
-		"oneBasedRankOnPage", oneBasedRankOnPage,
-		"deltaUpvotes", deltaUpvotes,
-		"deltaAttention", deltaAttention,
-		"sitewideUpvotes", sitewideUpvotes,
-		"pageTypeCoefficient", cs.pageTypeCoefficient,
-		"term2", cs.pageCoefficient*math.Log(float64(zeroBasedPage+1)),
-		"term3", cs.rankCoefficients[zeroBasedPage]*math.Log(float64(oneBasedRankOnPage)),
-		"logAttentionShare", logAttentionShare,
-		"attentionShare", math.Exp(logAttentionShare))
+
+func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, storyID int, oneBasedRank int, sampleTime int64, deltaUpvotes int, sitewideUpvotes int) [2]float64 {
+
+	attentionShare := expectedUpvoteShare(pageType, oneBasedRank)
+	deltaAttention := float64(sitewideUpvotes) * attentionShare
+
+	// logger.Debug(
+	// 	"Updating cumulative attention",
+	// 	"pageType", pageType,
+	// 	"oneBasedPage", zeroBasedPage+1,
+	// 	"oneBasedRankOnPage", oneBasedRankOnPage,
+	// 	"deltaUpvotes", deltaUpvotes,
+	// 	"deltaAttention", deltaAttention,
+	// 	"sitewideUpvotes", sitewideUpvotes,
+	// 	"pageTypeCoefficient", cs.pageTypeCoefficient,
+	// 	"term2", cs.pageCoefficient*math.Log(float64(zeroBasedPage+1)),
+	// 	"term3", cs.rankCoefficients[zeroBasedPage]*math.Log(float64(oneBasedRankOnPage)),
+	// 	"logAttentionShare", logAttentionShare,
+	// 	"attentionShare", math.Exp(logAttentionShare))
 
 	err := ndb.upsertAttention(storyID, deltaUpvotes, deltaAttention, sampleTime)
 	if err != nil {
 		logger.Err(errors.Wrap(err, "upsertAttention"))
 		return [2]float64{}
 	}
-	return [2]float64{deltaAttention, math.Exp(logAttentionShare)}
+	return [2]float64{deltaAttention, attentionShare}
 }
