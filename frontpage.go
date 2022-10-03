@@ -31,7 +31,7 @@ type story struct {
 	Quality  string
 }
 
-const defaultGravity = 0.8
+const defaultGravity = 1.8
 
 const frontPageSQL = `
   select
@@ -40,6 +40,7 @@ const frontPageSQL = `
     , title
     , url
     , submissionTime
+    , cast(unixepoch()-submissionTime as real)/3600 as age
     , score
     , descendants
     , (upvotes + 2.2956)/(cumulativeAttention+2.2956) as quality 
@@ -47,7 +48,8 @@ const frontPageSQL = `
   join stories using(id)
   join dataset using(id)
   where sampleTime = (select max(sampleTime) from dataset)
-  order by quality / pow(cast(unixepoch()-submissionTime as real)/3600 + 2, %f) desc
+  -- newRankingScore = pow((totalUpvotes + weight) / (totalAttention + weight) * age, 0.8) / pow(age + 2, 1.8)
+  order by pow(quality * age, 0.8) / pow(age + 2, %f) desc
   limit 90;
 `
 
@@ -58,6 +60,7 @@ const hnTopPageSQL = `
     , title
     , url
     , submissionTime
+    , cast(unixepoch()-submissionTime as real)/3600 as age
     , score
     , descendants
     , (upvotes + 2.2956)/(cumulativeAttention+2.2956) as quality 
@@ -184,11 +187,13 @@ func getFrontPageStories(ndb newsDatabase, ranking string, gravity float64) (sto
 	defer rows.Close()
 
 	for rows.Next() {
+
 		var s story
 
 		var submissionTime int
 		var quality float64
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &submissionTime, &s.Upvotes, &s.Comments, &quality)
+		var age float64
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &submissionTime, &age, &s.Upvotes, &s.Comments, &quality)
 
 		ageString := humanize.Time(time.Unix(int64(submissionTime), 0))
 		s.Age = ageString
