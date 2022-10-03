@@ -32,6 +32,8 @@ type story struct {
 }
 
 const defaultGravity = 1.8
+const qualityConstant = 2.2956
+const rankingConstant = 5.0
 
 const frontPageSQL = `
   select
@@ -43,13 +45,13 @@ const frontPageSQL = `
     , cast(unixepoch()-submissionTime as real)/3600 as age
     , score
     , descendants
-    , (upvotes + 2.2956)/(cumulativeAttention+2.2956) as quality 
+    , (upvotes + %f)/(cumulativeAttention + %f) as quality 
   from attention
   join stories using(id)
   join dataset using(id)
   where sampleTime = (select max(sampleTime) from dataset)
   -- newRankingScore = pow((totalUpvotes + weight) / (totalAttention + weight) * age, 0.8) / pow(age + 2, 1.8)
-  order by pow(quality * age, 0.8) / pow(age + 2, %f) desc
+  order by pow((upvotes + %f)/(cumulativeAttention + %f) * age*3600, 0.8) / pow(age + 2, %f) desc
   limit 90;
 `
 
@@ -168,7 +170,7 @@ func getFrontPageStories(ndb newsDatabase, ranking string, gravity float64) (sto
 			gravity = defaultGravity
 		}
 
-		s, err = ndb.db.Prepare(fmt.Sprintf(sql, gravity))
+		s, err = ndb.db.Prepare(fmt.Sprintf(sql, qualityConstant, qualityConstant, rankingConstant, rankingConstant, gravity))
 		if err != nil {
 			return stories, errors.Wrap(err, "preparing front page SQL")
 		}
