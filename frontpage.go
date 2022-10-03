@@ -145,6 +145,8 @@ func renderFrontPage(ndb newsDatabase, logger leveledLogger, ranking string, gra
 
 	logger.Info("Rendering front page", "ranking", ranking)
 
+	var sampleTime int64 = time.Now().Unix()
+
 	stories, err := getFrontPageStories(ndb, ranking, gravity)
 	if err != nil {
 		return nil, errors.Wrap(err, "getFrontPageStories")
