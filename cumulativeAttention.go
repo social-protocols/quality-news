@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/pkg/errors"
 	"math"
+
+	"github.com/pkg/errors"
 )
 
 const nPages = 3     // page 1 (rank 1-30), page 2, ...

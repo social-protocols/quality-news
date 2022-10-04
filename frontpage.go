@@ -6,20 +6,23 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
-	"github.com/pkg/errors"
 	"html/template"
 	"net/http"
-	"strconv"
 	"time"
+
+	// "github.com/dyninc/qstring"
+	"github.com/gorilla/schema"
+
+	"github.com/pkg/errors"
 
 	humanize "github.com/dustin/go-humanize"
 	"github.com/julienschmidt/httprouter"
 )
 
 type frontPageData struct {
-	Stories                []story
-	AverageAge             float64
-	AverageQuality float64
+	Stories					[]story
+	AverageAge			float64
+	AverageQuality	float64
 }
 
 func (d frontPageData) AverageAgeString() string {
@@ -50,11 +53,18 @@ func (s story) QualityString() string {
 	return fmt.Sprintf("%.2f", s.Quality)
 }
 
-const defaultGravity = 1.8
-const qualityConstant = 2.2956
-const rankingConstant = 5.0
+
+type FrontPageParams struct {
+	PriorWeight float64 
+	OverallPriorWeight float64 
+	Gravity float64 
+}
+
+var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.8}
+var noFrontPageParams FrontPageParams
 
 const frontPageSQL = `
+  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
   select
     id
     , by
@@ -64,13 +74,14 @@ const frontPageSQL = `
     , cast(unixepoch()-submissionTime as real)/3600 as ageHours
     , score
     , descendants
-    , (upvotes + %f)/(cumulativeAttention + %f) as quality 
+    , (upvotes + priorWeight)/(cumulativeAttention + priorWeight) as quality 
   from attention
   join stories using(id)
   join dataset using(id)
+  join parameters
   where sampleTime = (select max(sampleTime) from dataset)
   -- newRankingScore = pow((totalUpvotes + weight) / (totalAttention + weight) * age, 0.8) / pow(age + 2, 1.8)
-  order by pow((upvotes + %f)/(cumulativeAttention + %f) * ageHours, 0.8) / pow(ageHours+ 2, %f) desc
+  order by pow((upvotes + overallPriorWeight)/(cumulativeAttention + overallPriorWeight) * ageHours, 0.8) / pow(ageHours+ 2, gravity) desc
   limit 90;
 `
 
@@ -131,7 +142,7 @@ func renderFrontPages(ndb newsDatabase, logger leveledLogger) error {
 	rankings := []string{"quality", "hntop"}
 
 	for _, ranking := range rankings {
-		bytes, err := renderFrontPage(ndb, logger, ranking, -1)
+		bytes, err := renderFrontPage(ndb, logger, ranking, defaultFrontPageParams)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("render %s page", ranking))
 		}
@@ -141,13 +152,14 @@ func renderFrontPages(ndb newsDatabase, logger leveledLogger) error {
 	return nil
 }
 
-func renderFrontPage(ndb newsDatabase, logger leveledLogger, ranking string, gravity float64) ([]byte, error) {
-
-	logger.Info("Rendering front page", "ranking", ranking)
+func renderFrontPage(ndb newsDatabase, logger leveledLogger, ranking string, params FrontPageParams) ([]byte, error) {
 
 	var sampleTime int64 = time.Now().Unix()
 
-	stories, err := getFrontPageStories(ndb, ranking, gravity)
+	logger.Info("Rendering front page", "ranking", ranking)
+
+
+	stories, err := getFrontPageStories(ndb, ranking, params)
 	if err != nil {
 		return nil, errors.Wrap(err, "getFrontPageStories")
 	}
@@ -183,7 +195,11 @@ func renderFrontPage(ndb newsDatabase, logger leveledLogger, ranking string, gra
 	return b.Bytes(), nil
 }
 
-func getFrontPageStories(ndb newsDatabase, ranking string, gravity float64) (stories []story, err error) {
+func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParams) (stories []story, err error) {
+
+	gravity := params.Gravity
+	overallPriorWeight := params.OverallPriorWeight
+	priorWeight := params.PriorWeight
 
 	if statements == nil {
 		statements = make(map[string]*sql.Stmt)
@@ -192,20 +208,18 @@ func getFrontPageStories(ndb newsDatabase, ranking string, gravity float64) (sto
 	var s *sql.Stmt
 
 	// Prepare statement if it hasn't already been prepared or if we are using
-	// custom gravity
-	if statements[ranking] == nil || gravity != -1 {
+	// custom parameters
+	if statements[ranking] == nil || params != noFrontPageParams {
+
 		var sql string
 		if ranking == "quality" {
-			sql = frontPageSQL
+			sql = fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity)
 		} else if ranking == "hntop" {
 			sql = hnTopPageSQL
+
 		}
 
-		if gravity == -1 {
-			gravity = defaultGravity
-		}
-
-		s, err = ndb.db.Prepare(fmt.Sprintf(sql, qualityConstant, qualityConstant, rankingConstant, rankingConstant, gravity))
+		s, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return stories, errors.Wrap(err, "preparing front page SQL")
 		}
@@ -245,6 +259,8 @@ func getFrontPageStories(ndb newsDatabase, ranking string, gravity float64) (sto
 
 }
 
+var decoder = schema.NewDecoder()
+
 func frontpageHandler(ndb newsDatabase, ranking string, logger leveledLogger) func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
@@ -252,20 +268,34 @@ func frontpageHandler(ndb newsDatabase, ranking string, logger leveledLogger) fu
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Encoding", "gzip")
 
-		gravityStr := r.URL.Query().Get("gravity")
 
 		var b []byte
-		var err error
-		if gravityStr != "" {
-			gravity, err := strconv.ParseFloat(gravityStr, 64)
-			if err != nil {
-				logger.Err(errors.Wrap(err, "ParseFloat(gravityStr)"))
-				w.WriteHeader(400)
-				w.Write([]byte("bad request"))
-				return
+
+		var params FrontPageParams
+
+		err := decoder.Decode(&params, r.URL.Query())
+		if err != nil {
+			w.WriteHeader(400)
+			logger.Err(errors.Wrap(err, "decode URL query parameters"))
+			w.Write([]byte("bad request"))
+		} else {
+			logger.Debug("got front page params", "params", fmt.Sprintf("%+v", params), "query", fmt.Sprintf("%+v", r.URL.Query()))
+		}
+
+		if params != noFrontPageParams {
+
+			if params.Gravity == 0 {
+				params.Gravity = defaultFrontPageParams.Gravity
 			}
-			logger.Info("Generating front page with custom gravity", "gravity", gravity)
-			b, err = renderFrontPage(ndb, logger, ranking, gravity)
+			if params.OverallPriorWeight == 0 {
+				params.OverallPriorWeight = defaultFrontPageParams.OverallPriorWeight
+			}
+			if params.PriorWeight == 0 {
+				params.PriorWeight = defaultFrontPageParams.PriorWeight
+			}
+
+			logger.Info("Generating front page with custom parameters", "params",params)
+			b, err = renderFrontPage(ndb, logger, ranking, params)
 			if err != nil {
 				w.WriteHeader(500)
 				logger.Err(errors.Wrap(err, "renderFrontPage"))
