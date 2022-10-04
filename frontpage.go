@@ -23,6 +23,7 @@ type frontPageData struct {
 	Stories					[]story
 	AverageAge			float64
 	AverageQuality	float64
+	AverageUpvotes  float64
 }
 
 func (d frontPageData) AverageAgeString() string {
@@ -33,6 +34,11 @@ func (d frontPageData) AverageAgeString() string {
 func (d frontPageData) AverageQualityString() string {
 	return fmt.Sprintf("%.2f", d.AverageQuality)
 }
+
+func (d frontPageData) AverageUpvotesString() string {
+	return fmt.Sprintf("%.0f", d.AverageUpvotes)
+}
+
 
 type story struct {
 	ID             int
@@ -168,9 +174,11 @@ func renderFrontPage(ndb newsDatabase, logger leveledLogger, ranking string, par
 
 	var totalAgeSeconds int64
 	var weightedAverageQuality float64
+	var totalUpvotes int
 	for zeroBasedRank, s := range stories {
 		totalAgeSeconds += (sampleTime - s.SubmissionTime)
 		weightedAverageQuality += expectedUpvoteShare(0, zeroBasedRank+1) * s.Quality
+		totalUpvotes += s.Upvotes
 	}
 
 	var b bytes.Buffer
@@ -182,6 +190,8 @@ func renderFrontPage(ndb newsDatabase, logger leveledLogger, ranking string, par
 		stories,
 		float64(totalAgeSeconds) / float64(nStories),
 		weightedAverageQuality,
+		float64(totalUpvotes) / float64(nStories),
+
 	}
 	if err = t.ExecuteTemplate(zw, "index.html.tmpl", d); err != nil {
 		return nil, errors.Wrap(err, "executing front page template")
