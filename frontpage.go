@@ -60,7 +60,7 @@ type FrontPageParams struct {
 	Gravity float64 
 }
 
-var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.8}
+var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4}
 var noFrontPageParams FrontPageParams
 
 const frontPageSQL = `
