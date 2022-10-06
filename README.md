@@ -139,13 +139,13 @@ So this ranking formula theoretically gives stories the attention they "deserve"
 
 Unfortunately, many good stories will still be overlooked, because there are just too many stories. A story needs several clicks in order to furnish enough data to overwhelm the weight of the prior assumption of average quality, but there not necessarily enough people looking at the new page (thus the [second chance queue](https://news.ycombinator.com/item?id=11662380)) to provide these clicks. We hope to experiment with a new reputation system that **rewards people for upvoting** and encourages early upvoting of new stories. 
 
-# Development and Deployment
+# Development
 
 The application is a single Go process that crawls the [Hacker News API](https://github.com/HackerNews/API) every minute. For each story, it records the current rank and page (top, new, best, etc.), and how many upvotes it has received, computes the attention share for that rank and updates the accumulated attention for that story. The data is stored in a Sqlite database.
 
-The frontpage generator queries the database and calculates the Bayesian average quality in the SQL query. It then uses the Go templating library to generate very simple HTML that mimics the original HN site. The frontpage is regenerated every minute and served compressed directly from memory.
+The frontpage generator queries the database and calculates the Bayesian average upvote rate in the SQL query. It then uses the Go templating library to generate very simple HTML that mimics the original HN site. The frontpage is regenerated every minute and served compressed directly from memory.
 
-## Hacking
+## Running it locally
 
 Make sure, you have
 - go 1.18+
