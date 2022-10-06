@@ -2,8 +2,6 @@ package main
 
 import (
 	"math"
-
-	"github.com/pkg/errors"
 )
 
 const nPages = 3     // page 1 (rank 1-30), page 2, ...
@@ -41,7 +39,6 @@ func expectedUpvoteShare(pageType, oneBasedRank int) float64 {
 	return math.Exp(logAttentionShare)
 }
 
-
 func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, storyID int, oneBasedRank int, sampleTime int64, deltaUpvotes int, sitewideUpvotes int) [2]float64 {
 
 	attentionShare := expectedUpvoteShare(pageType, oneBasedRank)
@@ -61,10 +58,5 @@ func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, s
 	// 	"logAttentionShare", logAttentionShare,
 	// 	"attentionShare", math.Exp(logAttentionShare))
 
-	err := ndb.upsertAttention(storyID, deltaUpvotes, deltaAttention, sampleTime)
-	if err != nil {
-		logger.Err(errors.Wrap(err, "upsertAttention"))
-		return [2]float64{}
-	}
 	return [2]float64{deltaAttention, attentionShare}
 }
