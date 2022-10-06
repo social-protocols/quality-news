@@ -61,7 +61,7 @@ Given a history of the story's rank at each time (given by `rank[time]`), we can
 
 ## The "True" Upvote Rate
 
-We assume that each story has some "true" upvote rate, which is how much more or less likely users are to upvote that story than the average story. During each time interval, each story will receive on average the expected number of upvotes times its upvote rate.
+We assume that each story has some "true" upvote rate, which is how much more or less likely users are to upvote that story than the average story. During each time interval, each story will receive on average the expected number of upvotes times its true upvote rate.
 
     upvotes[time] ≈ upvoteRate * expectedUpvotes[rank[time], time]
 
@@ -81,13 +81,13 @@ Thus the aggregate upvote ratio is an approximation of the true upvote rate:
 
 But if we don't have a lot of data for a story, the upvote ratio may be more a reflection of pure chance than of the true upvote rate.
 
-A more sophisticated approach uses Bayesian inference: given our prior knowledge about the distribution of upvote rates, plus the evidence we have about this particular story, what does Bayes' rule tell us is the most probably true upvote rate?
+A more sophisticated approach uses Bayesian inference: given our prior knowledge about the distribution of upvote rates, plus the evidence we have about this particular story, what does Bayes' rule tell us is the most probable true upvote rate?
 
 Since the probability distribution in this case is continuous and complicated, Bayes rule actually can't be evaluated analytically using pen-on-paper math. Instead we run a Markov Chain Monte Carlo simulation in STAN on our Bayesian model to approximate the posterior distribution.
 
-When we run this model we find that the posterior estimate of the true upvote rate for each story "shrinks": it falls somewhere between the upvote ratio for that story, and the average upvote ratio of 1. The more data we have for each story, the closer the posterior is to the actual upvote ratio. 
+When we run this model we find that the posterior estimate of the true upvote rate for each story **shrinks**[https://www.statisticshowto.com/shrinkage-estimator/]: it falls somewhere between the upvote ratio for that story, and the average upvote ratio of 1. The more data we have for each story, the closer the posterior is to the actual upvote ratio. 
 
-In fact, the posterior is always just a weighted average of the observed upvote rate and the prior of 1.0. The weights are, respectively, the number of expected upvotes, and a constant representing the strength of the prior. If we know this constant, we can then estimate upvoteRate using the following formula -- a technique known as Bayesian averaging. Our calculations are shown [here].
+In fact, the posterior is always just a weighted average of the observed upvote rate and the prior of 1.0. The weights are, respectively, the number of expected upvotes, and a constant representing the strength of the prior. If we know this constant, we can then estimate upvoteRate using the following formula -- a technique known as [Bayesian averaging](https://en.wikipedia.org/wiki/Bayesian_average).
       
     U = totalUpvotes
     A = totalExpectedUpvotes
@@ -128,16 +128,15 @@ We then drop the constant `pow(c, 0.8)` and substitute in our Bayesian average e
 
 ## Discussion
 
-We expect more upvotes for stories shown at high rank during peak times because they receive more **attention**. Now we don't have any way to directly measure or even precisely define "attention" (we don't know what's going on in users's heads), but we know the number of upvotes the average story receives must be roughly proportional to the amount of attention it receives (though there is a small attention fatigue factor). So expectedUpvotes is a *proxy* for attention. In fact in this code base, we use the term attention instead of expectedUpvotes.
+We expect more upvotes for stories shown at high rank during peak times because they receive more **attention**. Now we don't have any way to directly measure or even precisely define "attention" (we don't know what's going on in users's heads), but we know that the number of upvotes the average story receives must be roughly proportional to the amount of attention it receives (though there is a small attention fatigue factor). So expectedUpvotes is a *proxy* for attention. In fact in this code base, we use the term attention instead of expectedUpvotes.
 
+With the current HN ranking formula, **early** upvotes are critical to a story's success. Stories that receive a lot of upvotes while the time penalty is still low will be ranked high and thus receive more attention, which results in a feedback loop of even more upvotes (the rich get richer) until the quadratic age penalty finally dominates the ranking score. Stories that don't receive these early upvotes need an extra high upvote rate to catch up. 
 
-With the current HN ranking formula, **early** upvotes are critical to a story's final score. Stories that receive a lot of upvotes for their age will be ranked higher and thus receive more attention, which results in a feedback loop of even more upvotes (the rich get richer) until the quadratic age penalty finally "catches up". Stories that don't receive these early upvotes can only catch up if they have a very high true upvote rate.
+Our proposed algorithm fixes this. A story that gets a lot of upvotes early on will enjoy a higher rank for a while, but it will not be able to sustain that rank unless upvotes increase in proportion to the increase in attention. In fact, the more initial success a story has, the quicker the story will accumulate attention, and thus the the faster the estimated upvote rate will fall towards the true upvote rate. Likewise stories with less initial luck can catch up more easily, because they will not have have accumulated much attention.
 
-Our proposed algorithm fixes this. A story that gets a lot of upvotes early on will enjoy a higher rank for a while, but it will not be able to sustain that rank unless upvotes increase in proportion to the increase in attention. In fact, the more initial success a story has, the quicker the story will accumulate attention, and thus the sooner the score will approach the "true" upvote rate among HN users. Likewise stories that don't get lucky and receive a lot of  upvotes early on can catch up more easily, because they will also not have have accumulated much attention.
+So this ranking formula theoretically gives stories the attention they deserve, reducing both over-ranked and under-ranked stories (false-positives and false-negatives). 
 
-So this ranking formula theoretically gives stories the attention they "deserve": reducing both over-ranked and under-ranked stories (false-positives and false-negatives). 
-
-Unfortunately, many good stories will still be overlooked, because there are just too many stories. A story needs several clicks in order to furnish enough data to overwhelm the weight of the prior assumption of average quality, but there not necessarily enough people looking at the new page (thus the [second chance queue](https://news.ycombinator.com/item?id=11662380)) to provide these clicks. We hope to experiment with a new reputation system that **rewards people for upvoting** and encourages early upvoting of new stories. 
+Unfortunately, many good stories will still be overlooked, because there are just too many stories. An above-average story needs several upvotes before there is enough information to overwhelm the weight of the prior assumption of average quality, but there not necessarily enough people looking at the new page (thus the [second chance queue](https://news.ycombinator.com/item?id=11662380)) to provide these upvotes. We hope to experiment with a new reputation system that **rewards people for upvoting** new stories that prove to have a high true upvote rate. 
 
 # Development
 
