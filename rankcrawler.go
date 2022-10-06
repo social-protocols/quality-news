@@ -14,12 +14,14 @@ type getStoriesFunc func() ([]int, error)
 type ranksArray [5]int
 
 type dataPoint struct {
-	id             int
-	score          int
-	descendants    int
-	submissionTime int64
-	sampleTime     int64
-	ranks          ranksArray
+	id                        int
+	score                     int
+	descendants               int
+	submissionTime            int64
+	sampleTime                int64
+	ranks                     ranksArray
+	cumulativeExpectedUpvotes float64
+	cumulativeUpvotes int
 }
 
 func rankToNullableInt(rank int) (result sql.NullInt32) {
@@ -40,15 +42,15 @@ func rankCrawler(ndb newsDatabase, client *hn.Client, logger leveledLogger) {
 		select {
 		case <-ticker.C:
 			err := rankCrawlerStep(ndb, client, logger)
-			if(err != nil) {
+			if err != nil {
 				logger.Err(errors.Wrap(err, "rankCrawlerStep"))
 				continue
-			} 
+			}
 			err = renderFrontPages(ndb, logger)
-			if(err != nil) {
+			if err != nil {
 				logger.Err(errors.Wrap(err, "renderFrontPages"))
 				continue
-			} 
+			}
 
 		case <-quit:
 			ticker.Stop()
@@ -115,7 +117,7 @@ func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) 
 
 	items, err := client.GetItems(uniqueStoryIds)
 	if err != nil {
-		return(errors.Wrap(err, "client.GetItems"))
+		return (errors.Wrap(err, "client.GetItems"))
 	}
 
 	logger.Info("Inserting rank data", "nitems", len(items))
@@ -123,6 +125,8 @@ func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) 
 
 	var sitewideUpvotes int
 	var deltaUpvotes = make([]int, len(items))
+	var lastCumulativeExpectedUpvotes = make([]float64, len(items))
+	var lastCumulativeUpvotes = make([]int, len(items))
 
 ITEM:
 	for i, item := range items {
@@ -131,37 +135,23 @@ ITEM:
 			continue ITEM
 		}
 		storyID := item.ID
-		ranks := ranksMap[storyID]
-
-		submissionTime := int64(item.Time().Unix())
-		datapoint := dataPoint{
-			id:             storyID,
-			score:          item.Score,
-			descendants:    item.Descendants,
-			submissionTime: submissionTime,
-			sampleTime:     sampleTime,
-			ranks:          ranks,
-		}
 
 		{
-			lastSeenScore, err := ndb.selectLastSeenScore(storyID)
+			lastSeenScore, lastUpvotes, lastExpectedUpvotes, err := ndb.selectLastSeenScore(storyID)
 			if err != nil {
 				if !errors.Is(err, sql.ErrNoRows) {
 					logger.Err(errors.Wrap(err, "selectLastSeenScore"))
 				}
 			} else {
 				deltaUpvotes[i] = item.Score - lastSeenScore
+				lastCumulativeExpectedUpvotes[i] = lastExpectedUpvotes
+				lastCumulativeUpvotes[i] = lastUpvotes
 			}
 		}
 
 		sitewideUpvotes += deltaUpvotes[i]
 
-		err := ndb.insertDataPoint(datapoint)
-		if err != nil {
-			return errors.Wrap(err, "insertDataPoint")
-		}
-		err = ndb.insertOrReplaceStory(item)
-		if err != nil {
+		if err := ndb.insertOrReplaceStory(item); err != nil {
 			return errors.Wrap(err, "insertOrReplaceStory")
 		}
 
@@ -171,11 +161,12 @@ ITEM:
 
 	var totalDeltaAttention float64
 	var totalAttentionShare float64
-	var j int
+	var deltaExpectedUpvotes float64
 	for i, item := range items {
 
 		storyID := item.ID
 		ranks := ranksMap[storyID]
+		deltaExpectedUpvotes = 0
 
 	RANKS:
 		for pageType, rank := range ranks {
@@ -185,15 +176,31 @@ ITEM:
 			d := accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes[i], sitewideUpvotes)
 			totalDeltaAttention += d[0]
 			totalAttentionShare += d[1]
+			deltaExpectedUpvotes += d[1]
 		}
-		j = i
+
+		submissionTime := int64(item.Time().Unix())
+		datapoint := dataPoint{
+			id:                        storyID,
+			score:                     item.Score,
+			descendants:               item.Descendants,
+			submissionTime:            submissionTime,
+			sampleTime:                sampleTime,
+			ranks:                     ranks,
+			cumulativeExpectedUpvotes: lastCumulativeExpectedUpvotes[i] + deltaExpectedUpvotes,
+			cumulativeUpvotes: lastCumulativeUpvotes[i] + deltaUpvotes[i],
+		}
+		if err := ndb.insertDataPoint(datapoint); err != nil {
+			return errors.Wrap(err, "insertDataPoint")
+		}
+
 	}
 
 	logger.Debug("Totals",
 		"deltaAttention", totalDeltaAttention,
 		"sitewideUpvotes", sitewideUpvotes,
 		"totalAttentionShare", totalAttentionShare,
-		"dataPoints", j)
+		"dataPoints", len(items))
 
 	logger.Info("Successfully inserted rank data", "nitems", len(items))
 

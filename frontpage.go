@@ -80,14 +80,12 @@ const frontPageSQL = `
     , cast(unixepoch()-submissionTime as real)/3600 as ageHours
     , score
     , descendants
-    , (upvotes + priorWeight)/(cumulativeAttention + priorWeight) as quality 
-  from attention
-  join stories using(id)
+    , (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality 
+  from stories
   join dataset using(id)
   join parameters
   where sampleTime = (select max(sampleTime) from dataset)
-  -- newRankingScore = pow((totalUpvotes + weight) / (totalAttention + weight) * age, 0.8) / pow(age + 2, 1.8)
-  order by pow((upvotes + overallPriorWeight)/(cumulativeAttention + overallPriorWeight) * ageHours, 0.8) / pow(ageHours+ 2, gravity) desc
+  order by pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours+ 2, gravity) desc
   limit 90;
 `
 
@@ -101,9 +99,8 @@ const hnTopPageSQL = `
     , cast(unixepoch()-submissionTime as real)/3600 as age
     , score
     , descendants
-    , (upvotes + 2.2956)/(cumulativeAttention+2.2956) as quality 
-  from attention
-  join stories using(id)
+    , (cumulativeUpvotes + 2.2956)/(cumulativeExpectedUpvotes+2.2956) as quality 
+  from stories
   join dataset using(id)
   where sampleTime = (select max(sampleTime) from dataset) and toprank is not null
   order by toprank asc
@@ -114,7 +111,7 @@ const hnTopPageSQL = `
 
    Bayesian Average Quality Formula
 
-   	quality ≈ (upvotes+k)/(cumulativeAttention+k)
+   	quality ≈ (upvotes+k)/(cumulativeExpectedUpvotes+k)
 
    Then add age. We want the age penalty to mimic the original HN formula:
 
@@ -123,7 +120,7 @@ const hnTopPageSQL = `
 	The age penalty actually serves two purposes: 1) a proxy for attention and 2) to make
 	sure stories cycle through the home page.
 
-	But if we find that cumulativeAttention roughly equals ageHours^f, then an
+	But if we find that cumulativeExpectedUpvotes roughly equals ageHours^f, then an
 	age penalty is already "built in" to our formula. But our guess is that
 	f is something like 0.6, so we need to add an addition penalty of:
 
@@ -132,7 +129,7 @@ const hnTopPageSQL = `
 
 	So the ranking formula is:
 
-   	quality ≈ (upvotes+k)/(cumulativeAttention+k)/(ageHours+2)^(1.8-f)
+   	quality ≈ (upvotes+k)/(cumulativeExpectedUpvotes+k)/(ageHours+2)^(1.8-f)
 
 */
 

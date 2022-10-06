@@ -20,7 +20,6 @@ type newsDatabase struct {
 	db                            *sql.DB
 	insertDataPointStatement      *sql.Stmt
 	insertOrReplaceStoryStatement *sql.Stmt
-	upsertAttentionStatement      *sql.Stmt
 	selectLastSeenScoreStatement  *sql.Stmt
 }
 
@@ -44,9 +43,9 @@ func (ndb newsDatabase) init() {
 
 	seedStatements := []string{
 		"CREATE TABLE IF NOT EXISTS stories(id int primary key, by text not null, title text not null, url text not null, timestamp int not null);",
-		"CREATE TABLE IF NOT EXISTS dataset (id integer not null, score integer, descendants integer not null, submissionTime integer not null, sampleTime integer not null, topRank integer, newRank integer, bestRank integer, askRank integer, showRank integer);",
+		"CREATE TABLE IF NOT EXISTS dataset (id integer not null, score integer, descendants integer not null, submissionTime integer not null, sampleTime integer not null, topRank integer, newRank integer, bestRank integer, askRank integer, showRank integer, cumulativeUpvotes real, cumulativeExpectedUpvotes real);",
 		"CREATE INDEX IF NOT EXISTS dataset_sampletime_id ON dataset(sampletime, id);",
-		"CREATE TABLE IF NOT EXISTS attention(id int primary key, upvotes int, cumulativeAttention real, lastUpdateSampleTime int);",
+		"CREATE INDEX IF NOT EXISTS dataset_sampletime_id ON dataset(id);",
 	}
 
 	for _, s := range seedStatements {
@@ -86,7 +85,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	}
 
 	{
-		sql := `INSERT INTO dataset (id, score, descendants, submissionTime, sampleTime, topRank, newRank, bestRank, askRank, showRank) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		sql := `INSERT INTO dataset (id, score, descendants, submissionTime, sampleTime, topRank, newRank, bestRank, askRank, showRank, cumulativeUpvotes, cumulativeExpectedUpvotes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 		ndb.insertDataPointStatement, err = ndb.db.Prepare(sql) // Prepare statement.
 
 		if err != nil {
@@ -95,15 +94,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	}
 
 	{
-		sql := `INSERT INTO attention (id, upvotes, cumulativeAttention, lastUpdateSampleTime) VALUES (?, ?, ?, ?) ON CONFLICT DO UPDATE SET cumulativeAttention = cumulativeAttention + excluded.cumulativeAttention, upvotes = upvotes + excluded.upvotes, lastUpdateSampleTime = excluded.lastUpdateSampleTime`
-		ndb.upsertAttentionStatement, err = ndb.db.Prepare(sql)
-		if err != nil {
-			return ndb, err
-		}
-	}
-
-	{
-		sql := `SELECT score FROM dataset WHERE id = ? ORDER BY sampleTime DESC LIMIT 1`
+		sql := `SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes FROM dataset WHERE id = ? ORDER BY sampleTime DESC LIMIT 1`
 		ndb.selectLastSeenScoreStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
@@ -115,15 +106,19 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 }
 
 func (ndb newsDatabase) insertDataPoint(d dataPoint) error {
-	_, err := ndb.insertDataPointStatement.Exec(d.id, d.score, d.descendants, d.submissionTime, d.sampleTime, rankToNullableInt(d.ranks[0]), rankToNullableInt(d.ranks[1]), rankToNullableInt(d.ranks[2]), rankToNullableInt(d.ranks[3]), rankToNullableInt(d.ranks[4]))
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (ndb newsDatabase) upsertAttention(id int, deltaUpvotes int, cumulativeAttention float64, lastUpdateSampleTime int64) error {
-	_, err := ndb.upsertAttentionStatement.Exec(id, deltaUpvotes, cumulativeAttention, lastUpdateSampleTime)
+	_, err := ndb.insertDataPointStatement.Exec(d.id,
+		d.score,
+		d.descendants,
+		d.submissionTime,
+		d.sampleTime,
+		rankToNullableInt(d.ranks[0]),
+		rankToNullableInt(d.ranks[1]),
+		rankToNullableInt(d.ranks[2]),
+		rankToNullableInt(d.ranks[3]),
+		rankToNullableInt(d.ranks[4]),
+		d.cumulativeUpvotes,
+		d.cumulativeExpectedUpvotes,
+	)
 	if err != nil {
 		return err
 	}
@@ -144,11 +139,13 @@ func (ndb newsDatabase) insertOrReplaceStory(story hn.Item) error {
 
 }
 
-func (ndb newsDatabase) selectLastSeenScore(id int) (int, error) {
+func (ndb newsDatabase) selectLastSeenScore(id int) (int, int, float64, error) {
 	var score int
-	err := ndb.selectLastSeenScoreStatement.QueryRow(id).Scan(&score)
+	var cumulativeUpvotes int
+	var cumulativeExpectedUpvotes float64
+	err := ndb.selectLastSeenScoreStatement.QueryRow(id).Scan(&score, &cumulativeUpvotes, &cumulativeExpectedUpvotes)
 	if err != nil {
-		return score, err
+		return score, cumulativeUpvotes, cumulativeExpectedUpvotes, err
 	}
-	return score, nil
+	return score, cumulativeUpvotes, cumulativeExpectedUpvotes, nil
 }
