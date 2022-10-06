@@ -150,7 +150,8 @@ The frontpage generator queries the database and calculates the Bayesian average
 Make sure, you have
 - go 1.18+
 - [direnv](https://direnv.net/) - to set environment variables automatically
-(there is also a [shell.nix](shell.nix) available, to provide all the required dependencies)
+
+There is also a [shell.nix](shell.nix) available, which provides all required dependencies.
 
 
 ```sh
