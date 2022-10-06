@@ -145,22 +145,17 @@ The application is a single Go process that crawls the [Hacker News API](https:/
 
 The frontpage generator queries the database and calculates the Bayesian average quality in the SQL query. It then uses the Go templating library to generate very simple HTML that mimics the original HN site. The frontpage is regenerated every minute and served compressed directly from memory.
 
-## Requirements
-- go
-- [direnv](https://direnv.net/)
+## Hacking
 
-## To Run Locally
+Make sure, you have
+- go 1.18+
+- [direnv](https://direnv.net/) - to set environment variables automatically
+(there is also a [shell.nix](shell.nix) available, to provide all the required dependencies)
 
-	Set SQLITE_DATA_DIR to the location of the directory containing hacker-news.sqlite (created by https://github.com/social-protocols)
-	
-	SQLITE_DATA_DIR=/data-directory go run app.go
 
-## To deploy to fly.io
+```sh
+# if you don't have direnv installed:
+source .envrc
 
-	// TODO: Copy the sqlite data file to the fly.io data volume
-
-	`flyctl launch`
-
-View the deployed app with
-
-	`flyctl open`
+go run *.go
+```
