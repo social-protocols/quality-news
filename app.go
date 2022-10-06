@@ -32,6 +32,8 @@ func main() {
 
 	logger := newLogger(logLevelString)
 
+	storyplot(db, 33110478)
+
 	retryClient := retryablehttp.NewClient()
 	retryClient.RetryMax = 3
 	retryClient.RetryWaitMin = 1 * time.Second
