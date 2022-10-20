@@ -19,6 +19,7 @@ type frontPageData struct {
 	AverageAge			float64
 	AverageQuality	float64
 	AverageUpvotes  float64
+	Ranking string
 }
 
 func (d frontPageData) AverageAgeString() string {
@@ -33,6 +34,15 @@ func (d frontPageData) AverageQualityString() string {
 func (d frontPageData) AverageUpvotesString() string {
 	return fmt.Sprintf("%.0f", d.AverageUpvotes)
 }
+
+func (d frontPageData) Quality() bool {
+	return d.Ranking == "quality"
+}
+
+func (d frontPageData) HNTop() bool {
+	return d.Ranking == "hntop"
+}
+
 
 
 type story struct {
@@ -274,6 +284,7 @@ func (app app) getFrontPageData(ranking string, params FrontPageParams) (frontPa
 		float64(totalAgeSeconds) / float64(nStories),
 		weightedAverageQuality,
 		float64(totalUpvotes) / float64(nStories),
+		ranking,
 
 	}
 
