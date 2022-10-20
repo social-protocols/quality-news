@@ -44,6 +44,8 @@ type story struct {
 	Upvotes        int
 	Comments       int
 	Quality        float64
+	TopRank        int32
+	QNRank         int32
 }
 
 func (s story) AgeString() string {
@@ -74,7 +76,6 @@ func (s story) QNRankString() string {
 }
 
 
-
 type FrontPageParams struct {
 	PriorWeight float64 
 	OverallPriorWeight float64 
@@ -100,6 +101,8 @@ const frontPageSQL = `
     , score
     , descendants
     , (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality 
+    , topRank
+    , qnRank
   from stories
   join dataset using(id)
   join parameters
@@ -120,6 +123,8 @@ const hnTopPageSQL = `
     , score
     , descendants
     , (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes+2.2956) as quality 
+    , topRank
+    , qnRank
   from stories
   join dataset using(id)
   join  parameters
@@ -321,7 +326,24 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 		var s story
 
 		var ageHours float64
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &ageHours, &s.Upvotes, &s.Comments, &s.Quality)
+
+		var topRank sql.NullInt32
+		var qnRank sql.NullInt32
+
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &ageHours, &s.Upvotes, &s.Comments, &s.Quality, &topRank, &qnRank)
+
+		if ranking == "quality" {
+			s.TopRank = topRank.Int32
+		} else {
+			s.TopRank = -1
+		}
+
+		if ranking == "hntop" {
+			s.QNRank = qnRank.Int32
+		} else {
+			s.QNRank = -1
+
+		}
 
 		if err != nil {
 			return stories, errors.Wrap(err, "Scanning row")

@@ -181,5 +181,5 @@ ITEM:
 	logger.Info("Successfully inserted rank data", "nitems", len(items))
 
 	return nil
-
 }
+

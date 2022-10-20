@@ -54,8 +54,23 @@ a:link.upvote-button, a:visited.upvote-button {
   color: #828282;
 }
 
-.quality-label {
+.quality-string {
   color: #0089f4;
+  text-align: left;
+}
+
+
+.rank-icon {
+  display: inline-block;
+  text-align: center;
+  min-width: 2em;
+  padding-left:  2px;
+  padding-right: 3px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  border-radius:  6px;
+  background-color:  #d0d0e0;
+
 }
 
 .stories li {
@@ -130,7 +145,10 @@ a:link.header-title, a:visited.header-title {
   <a class="upvote-button" href="https://news.ycombinator.com/item?id={{.ID}}" target="_blank">▲</a>
   <div>
     <a class="story-title" href="{{.URL}}">{{.Title}}</a>
-    <div class="story-details"><span class="quality-label">×{{.QualityString}}</span> upvotes | {{.Upvotes}} points by {{.By}} {{.AgeString}} | <a href="https://news.ycombinator.com/item?id={{.ID}}">{{.Comments}}&nbsp;comments</a></div>
+    <div class="story-details"><span class="quality-string">×{{.QualityString}}</span> upvotes 
+      {{if .HNRankString}}<span class="rank-icon">{{.HNRankString}}</span> on <a href="/hntop">HN</a>{{end}}
+      {{if .QNRankString}}<span class="rank-icon">{{.QNRankString}}</span> on <a href="/">QN</a>{{end}}
+      | {{.Upvotes}} points by {{.By}} {{.AgeString}} | <a href="https://news.ycombinator.com/item?id={{.ID}}">{{.Comments}}&nbsp;comments</a> </div>
   </div>
   </div>
 </li>
