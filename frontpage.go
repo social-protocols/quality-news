@@ -142,11 +142,13 @@ var t = template.Must(template.ParseFS(resources, "templates/*"))
 var pages map[string][]byte
 var statements map[string]*sql.Stmt
 
-func renderFrontPages(ndb newsDatabase, logger leveledLogger) error {
+func (app app) renderFrontPages() error {
+
+
 	rankings := []string{"quality", "hntop"}
 
 	for _, ranking := range rankings {
-		bytes, err := renderFrontPage(ndb, logger, ranking, defaultFrontPageParams)
+		bytes, err := app.renderFrontPage(ranking, defaultFrontPageParams)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("render %s page", ranking))
 		}
@@ -156,7 +158,10 @@ func renderFrontPages(ndb newsDatabase, logger leveledLogger) error {
 	return nil
 }
 
-func renderFrontPage(ndb newsDatabase, logger leveledLogger, ranking string, params FrontPageParams) ([]byte, error) {
+func (app app) renderFrontPage(ranking string, params FrontPageParams) ([]byte, error) {
+
+	logger := app.logger
+	ndb := app.ndb
 
 	var sampleTime int64 = time.Now().Unix()
 

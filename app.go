@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 	"time"
-	
+
 	"github.com/pkg/errors"
     "github.com/johnwarden/hn"
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
@@ -43,23 +43,39 @@ func main() {
 		retryClient.Logger = l // ignore debug messages from this retry client.
 	}
 
-	err = renderFrontPages(db, logger)
+	client := hn.NewClient(retryClient.StandardClient())
+
+	app := app {
+		client: client,
+		logger: logger,
+		ndb: db,
+	}
+
+
+	err = app.renderFrontPages()
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	c := hn.NewClient(retryClient.StandardClient())
 
-	go mainLoop(db, c, logger)
+	go app.mainLoop()
 
-	httpServer(db, logger)
+	app.httpServer()
 
 }
 
+type app struct {
+	ndb newsDatabase
+	client *hn.Client
+	logger leveledLogger	
+}
 
-func mainLoop(ndb newsDatabase, client *hn.Client, logger leveledLogger) {
 
-	err := crawlAndRender(ndb, client, logger)
+func (app app) mainLoop() {
+
+	logger := app.logger
+
+	err := app.crawlAndRender()
 	if err != nil {
 		logger.Err(err)
 	}
@@ -70,7 +86,7 @@ func mainLoop(ndb newsDatabase, client *hn.Client, logger leveledLogger) {
 	for {
 		select {
 		case <-ticker.C:
-			err := crawlAndRender(ndb, client, logger)
+			err := app.crawlAndRender()
 			if err != nil {
 				logger.Err(err)
 				continue
@@ -84,13 +100,16 @@ func mainLoop(ndb newsDatabase, client *hn.Client, logger leveledLogger) {
 }
 
 
-func crawlAndRender(ndb newsDatabase, client *hn.Client, logger leveledLogger) error {
-	err := crawlHN(ndb, client, logger)
+func (app app) crawlAndRender() error {
+
+	logger := app.logger
+
+	err := app.crawlHN()
 	if err != nil {
 		return errors.Wrap(err, "crawlHN")
 	}
 	logger.Debug("Now render front pages")
-	err = renderFrontPages(ndb, logger)
+	err = app.renderFrontPages()
 	if err != nil {
 		return errors.Wrap(err, "renderFrontPages")
 	}

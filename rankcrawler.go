@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/johnwarden/hn"
-
 	"github.com/pkg/errors"
 )
 
@@ -34,7 +32,11 @@ func rankToNullableInt(rank int) (result sql.NullInt32) {
 	return
 }
 
-func crawlHN(ndb newsDatabase, client *hn.Client, logger leveledLogger) error {
+func (app app) crawlHN() error {
+
+	ndb := app.ndb
+	logger := app.logger
+	client := app.client
 
 	sampleTime := time.Now().Unix()
 

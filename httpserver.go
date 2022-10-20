@@ -20,7 +20,10 @@ import (
 //go:embed static
 var staticFS embed.FS
 
-func httpServer(db newsDatabase, l leveledLogger) {
+func (app app) httpServer() {
+
+	l := app.logger
+
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -34,8 +37,8 @@ func httpServer(db newsDatabase, l leveledLogger) {
 
 	router := httprouter.New()
 	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
-	router.GET("/", frontpageHandler(db, "quality", l))
-	router.GET("/hntop", frontpageHandler(db, "hntop", l))
+	router.GET("/", app.frontpageHandler("quality"))
+	router.GET("/hntop", app.frontpageHandler("hntop"))
 
 	l.Info("HTTP server listening", "port", port)
 	l.Fatal(http.ListenAndServe(":"+port, router))
@@ -44,7 +47,9 @@ func httpServer(db newsDatabase, l leveledLogger) {
 
 var decoder = schema.NewDecoder()
 
-func frontpageHandler(ndb newsDatabase, ranking string, logger leveledLogger) func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (app app) frontpageHandler(ranking string) func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+
+	logger := app.logger
 
 	return routerHandler(logger, func(w http.ResponseWriter, r *http.Request, params FrontPageParams) error {
 
@@ -67,7 +72,7 @@ func frontpageHandler(ndb newsDatabase, ranking string, logger leveledLogger) fu
 			}
 
 			logger.Info("Generating front page with custom parameters", "params",params)
-			b, err = renderFrontPage(ndb, logger, ranking, params)
+			b, err = app.renderFrontPage(ranking, params)
 			if err != nil {
 				return errors.Wrap(err, "renderFrontPage")
 			}
