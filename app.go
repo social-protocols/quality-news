@@ -1,21 +1,15 @@
 package main
 
 import (
-	"embed"
-	"io/fs"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
-	"github.com/johnwarden/hn"
-	"github.com/julienschmidt/httprouter"
-
+    "github.com/johnwarden/hn"
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
 )
 
 func main() {
-
 	logLevelString := os.Getenv("LOG_LEVEL")
 
 	if logLevelString == "" {
@@ -61,26 +55,3 @@ func main() {
 
 }
 
-//go:embed static
-var staticFS embed.FS
-
-func httpServer(db newsDatabase, l leveledLogger) {
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	staticRoot, err := fs.Sub(staticFS, "static")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	router := httprouter.New()
-	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
-	router.GET("/", frontpageHandler(db, "quality", l))
-	router.GET("/hntop", frontpageHandler(db, "hntop", l))
-
-	l.Info("HTTP server listening", "port", port)
-	l.Fatal(http.ListenAndServe(":"+port, router))
-}

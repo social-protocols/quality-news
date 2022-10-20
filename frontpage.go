@@ -7,16 +7,13 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
-	"net/http"
 	"time"
-
-	// "github.com/dyninc/qstring"
-	"github.com/gorilla/schema"
 
 	"github.com/pkg/errors"
 
 	humanize "github.com/dustin/go-humanize"
-	"github.com/julienschmidt/httprouter"
+
+
 )
 
 type frontPageData struct {
@@ -66,6 +63,10 @@ type FrontPageParams struct {
 	Gravity float64 
 }
 
+func (p FrontPageParams) String() string {
+	return fmt.Sprintf("%#v", p)
+}
+
 var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4}
 var noFrontPageParams FrontPageParams
 
@@ -90,6 +91,7 @@ const frontPageSQL = `
 `
 
 const hnTopPageSQL = `
+  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
   select
     id
     , by
@@ -99,9 +101,10 @@ const hnTopPageSQL = `
     , cast(unixepoch()-submissionTime as real)/3600 as age
     , score
     , descendants
-    , (cumulativeUpvotes + 2.2956)/(cumulativeExpectedUpvotes+2.2956) as quality 
+    , (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes+2.2956) as quality 
   from stories
   join dataset using(id)
+  join  parameters
   where sampleTime = (select max(sampleTime) from dataset) and toprank is not null
   order by toprank asc
   limit 90;
@@ -216,14 +219,13 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 
 	// Prepare statement if it hasn't already been prepared or if we are using
 	// custom parameters
-	if statements[ranking] == nil || params != noFrontPageParams {
+	if statements[ranking] == nil || params != defaultFrontPageParams {
 
 		var sql string
 		if ranking == "quality" {
 			sql = fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity)
 		} else if ranking == "hntop" {
-			sql = hnTopPageSQL
-
+			sql = fmt.Sprintf(hnTopPageSQL, priorWeight, overallPriorWeight, gravity)
 		}
 
 		s, err = ndb.db.Prepare(sql)
@@ -231,7 +233,7 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 			return stories, errors.Wrap(err, "preparing front page SQL")
 		}
 
-		if gravity == -1 {
+		if params != defaultFrontPageParams {
 			statements[ranking] = s
 		}
 	} else {
@@ -266,60 +268,3 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 
 }
 
-var decoder = schema.NewDecoder()
-
-func frontpageHandler(ndb newsDatabase, ranking string, logger leveledLogger) func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-
-	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Content-Encoding", "gzip")
-
-
-		var b []byte
-
-		var params FrontPageParams
-
-		err := decoder.Decode(&params, r.URL.Query())
-		if err != nil {
-			w.WriteHeader(400)
-			logger.Err(errors.Wrap(err, "decode URL query parameters"))
-			w.Write([]byte("bad request"))
-		} else {
-			logger.Debug("got front page params", "params", fmt.Sprintf("%+v", params), "query", fmt.Sprintf("%+v", r.URL.Query()))
-		}
-
-		if params != noFrontPageParams {
-
-			if params.Gravity == 0 {
-				params.Gravity = defaultFrontPageParams.Gravity
-			}
-			if params.OverallPriorWeight == 0 {
-				params.OverallPriorWeight = defaultFrontPageParams.OverallPriorWeight
-			}
-			if params.PriorWeight == 0 {
-				params.PriorWeight = defaultFrontPageParams.PriorWeight
-			}
-
-			logger.Info("Generating front page with custom parameters", "params",params)
-			b, err = renderFrontPage(ndb, logger, ranking, params)
-			if err != nil {
-				w.WriteHeader(500)
-				logger.Err(errors.Wrap(err, "renderFrontPage"))
-				w.Write([]byte("internal server error"))
-				return
-			}
-		} else {
-			b = pages[ranking]
-		}
-
-		_, err = w.Write(b)
-
-		if err != nil {
-			w.WriteHeader(500)
-			logger.Err(errors.Wrap(err, "writeFrontPage"))
-			w.Write([]byte("internal server error"))
-		}
-
-	}
-}
