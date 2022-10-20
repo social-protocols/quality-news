@@ -4,7 +4,8 @@ import (
 	"log"
 	"os"
 	"time"
-
+	
+	"github.com/pkg/errors"
     "github.com/johnwarden/hn"
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
 )
@@ -49,9 +50,49 @@ func main() {
 
 	c := hn.NewClient(retryClient.StandardClient())
 
-	go rankCrawler(db, c, logger)
+	go mainLoop(db, c, logger)
 
 	httpServer(db, logger)
 
 }
 
+
+func mainLoop(ndb newsDatabase, client *hn.Client, logger leveledLogger) {
+
+	err := crawlAndRender(ndb, client, logger)
+	if err != nil {
+		logger.Err(err)
+	}
+
+	ticker := time.NewTicker(60 * time.Second)
+	quit := make(chan struct{})
+
+	for {
+		select {
+		case <-ticker.C:
+			err := crawlAndRender(ndb, client, logger)
+			if err != nil {
+				logger.Err(err)
+				continue
+			}
+
+		case <-quit:
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+
+func crawlAndRender(ndb newsDatabase, client *hn.Client, logger leveledLogger) error {
+	err := crawlHN(ndb, client, logger)
+	if err != nil {
+		return errors.Wrap(err, "crawlHN")
+	}
+	logger.Debug("Now render front pages")
+	err = renderFrontPages(ndb, logger)
+	if err != nil {
+		return errors.Wrap(err, "renderFrontPages")
+	}
+	return nil
+}

@@ -34,33 +34,7 @@ func rankToNullableInt(rank int) (result sql.NullInt32) {
 	return
 }
 
-func rankCrawler(ndb newsDatabase, client *hn.Client, logger leveledLogger) {
-	ticker := time.NewTicker(60 * time.Second)
-	quit := make(chan struct{})
-	rankCrawlerStep(ndb, client, logger)
-	for {
-		select {
-		case <-ticker.C:
-			err := rankCrawlerStep(ndb, client, logger)
-			if err != nil {
-				logger.Err(errors.Wrap(err, "rankCrawlerStep"))
-				continue
-			}
-			err = renderFrontPages(ndb, logger)
-			if err != nil {
-				logger.Err(errors.Wrap(err, "renderFrontPages"))
-				continue
-			}
-
-		case <-quit:
-			ticker.Stop()
-			return
-		}
-	}
-
-}
-
-func rankCrawlerStep(ndb newsDatabase, client *hn.Client, logger leveledLogger) error {
+func crawlHN(ndb newsDatabase, client *hn.Client, logger leveledLogger) error {
 
 	sampleTime := time.Now().Unix()
 
