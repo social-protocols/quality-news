@@ -54,6 +54,26 @@ func (s story) QualityString() string {
 	return fmt.Sprintf("%.2f", s.Quality)
 }
 
+func (s story) HNRankString() string {
+
+	if s.TopRank == -1 { return "" }
+
+	if s.TopRank == 0 { return "⨂" }
+
+	return fmt.Sprintf("#%d", s.TopRank)
+}
+
+
+func (s story) QNRankString() string {
+
+	if s.QNRank == -1 { return "" }
+
+	if s.QNRank == 0 { return "⨂" }
+
+	return fmt.Sprintf("#%d", s.QNRank)
+}
+
+
 
 type FrontPageParams struct {
 	PriorWeight float64 
@@ -139,26 +159,85 @@ var resources embed.FS
 
 var t = template.Must(template.ParseFS(resources, "templates/*"))
 
-var pages map[string][]byte
 var statements map[string]*sql.Stmt
 
-func (app app) renderFrontPages() error {
 
+func (app app) generateAndCacheFrontPages() error {
 
-	rankings := []string{"quality", "hntop"}
+	// generate quality page with default params and cache
+	{
+		ranking := "quality"
+		b, d, err := app.generateFrontPage(ranking, defaultFrontPageParams)
 
-	for _, ranking := range rankings {
-		bytes, err := app.renderFrontPage(ranking, defaultFrontPageParams)
+		// Save our story rankings to update later in the database.
+		app.logger.Debug("Generated front page", "nStories", len(d.Stories))
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("render %s page", ranking))
+			return errors.Wrapf(err, "generateFrontPage for ranking '%s'", ranking)
 		}
-		pages[ranking] = bytes
+
+		// Cache it
+		app.generatedPages[ranking] = b
+
+		// Pull out rankings and update
+		rankings := make([]int, len(d.Stories))
+		for i, s := range d.Stories {
+				rankings[i] = s.ID
+		}
+
+		err = app.insertQNRanks(rankings)
+		if err != nil {
+			return errors.Wrap(err, "insertQNRanks")
+		}
+	
+	}
+
+	// hntop has to be generated **after** insertQNRanks or we don't
+	// get up-to-date QN rank dat. This seems a bit messy.
+	{
+		ranking := "hntop"
+		b, _, err := app.generateFrontPage(ranking, defaultFrontPageParams)
+		if err != nil {
+			return errors.Wrapf(err, "generateFrontPage for ranking '%s'", ranking)
+		}
+		app.generatedPages[ranking] = b
+
 	}
 
 	return nil
 }
 
-func (app app) renderFrontPage(ranking string, params FrontPageParams) ([]byte, error) {
+
+func (app app) generateFrontPage(ranking string, params FrontPageParams) ([]byte, frontPageData, error) {
+	d, err := app.getFrontPageData(ranking, params)
+	if err != nil {
+		return nil, d, errors.Wrap(err, "getFrontPageData")
+	}
+
+	b, err := app.renderFrontPage(d)
+	if err != nil {
+		return nil, d, errors.Wrap(err, "generateFrontPageHTML")
+	}
+
+	return b, d, nil
+}
+
+
+func (app app) renderFrontPage(d frontPageData) ([]byte, error) {
+		var b bytes.Buffer
+
+		zw := gzip.NewWriter(&b)
+		defer zw.Close()
+
+		if err := t.ExecuteTemplate(zw, "index.html.tmpl", d); err != nil {
+			return nil, errors.Wrap(err, "executing front page template")
+		}
+
+		zw.Close()
+
+		return b.Bytes(), nil
+}
+
+func (app app) getFrontPageData(ranking string, params FrontPageParams) (frontPageData, error) {
 
 	logger := app.logger
 	ndb := app.ndb
@@ -170,7 +249,7 @@ func (app app) renderFrontPage(ranking string, params FrontPageParams) ([]byte, 
 
 	stories, err := getFrontPageStories(ndb, ranking, params)
 	if err != nil {
-		return nil, errors.Wrap(err, "getFrontPageStories")
+		return frontPageData{}, errors.Wrap(err, "getFrontPageStories")
 	}
 
 	nStories := len(stories)
@@ -184,10 +263,6 @@ func (app app) renderFrontPage(ranking string, params FrontPageParams) ([]byte, 
 		totalUpvotes += s.Upvotes
 	}
 
-	var b bytes.Buffer
-
-	zw := gzip.NewWriter(&b)
-	defer zw.Close()
 
 	d := frontPageData{
 		stories,
@@ -196,16 +271,8 @@ func (app app) renderFrontPage(ranking string, params FrontPageParams) ([]byte, 
 		float64(totalUpvotes) / float64(nStories),
 
 	}
-	if err = t.ExecuteTemplate(zw, "index.html.tmpl", d); err != nil {
-		return nil, errors.Wrap(err, "executing front page template")
-	}
 
-	if pages == nil {
-		pages = make(map[string][]byte)
-	}
-	zw.Close()
-
-	return b.Bytes(), nil
+	return d, nil
 }
 
 func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParams) (stories []story, err error) {

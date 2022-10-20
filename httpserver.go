@@ -72,12 +72,12 @@ func (app app) frontpageHandler(ranking string) func(w http.ResponseWriter, r *h
 			}
 
 			logger.Info("Generating front page with custom parameters", "params",params)
-			b, err = app.renderFrontPage(ranking, params)
+			b, _, err = app.generateFrontPage(ranking, params)
 			if err != nil {
 				return errors.Wrap(err, "renderFrontPage")
 			}
 		} else {
-			b = pages[ranking]
+			b = app.generatedPages[ranking]
 		}
 
 		_, err = w.Write(b)

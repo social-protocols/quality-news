@@ -49,10 +49,11 @@ func main() {
 		client: client,
 		logger: logger,
 		ndb: db,
+		generatedPages: make(map[string][]byte),
 	}
 
 
-	err = app.renderFrontPages()
+	err = app.generateAndCacheFrontPages()
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -68,14 +69,17 @@ type app struct {
 	ndb newsDatabase
 	client *hn.Client
 	logger leveledLogger	
+	generatedPages map[string][]byte
 }
 
 
 func (app app) mainLoop() {
 
+
 	logger := app.logger
 
-	err := app.crawlAndRender()
+
+	err := app.crawlAndGenerate()
 	if err != nil {
 		logger.Err(err)
 	}
@@ -86,7 +90,7 @@ func (app app) mainLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			err := app.crawlAndRender()
+			err := app.crawlAndGenerate()
 			if err != nil {
 				logger.Err(err)
 				continue
@@ -99,19 +103,30 @@ func (app app) mainLoop() {
 	}
 }
 
-
-func (app app) crawlAndRender() error {
-
-	logger := app.logger
+func (app app) crawlAndGenerate() error {
 
 	err := app.crawlHN()
 	if err != nil {
 		return errors.Wrap(err, "crawlHN")
 	}
-	logger.Debug("Now render front pages")
-	err = app.renderFrontPages()
+
+
+	err = app.generateAndCacheFrontPages()
 	if err != nil {
 		return errors.Wrap(err, "renderFrontPages")
 	}
+	
 	return nil
 }
+
+func (app app) insertQNRanks(ranks []int) error {
+	for i, id := range ranks {
+		err := app.ndb.updateQNRank(id, i+1);
+		if err != nil {
+			return errors.Wrap(err, "updateQNRank")
+		}
+	}
+	return nil
+}
+
+

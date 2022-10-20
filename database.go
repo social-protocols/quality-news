@@ -21,6 +21,7 @@ type newsDatabase struct {
 	insertDataPointStatement      *sql.Stmt
 	insertOrReplaceStoryStatement *sql.Stmt
 	selectLastSeenScoreStatement  *sql.Stmt
+	updateQNRankStatement  *sql.Stmt
 }
 
 func (ndb newsDatabase) close() {
@@ -43,7 +44,7 @@ func (ndb newsDatabase) init() {
 
 	seedStatements := []string{
 		"CREATE TABLE IF NOT EXISTS stories(id int primary key, by text not null, title text not null, url text not null, timestamp int not null);",
-		"CREATE TABLE IF NOT EXISTS dataset (id integer not null, score integer, descendants integer not null, submissionTime integer not null, sampleTime integer not null, topRank integer, newRank integer, bestRank integer, askRank integer, showRank integer, cumulativeUpvotes real, cumulativeExpectedUpvotes real);",
+		"CREATE TABLE IF NOT EXISTS dataset (id integer not null, score integer, descendants integer not null, submissionTime integer not null, sampleTime integer not null, topRank integer, newRank integer, bestRank integer, askRank integer, showRank integer, qnRank integer, cumulativeUpvotes real, cumulativeExpectedUpvotes real, qualityEstimate real);",
 		"CREATE INDEX IF NOT EXISTS dataset_sampletime_id ON dataset(sampletime, id);",
 		"CREATE INDEX IF NOT EXISTS dataset_sampletime_id ON dataset(id);",
 	}
@@ -101,6 +102,15 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		}
 	}
 
+	{
+		sql := `UPDATE dataset set qnRank = ? WHERE id = ? and sampleTime = (select max(sampleTime) from dataset where id = ?)`
+		ndb.updateQNRankStatement, err = ndb.db.Prepare(sql)
+		if err != nil {
+			return ndb, err
+		}
+	}
+
+
 	return ndb, nil
 
 }
@@ -148,4 +158,15 @@ func (ndb newsDatabase) selectLastSeenScore(id int) (int, int, float64, error) {
 		return score, cumulativeUpvotes, cumulativeExpectedUpvotes, err
 	}
 	return score, cumulativeUpvotes, cumulativeExpectedUpvotes, nil
+}
+
+
+func (ndb newsDatabase) updateQNRank(id int, rank int) (error) {
+
+	_, err := ndb.updateQNRankStatement.Exec(rank, id, id)
+
+	if err != nil {
+		return err
+	}
+	return nil;
 }
