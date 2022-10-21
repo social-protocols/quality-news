@@ -68,9 +68,10 @@ func (s story) QualityString() string {
 
 func (s story) HNRankString() string {
 
-	if s.TopRank == -1 { return "" }
+	// if s.TopRank == -1 { return "" }
+	//⨂
 
-	if s.TopRank == 0 { return "⨂" }
+	if s.TopRank == 0 { return "" }
 
 	return fmt.Sprintf("#%d", s.TopRank)
 }
@@ -78,9 +79,9 @@ func (s story) HNRankString() string {
 
 func (s story) QNRankString() string {
 
-	if s.QNRank == -1 { return "" }
+	// if s.QNRank == -1 { return "" }
 
-	if s.QNRank == 0 { return "⨂" }
+	if s.QNRank == 0 { return "" }
 
 	return fmt.Sprintf("#%d", s.QNRank)
 }
@@ -345,15 +346,10 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 
 		if ranking == "quality" {
 			s.TopRank = topRank.Int32
-		} else {
-			s.TopRank = -1
 		}
 
 		if ranking == "hntop" {
 			s.QNRank = qnRank.Int32
-		} else {
-			s.QNRank = -1
-
 		}
 
 		if err != nil {
