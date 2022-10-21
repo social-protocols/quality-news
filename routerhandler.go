@@ -29,6 +29,7 @@ func routerHandler[P any](logger leveledLogger, h httperror.XHandlerFunc[P]) htt
 			err = httperror.Wrap(err, http.StatusBadRequest)
 			logger.Err(err)
 			httperror.DefaultErrorHandler(w, err)
+			return;
 		}
 
 		err = h(w, r, params)

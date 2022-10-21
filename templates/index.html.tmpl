@@ -196,12 +196,23 @@ a:link.nav-link.highlighted, a:visited.nav-link.highlighted {
 
 <div class="stats">
 <h2>stats</h2>
-<ul class="stats">
+<ul>
 <li>Average Submission Time: {{.AverageAgeString}}</li>
 <li>Estimated Overall Upvote Rate: {{.AverageQualityString}}×</li>
 <li>Average Upvotes: {{.AverageUpvotesString}}</li>
 </ul>
 </div>
+
+
+<div class="parameters">
+<h2>parameters</h2>
+<ul>
+<li>Gravity: {{.GravityString}}</li>
+<li>Prior Weight: {{.PriorWeightString}}</li>
+<li>Overall Prior Weight: {{.OverallPriorWeightString}}</li>
+</ul>
+</div>
+
 
 </body>
 </html>

@@ -20,6 +20,7 @@ type frontPageData struct {
 	AverageQuality	float64
 	AverageUpvotes  float64
 	Ranking string
+	Params FrontPageParams
 }
 
 func (d frontPageData) AverageAgeString() string {
@@ -42,6 +43,21 @@ func (d frontPageData) Quality() bool {
 func (d frontPageData) HNTop() bool {
 	return d.Ranking == "hntop"
 }
+
+
+func (d frontPageData) GravityString() string {
+	return fmt.Sprintf("%.2f", d.Params.Gravity)
+}
+
+func (d frontPageData) PriorWeightString() string {
+	return fmt.Sprintf("%.2f", d.Params.PriorWeight)
+}
+
+func (d frontPageData) OverallPriorWeightString() string {
+	return fmt.Sprintf("%.2f", d.Params.OverallPriorWeight)
+}
+
+
 
 
 
@@ -286,7 +302,7 @@ func (app app) getFrontPageData(ranking string, params FrontPageParams) (frontPa
 		weightedAverageQuality,
 		float64(totalUpvotes) / float64(nStories),
 		ranking,
-
+		params,
 	}
 
 	return d, nil
