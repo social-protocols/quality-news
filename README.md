@@ -4,27 +4,30 @@
 
 ## Motivation
 
-The success of a story on HN is partly a matter of timing and luck. A few early upvotes can catapult a new story to the front page where it can get caught in a feedback loop of even more upvotes. But many great submission don't ever get caught up in this feedback loop. We discussed this in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html).
+The success of a story on HN is partly a matter of timing and luck. A few early upvotes can catapult a new story to the front page where it can get caught in a feedback loop of even more upvotes. 
 
+            →
+        ↗       ↘
+     rank     upvotes
+        ↖       ↙
+            ←
+
+
+It is not always the best submissions that get caught in this feedback loop. We discussed this in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html).
 
 This is the current hacker news ranking formula:
 
      rankingScore = pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
 
-The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **timing** and 4)  **rank**. 
+The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **timing** and 4) **rank**. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives the same number of upvotes at rank 50. And upvotes received during peak hours US time are the same as upvotes received in the middle of the night. 
 
-
-So a story that receives 100 upvotes at rank 1 is treated the same as one that receives the same number of upvotes at rank 50. And upvotes received during peak hours US time are the same as upvotes received in the middle of the night.
-
-Each story makes a unique journey through the Hacker News site, spending different amounts of time on different ranks on different pages. To account for the effect of the story's history, our first step is to estimate the number of upvotes the average story would have received if it had the same history.
+Our solution is to account for the effects of rank and timing, giving upvotes received at high ranks and peak times less weight.
 
 ## Upvote Share by Rank
 
-We start by looking at historical upvote rates for each rank for each page type. For example, the first story on the front page has historically received about 1.17 upvotes per minute, whereas the 40th story on the "new" page receives about 0.006 upvotes per minute.
+We start by looking at historical upvotes for each rank for each page type (home/top, new, etc.). For example, the first story on the home page historically receives about 10.2% of all upvotes (about 1.17 upvotes per minute), whereas the 40th story on the "new" page receives about %.05 of upvotes (about 0.0055 upvotes per minute).
 
-Of course we should ask if stories at rank 1 get more upvotes **because** they are shown at rank 1, or are the stories shown at rank 1 **because** they get more upvotes? We've attempted to answer this question with a causal analysis, and our preliminary results indicate that it's primarily the former.
-
-Once we establish the causal effect of rank on upvotes, we can calculate the expected average upvote *share* at each rank. Here's the results for the HN front page:
+We calculated this by [crawling the hacker news API](https://github.com/social-protocols/hacker-news-data) every minute for several months, recording each story's rank and score. We then made some adjustments for the fact that stories may appear on more than one page during that minute. Here are the resulting numbers for the home (top) page:
 
 <img src="static/hn-top-page-upvotes-by-rank.png?raw=true" width="600">
 
@@ -45,15 +48,29 @@ Here are our calculations for a handful of ranks (for the front HN front page).
 | 80    |  0.00110132  |
 
 -->
+## The Causal Model
+
+But do stories at rank 1 get more upvotes **because** they are shown at rank 1? Or are the stories shown at rank 1 **because** they get more upvotes? Or both?
+
+Here is an over-simplified hypothetical causal graph, based on some common sense assumptions:
+
+          story      
+        ↙       ↘
+     rank   →  upvotes
 
 
-So for example, roughly 10.2% of site-wide upvotes go to the first story on the home page, so `upvoteShare[1] = 10.2%`. The total share across all ranks adds up to 1.
+Story is a confounding variable: it has a direct effect on upvotes, and an indirect effect through rank. So even if rank had very little direct effect on upvotes, we would expect to see a strong correlation between rank and upvotes in the data!
+
+Isolating the **direct causal effect** of rank on upvotes is important, because to properly adjust a story's score for rank, we need to know how many upvotes a story received **because** of the rank it was shown at, and how many it received **because** of how up-votable that story is. We plan to publish a writeup on our approach to isolating the causal effect of rank on upvotes soon. 
+
+Solving this problem tells us the share of upvotes that we would **expect** at each rank **if the ranking algorithm where completely random**, or in other words the share of upvotes that **we would expect the average story to receive** at each rank.
 
 ## Expected Upvotes
 
-The upvote share tells us how many upvotes a story would receive at a given rank as a percentage of the total number of site-wide upvotes. So if we simply multiply this by the site-wide upvotes during some time interval, we get the number of upvotes that we expect the average story to receive at that rank during that time interval.
 
-    expectedUpvotes[rank, time] = upvoteShare[rank] * sidewideUpvotes[time]
+So if we simply multiply expected upvote share at a rank by the total site-wide upvotes during some time interval, we get the number of expected upvotes at that rank during that time interval.
+
+    expectedUpvotes[rank, time] = expectedUpvoteShare[rank] * sidewideUpvotes[time]
 
 Given a history of the story's rank at each time (given by `rank[time]`), we can compute its total expected upvotes:
 
@@ -61,31 +78,31 @@ Given a history of the story's rank at each time (given by `rank[time]`), we can
 
 ## The "True" Upvote Rate
 
-We assume that each story has some "true" upvote rate, which is how much more or less likely users are to upvote that story than the average story. During each time interval, each story will receive on average the expected number of upvotes times its true upvote rate.
+We assume that each story has some "true" upvote rate, which is how much more or less likely users are to upvote that story than the average story. During each time interval, each story will receive on average the expected number of upvotes times its trueUpvoteRate.
 
     upvotes[time] ≈ upvoteRate * expectedUpvotes[rank[time], time]
 
-This relationship `upvotes ≈ upvoteRate * expectedUpvotes` holds even in the aggregate, regardless of the ranks at which upvotes actually occurred.
+We assume that the relationship `upvotes ≈ upvoteRate * expectedUpvotes` holds even in the aggregate, regardless of the ranks at which upvotes actually occurred.
 
     totalUpvotes = sum{for each time} upvotes[time]
             = sum{for each time} upvoteRate * expectedUpvotes[rank[time], time]
             ≈ upvoteRate * sum{for each time} expectedUpvotes[rank[time], time]
             ≈ upvoteRate * totalExpectedUpvotes
 
-Thus the aggregate upvote ratio is an approximation of the true upvote rate:
+Thus the aggregate upvote ratio is an approximation of the trueUpvoteRate:
 
     upvoteRate ≈ totalUpvotes / totalExpectedUpvotes
 
 
 ## Bayesian Averaging
 
-But if we don't have a lot of data for a story, the upvote ratio may be more a reflection of pure chance than of the true upvote rate.
+But if we don't have a lot of data for a story, the upvote ratio may be more a reflection of pure chance than of the trueUpvoteRate.
 
-A more sophisticated approach uses Bayesian inference: given our prior knowledge about the distribution of upvote rates, plus the evidence we have about this particular story, what does Bayes' rule tell us is the most probable true upvote rate?
+A more sophisticated approach uses Bayesian inference: given our prior knowledge about the distribution of upvote rates, plus the evidence we have about this particular story, what does Bayes' rule tell us is the most probable trueUpvoteRate?
 
-Since the probability distribution in this case is continuous and complicated, Bayes rule actually can't be evaluated analytically using pen-on-paper math. Instead we run a Markov Chain Monte Carlo simulation in STAN on our Bayesian model to approximate the posterior distribution.
+Since the probability distribution in this case is continuous and complicated, Bayes rule actually can't be evaluated analytically using pen-on-paper math. Instead we run a Markov Chain Monte Carlo simulation in STAN on our Bayesian model to estimate the trueUpvoteRate for each story given the data.
 
-When we run this model we find that the posterior estimate of the true upvote rate for each story **shrinks**[https://www.statisticshowto.com/shrinkage-estimator/]: it falls somewhere between the upvote ratio for that story, and the average upvote ratio of 1. The more data we have for each story, the closer the posterior is to the actual upvote ratio. 
+When we run this model we find that the trueUpvoteRate estimates [**shrink**](https://www.statisticshowto.com/shrinkage-estimator/): they fall somewhere between the upvote ratio for that story and 1.0. The more data we have for each story, the closer the posterior is to the actual upvote ratio. 
 
 In fact, the posterior is always just a weighted average of the observed upvote rate and the prior of 1.0. The weights are, respectively, the number of expected upvotes, and a constant representing the strength of the prior. If we know this constant, we can then estimate upvoteRate using the following formula -- a technique known as [Bayesian averaging](https://en.wikipedia.org/wiki/Bayesian_average).
       
@@ -105,7 +122,7 @@ In fact, the posterior is always just a weighted average of the observed upvote 
 
 ## Hypothetical Upvotes
 
-Now that we have an estimate for the true upvote rate for a story, we can estimate how many upvotes that story would have received if it had the same history as the average story. At each time interval, the average story received `sidewideUpvotes[time]/nStories` upvotes. So a story with a given upvoteRate would hypothetically have received:
+Now that we have an estimate for the trueUpvoteRate for a story, we can estimate how many upvotes that story would have received if it had the same history as the average story. At each time interval, the average story received `sidewideUpvotes[time]/nStories` upvotes. So a story with a given upvoteRate would hypothetically have received:
 
     hypotheticalUpvotes = sum{for each time} upvoteRate * sidewideUpvotes[time]/nStories 
                         = upvoteRate * sum{for each time} * sidewideUpvotes[time]/nStories 
@@ -113,7 +130,7 @@ Now that we have an estimate for the true upvote rate for a story, we can estima
 
 Where the constant `c` is the same for all stories. 
 
-## Proposed new Ranking Formula:
+## New Ranking Formula:
 
 We can now substitute `hypotheticalUpvotes` into the HN ranking formula:
 
@@ -126,17 +143,61 @@ We then drop the constant `pow(c, 0.8)` and substitute in our Bayesian average e
     newRankingScore = pow((totalUpvotes + weight) / (totalExpectedUpvotes + weight) * age, 0.8) / pow(age + 2, 1.8)
 
 
-## Discussion
 
-We expect more upvotes for stories shown at high rank during peak times because they receive more **attention**. Now we don't have any way to directly measure or even precisely define "attention" (we don't know what's going on in users's heads), but we know that the number of upvotes the average story receives must be roughly proportional to the amount of attention it receives (though there is a small attention fatigue factor). So expectedUpvotes is a *proxy* for attention. In fact in this code base, we use the term attention instead of expectedUpvotes.
+## Discussion: Expected Upvotes as Proxy for Attention
 
-With the current HN ranking formula, **early** upvotes are critical to a story's success. Stories that receive a lot of upvotes while the time penalty is still low will be ranked high and thus receive more attention, which results in a feedback loop of even more upvotes (the rich get richer) until the quadratic age penalty finally dominates the ranking score. Stories that don't receive these early upvotes need an extra high upvote rate to catch up. 
+We expect more upvotes for stories shown at high rank during peak times because they receive more **attention**. Now we don't have any way to directly measure or even precisely define "attention" (we don't know what's going on in users's heads), but we know that the number of upvotes the average story receives must be roughly proportional to the amount of attention it receives (though there is a small attention fatigue factor). So expected Upvotes is a *proxy* for attention. 
 
-Our proposed algorithm fixes this. A story that gets a lot of upvotes early on will enjoy a higher rank for a while, but it will not be able to sustain that rank unless upvotes increase in proportion to the increase in attention. In fact, the more initial success a story has, the quicker the story will accumulate attention, and thus the the faster the estimated upvote rate will fall towards the true upvote rate. Likewise stories with less initial luck can catch up more easily, because they will not have have accumulated much attention.
+With the current HN ranking formula, stories that receive a lot of early upvotes while the time penalty is still low can be ranked very high and thus receive more attention, which results in a feedback loop of even more upvotes (the rich get richer) until the quadratic age penalty finally dominates the ranking score. The effect of this feedback loop can overwhelm the effect of the story's true upvote rate.
 
-So this ranking formula theoretically gives stories the attention they deserve, reducing both over-ranked and under-ranked stories (false-positives and false-negatives). 
 
-Unfortunately, many good stories will still be overlooked, because there are just too many stories. An above-average story needs several upvotes before there is enough information to overwhelm the weight of the prior assumption of average quality, but there not necessarily enough people looking at the new page (thus the [second chance queue](https://news.ycombinator.com/item?id=11662380)) to provide these upvotes. We hope to experiment with a new reputation system that **rewards people for upvoting** new stories that prove to have a high true upvote rate. 
+
+                             true
+             attention    upvote rate 
+              ↑     ↘       ↓                 
+              +       +     +                                               
+              ↑         ↘   ↓                
+            rank ← + ← upvotes
+
+Our proposed algorithm balances this feedback loop by giving expected upvotes -- our proxy for attention -- a direct negative effect on rank.
+
+<!--
+        expectedUpvotes
+              ≈
+          attention       true upvote rate 
+        ↙   ↑     ↘       ↓                 
+       -    +       +     +                                               
+        ↘   ↑         ↘   ↓                
+          rank ← + ← upvotes
+-->
+
+
+
+    expected                   true  
+     upvotes ≈ attention    upvote rate 
+         ↘      ↑     ↘       ↓                 
+           -    +       +     +                                               
+             ↘  ↑         ↘   ↓                
+              rank ← + ← upvotes
+
+
+
+So a story that gets a lot of upvotes early on will initially enjoy a higher rank and more attention, but this increased attention is a mixed blessing, because now the story is expected to receive more upvotes in proportion to the increase in attention. In fact, the more initial success a story has, the quicker the negative penalty from expected upvotes will catch up to the benefits of additional attention, so a story must have a high true upvotes rate among the average visitor to the Hacker News home page to sustain a high rank.
+
+A large enough number of bots or colluding users can still distort the results. And many good stories will still be overlooked, because there are just too many stories: an above-average story needs several upvotes before there is enough information to overwhelm the weight of the prior assumption of average quality, but there not necessarily enough people looking at the new page (thus the [second chance queue](https://news.ycombinator.com/item?id=11662380)) to provide these upvotes. We hope to experiment with a new reputation system that **rewards people for upvoting** new stories that prove to have a high true upvote rate. 
+
+But we think overall this ranking formula should do a better job of giving stories the attention they deserve, reducing both over-ranked and under-ranked stories.
+
+
+## Penalties for Off-Topic Stories
+
+When we first built this, we immediately noticed a greater proportion of non-technical stories with this new algorithm: mostly major news items from main-stream media that had little to do with hacking and startups. We reasoned that this was because Hacker News applies penalties to many main-stream news stories, but we didn't incorporate those penalties into our ranking algorithm. Here's a [blog post from 2013](https://www.righto.com/2013/11/how-hacker-news-ranking-really-works.html) that attempts to reverse-engineer these penalties
+
+
+It is natural that, once a community has formed around some topic, they will come to want to discuss unrelated topics with that same community. Perhaps in the *short-term*, people gain the most value from discussing whatever topic interests them, but in the long term communities lose their value if they don't artificially focus the discussion. I believe HN has arrived at a compromise that quietly penalizes off-topic articles while still allowing them, so that the community remains focused on hacking and startups, but people also derive value from discussing other topics that truly interest them.
+
+We are going to look into [inferring penalties and applying them](https://github.com/social-protocols/news/issues/47) on Quality News. But in the meantime, that's why you see more off-topic content here.
+
 
 # Development
 
