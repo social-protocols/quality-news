@@ -183,12 +183,13 @@ a:link.nav-link.highlighted, a:visited.nav-link.highlighted {
     <div>
       <a class="story-title" href="{{.URL}}">{{.Title}}</a>
       <div class="story-details">
-        <span class="quality-string">×{{.QualityString}}</span> upvotes 
+        <span class="quality-string">×{{.QualityString}}</span> | 
+        {{.Upvotes}} points by {{.By}} {{.AgeString}} |
         <span class="comparative-rank">
-          {{if .HNRankString}}<a href="/hntop#{{.ID}}"><span class="rank-icon hn">{{.HNRankString}}</span> on HN</a>{{end}}
-          {{if .QNRankString}}<a href="/#{{.ID}}"><span class="rank-icon qn">{{.QNRankString}}</span> on QN</a>{{end}}
-        </span>
-        | {{.Upvotes}} points by {{.By}} {{.AgeString}} | <a href="https://news.ycombinator.com/item?id={{.ID}}">{{.Comments}}&nbsp;comments</a> </div>
+          {{if .HNRankString}}<a href="/hntop#{{.ID}}"><span class="rank-icon hn">#{{.HNRankString}}</span> on HN</a>{{end}}
+          {{if .QNRankString}}<a href="/#{{.ID}}"><span class="rank-icon qn">#{{.QNRankString}}</span> on QN</a>{{end}}
+        </span> |
+        <a href="https://news.ycombinator.com/item?id={{.ID}}">{{.Comments}}&nbsp;comments</a> </div>
     </div>
   </div>
 </li>

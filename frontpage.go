@@ -9,22 +9,21 @@ import (
 	"html/template"
 	"time"
 
-	"github.com/pkg/errors"
 	humanize "github.com/dustin/go-humanize"
-
+	"github.com/pkg/errors"
 )
 
 type frontPageData struct {
-	Stories					[]story
-	AverageAge			float64
-	AverageQuality	float64
-	AverageUpvotes  float64
-	Ranking string
-	Params FrontPageParams
+	Stories        []story
+	AverageAge     float64
+	AverageQuality float64
+	AverageUpvotes float64
+	Ranking        string
+	Params         FrontPageParams
 }
 
 func (d frontPageData) AverageAgeString() string {
-	return humanize.Time(time.Unix(time.Now().Unix() - int64(d.AverageAge), 0))
+	return humanize.Time(time.Unix(time.Now().Unix()-int64(d.AverageAge), 0))
 
 }
 
@@ -44,7 +43,6 @@ func (d frontPageData) HNTop() bool {
 	return d.Ranking == "hntop"
 }
 
-
 func (d frontPageData) GravityString() string {
 	return fmt.Sprintf("%.2f", d.Params.Gravity)
 }
@@ -56,10 +54,6 @@ func (d frontPageData) PriorWeightString() string {
 func (d frontPageData) OverallPriorWeightString() string {
 	return fmt.Sprintf("%.2f", d.Params.OverallPriorWeight)
 }
-
-
-
-
 
 type story struct {
 	ID             int
@@ -87,26 +81,28 @@ func (s story) HNRankString() string {
 	// if s.TopRank == -1 { return "" }
 	//⨂
 
-	if s.TopRank == 0 { return "" }
+	if s.TopRank == 0 {
+		return ""
+	}
 
-	return fmt.Sprintf("#%d", s.TopRank)
+	return fmt.Sprintf("%d", s.TopRank)
 }
-
 
 func (s story) QNRankString() string {
 
 	// if s.QNRank == -1 { return "" }
 
-	if s.QNRank == 0 { return "" }
+	if s.QNRank == 0 {
+		return ""
+	}
 
-	return fmt.Sprintf("#%d", s.QNRank)
+	return fmt.Sprintf("%d", s.QNRank)
 }
 
-
 type FrontPageParams struct {
-	PriorWeight float64 
-	OverallPriorWeight float64 
-	Gravity float64 
+	PriorWeight        float64
+	OverallPriorWeight float64
+	Gravity            float64
 }
 
 func (p FrontPageParams) String() string {
@@ -193,7 +189,6 @@ var t = template.Must(template.ParseFS(resources, "templates/*"))
 
 var statements map[string]*sql.Stmt
 
-
 func (app app) generateAndCacheFrontPages() error {
 
 	// generate quality page with default params and cache
@@ -213,14 +208,14 @@ func (app app) generateAndCacheFrontPages() error {
 		// Pull out rankings and update
 		rankings := make([]int, len(d.Stories))
 		for i, s := range d.Stories {
-				rankings[i] = s.ID
+			rankings[i] = s.ID
 		}
 
 		err = app.insertQNRanks(rankings)
 		if err != nil {
 			return errors.Wrap(err, "insertQNRanks")
 		}
-	
+
 	}
 
 	// hntop has to be generated **after** insertQNRanks or we don't
@@ -238,7 +233,6 @@ func (app app) generateAndCacheFrontPages() error {
 	return nil
 }
 
-
 func (app app) generateFrontPage(ranking string, params FrontPageParams) ([]byte, frontPageData, error) {
 	d, err := app.getFrontPageData(ranking, params)
 	if err != nil {
@@ -253,20 +247,19 @@ func (app app) generateFrontPage(ranking string, params FrontPageParams) ([]byte
 	return b, d, nil
 }
 
-
 func (app app) renderFrontPage(d frontPageData) ([]byte, error) {
-		var b bytes.Buffer
+	var b bytes.Buffer
 
-		zw := gzip.NewWriter(&b)
-		defer zw.Close()
+	zw := gzip.NewWriter(&b)
+	defer zw.Close()
 
-		if err := t.ExecuteTemplate(zw, "index.html.tmpl", d); err != nil {
-			return nil, errors.Wrap(err, "executing front page template")
-		}
+	if err := t.ExecuteTemplate(zw, "index.html.tmpl", d); err != nil {
+		return nil, errors.Wrap(err, "executing front page template")
+	}
 
-		zw.Close()
+	zw.Close()
 
-		return b.Bytes(), nil
+	return b.Bytes(), nil
 }
 
 func (app app) getFrontPageData(ranking string, params FrontPageParams) (frontPageData, error) {
@@ -277,7 +270,6 @@ func (app app) getFrontPageData(ranking string, params FrontPageParams) (frontPa
 	var sampleTime int64 = time.Now().Unix()
 
 	logger.Info("Rendering front page", "ranking", ranking)
-
 
 	stories, err := getFrontPageStories(ndb, ranking, params)
 	if err != nil {
@@ -294,7 +286,6 @@ func (app app) getFrontPageData(ranking string, params FrontPageParams) (frontPa
 		weightedAverageQuality += expectedUpvoteShare(0, zeroBasedRank+1) * s.Quality
 		totalUpvotes += s.Upvotes
 	}
-
 
 	d := frontPageData{
 		stories,
@@ -382,4 +373,3 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 	return stories, nil
 
 }
-
