@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/pkg/errors"
-    "github.com/johnwarden/hn"
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
+	"github.com/johnwarden/hn"
+	"github.com/pkg/errors"
 )
 
 func main() {
@@ -43,21 +43,19 @@ func main() {
 		retryClient.Logger = l // ignore debug messages from this retry client.
 	}
 
-	client := hn.NewClient(retryClient.StandardClient())
+	hnClient := hn.NewClient(retryClient.StandardClient())
 
-	app := app {
-		client: client,
-		logger: logger,
-		ndb: db,
+	app := app{
+		hnClient:       hnClient,
+		logger:         logger,
+		ndb:            db,
 		generatedPages: make(map[string][]byte),
 	}
-
 
 	err = app.generateAndCacheFrontPages()
 	if err != nil {
 		logger.Fatal(err)
 	}
-
 
 	go app.mainLoop()
 
@@ -66,18 +64,15 @@ func main() {
 }
 
 type app struct {
-	ndb newsDatabase
-	client *hn.Client
-	logger leveledLogger	
+	ndb            newsDatabase
+	hnClient       *hn.Client
+	logger         leveledLogger
 	generatedPages map[string][]byte
 }
 
-
 func (app app) mainLoop() {
 
-
 	logger := app.logger
-
 
 	err := app.crawlAndGenerate()
 	if err != nil {
@@ -110,23 +105,20 @@ func (app app) crawlAndGenerate() error {
 		return errors.Wrap(err, "crawlHN")
 	}
 
-
 	err = app.generateAndCacheFrontPages()
 	if err != nil {
 		return errors.Wrap(err, "renderFrontPages")
 	}
-	
+
 	return nil
 }
 
 func (app app) insertQNRanks(ranks []int) error {
 	for i, id := range ranks {
-		err := app.ndb.updateQNRank(id, i+1);
+		err := app.ndb.updateQNRank(id, i+1)
 		if err != nil {
 			return errors.Wrap(err, "updateQNRank")
 		}
 	}
 	return nil
 }
-
-

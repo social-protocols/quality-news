@@ -21,7 +21,7 @@ type newsDatabase struct {
 	insertDataPointStatement      *sql.Stmt
 	insertOrReplaceStoryStatement *sql.Stmt
 	selectLastSeenScoreStatement  *sql.Stmt
-	updateQNRankStatement  *sql.Stmt
+	updateQNRankStatement         *sql.Stmt
 }
 
 func (ndb newsDatabase) close() {
@@ -110,9 +110,18 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		}
 	}
 
-
 	return ndb, nil
 
+}
+
+func rankToNullableInt(rank int) (result sql.NullInt32) {
+	if rank == 0 {
+		result = sql.NullInt32{}
+	} else {
+		result = sql.NullInt32{Int32: int32(rank), Valid: true}
+
+	}
+	return
 }
 
 func (ndb newsDatabase) insertDataPoint(d dataPoint) error {
@@ -149,24 +158,25 @@ func (ndb newsDatabase) insertOrReplaceStory(story hn.Item) error {
 
 }
 
-func (ndb newsDatabase) selectLastSeenScore(id int) (int, int, float64, error) {
+func (ndb newsDatabase) selectLastSeenData(id int) (int, int, float64, error) {
 	var score int
 	var cumulativeUpvotes int
 	var cumulativeExpectedUpvotes float64
+
 	err := ndb.selectLastSeenScoreStatement.QueryRow(id).Scan(&score, &cumulativeUpvotes, &cumulativeExpectedUpvotes)
 	if err != nil {
 		return score, cumulativeUpvotes, cumulativeExpectedUpvotes, err
 	}
+
 	return score, cumulativeUpvotes, cumulativeExpectedUpvotes, nil
 }
 
-
-func (ndb newsDatabase) updateQNRank(id int, rank int) (error) {
+func (ndb newsDatabase) updateQNRank(id int, rank int) error {
 
 	_, err := ndb.updateQNRankStatement.Exec(rank, id, id)
 
 	if err != nil {
 		return err
 	}
-	return nil;
+	return nil
 }

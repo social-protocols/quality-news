@@ -7,11 +7,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-type getStoriesFunc func() ([]int, error)
+var pageTypes = map[int]string{
+	0: "top",
+	1: "new",
+	2: "best",
+	3: "ask",
+	4: "show",
+}
 
-type ranksArray [5]int
+type ranksArray [5]int // the ranks of a story for different pageTypes
 
 type dataPoint struct {
+	// One datapoint represents the state of a single story at a specific point in time.
+	// It is one row of the `dataset` table.
 	id                        int
 	score                     int
 	descendants               int
@@ -19,140 +27,118 @@ type dataPoint struct {
 	sampleTime                int64
 	ranks                     ranksArray
 	cumulativeExpectedUpvotes float64
-	cumulativeUpvotes int
-}
-
-func rankToNullableInt(rank int) (result sql.NullInt32) {
-	if rank == 0 {
-		result = sql.NullInt32{}
-	} else {
-		result = sql.NullInt32{Int32: int32(rank), Valid: true}
-
-	}
-	return
+	cumulativeUpvotes         int
 }
 
 func (app app) crawlHN() error {
+	// this function is called every minute.
+	// It queries all storyIDs from all pageTypes from the Hacker News API.
+	// Collect all stories which appear on a rank < 90 and
+	// store its ranks for all different pageTypes.
+	// For every resulting story request all details from the Hacker News API.
+	// With this data, we can compute the expected upvotes per story.
 
 	ndb := app.ndb
 	logger := app.logger
-	client := app.client
+	client := app.hnClient
 
 	sampleTime := time.Now().Unix()
 
-	pageTypes := map[int]string{
-		0: "top",
-		1: "new",
-		2: "best",
-		3: "ask",
-		4: "show",
-	}
-
-	ranksMap := map[int]ranksArray{}
-
-	getKeys := func(m map[int]ranksArray) []int {
-		keys := make([]int, len(m))
-		var i int
-		for key := range m {
-			keys[i] = key
-			i++
-		}
-		return keys
-	}
-
-	// calculate ranks
-	for pageType, pageTypeString := range pageTypes {
-		ids, err := client.Stories(pageTypeString)
+	// calculate ranks for every story
+	storyRanks := map[int]ranksArray{}
+	for pageType, pageTypeName := range pageTypes {
+		storyIDs, err := client.Stories(pageTypeName)
 		if err != nil {
 			return errors.Wrap(err, "client.Stories")
 		}
 
-		for i, id := range ids {
+		for zeroBasedRank, ID := range storyIDs {
 			var ranks ranksArray
 			var ok bool
 
-			if ranks, ok = ranksMap[id]; !ok {
+			if ranks, ok = storyRanks[ID]; !ok {
+				// if story is not in storyRanks, initialize it with empty ranks
 				ranks = ranksArray{}
 			}
 
-			ranks[pageType] = i + 1
-			ranksMap[id] = ranks
+			ranks[pageType] = zeroBasedRank + 1
+			storyRanks[ID] = ranks
 
-			// only take the first 90 ranks
-			if i+1 >= 90 {
+			// only take stories which appear on the first 90 ranks
+			if zeroBasedRank+1 >= 90 {
 				break
 			}
 
 		}
 	}
 
-	uniqueStoryIds := getKeys(ranksMap)
+	uniqueStoryIds := getKeys(storyRanks)
 
 	// get story details
 	logger.Info("Getting details for stories", "num_stories", len(uniqueStoryIds))
-
-	items, err := client.GetItems(uniqueStoryIds)
+	stories, err := client.GetItems(uniqueStoryIds)
 	if err != nil {
 		return (errors.Wrap(err, "client.GetItems"))
 	}
 
-	logger.Info("Inserting rank data", "nitems", len(items))
+	logger.Info("Inserting rank data", "nitems", len(stories))
 	// get details for every unique story
 
-	var sitewideUpvotes int
-	var deltaUpvotes = make([]int, len(items))
-	var lastCumulativeExpectedUpvotes = make([]float64, len(items))
-	var lastCumulativeUpvotes = make([]int, len(items))
+	// for every story, calculate metrices used for ranking
+	var sitewideUpvotes int // total number of upvotes (since last sample point)
+	// per story:
+	var deltaUpvotes = make([]int, len(stories))          // number of upvotes (since last sample point)
+	var lastCumulativeUpvotes = make([]int, len(stories)) // last number of upvotes tracked by our crawler
+	var lastCumulativeExpectedUpvotes = make([]float64, len(stories))
 
-ITEM:
-	for i, item := range items {
-		// Skip any items that were not fetched successfully.
+STORY:
+	for i, item := range stories {
+		// Skip any stories that were not fetched successfully.
 		if item.ID == 0 {
-			continue ITEM
+			continue STORY
 		}
+
 		storyID := item.ID
 
-		{
-			lastSeenScore, lastUpvotes, lastExpectedUpvotes, err := ndb.selectLastSeenScore(storyID)
-			if err != nil {
-				if !errors.Is(err, sql.ErrNoRows) {
-					logger.Err(errors.Wrap(err, "selectLastSeenScore"))
-				}
-			} else {
-				deltaUpvotes[i] = item.Score - lastSeenScore
-				lastCumulativeExpectedUpvotes[i] = lastExpectedUpvotes
-				lastCumulativeUpvotes[i] = lastUpvotes
+		lastSeenScore, lastSeenUpvotes, lastSeenExpectedUpvotes, err := ndb.selectLastSeenData(storyID)
+		if err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				logger.Err(errors.Wrap(err, "selectLastSeenScore"))
 			}
+		} else {
+			deltaUpvotes[i] = item.Score - lastSeenScore
+			lastCumulativeUpvotes[i] = lastSeenUpvotes
+			lastCumulativeExpectedUpvotes[i] = lastSeenExpectedUpvotes
 		}
 
 		sitewideUpvotes += deltaUpvotes[i]
 
+		// save story details in database
 		if err := ndb.insertOrReplaceStory(item); err != nil {
 			return errors.Wrap(err, "insertOrReplaceStory")
 		}
-
 	}
 
 	logger.Debug("sitewideUpvotes", "value", sitewideUpvotes)
 
-	var totalDeltaAttention float64
-	var totalAttentionShare float64
-	var deltaExpectedUpvotes float64
-	for i, item := range items {
+	var totalDeltaExpectedUpvotes float64
+	var totalExpectedUpvotesShare float64
 
+	for i, item := range stories {
 		storyID := item.ID
-		ranks := ranksMap[storyID]
-		deltaExpectedUpvotes = 0
+		ranks := storyRanks[storyID]
+		expectedUpvotesAcrossRanks := 0.0
 
 	RANKS:
 		for pageType, rank := range ranks {
 			if rank == 0 {
 				continue RANKS
 			}
-			d := accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes[i], sitewideUpvotes)
-			totalDeltaAttention += d[0]
-			totalAttentionShare += d[1]
-			deltaExpectedUpvotes += d[1]
+			deltaExpectedUpvotes, expectedUpvotesShare := accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes[i], sitewideUpvotes)
+			expectedUpvotesAcrossRanks += deltaExpectedUpvotes
+
+			totalDeltaExpectedUpvotes += deltaExpectedUpvotes
+			totalExpectedUpvotesShare += expectedUpvotesShare
 		}
 
 		submissionTime := int64(item.Time().Unix())
@@ -163,8 +149,8 @@ ITEM:
 			submissionTime:            submissionTime,
 			sampleTime:                sampleTime,
 			ranks:                     ranks,
-			cumulativeExpectedUpvotes: lastCumulativeExpectedUpvotes[i] + deltaExpectedUpvotes,
-			cumulativeUpvotes: lastCumulativeUpvotes[i] + deltaUpvotes[i],
+			cumulativeExpectedUpvotes: lastCumulativeExpectedUpvotes[i] + expectedUpvotesAcrossRanks,
+			cumulativeUpvotes:         lastCumulativeUpvotes[i] + deltaUpvotes[i],
 		}
 		if err := ndb.insertDataPoint(datapoint); err != nil {
 			return errors.Wrap(err, "insertDataPoint")
@@ -173,13 +159,12 @@ ITEM:
 	}
 
 	logger.Debug("Totals",
-		"deltaAttention", totalDeltaAttention,
+		"deltaAttention", totalDeltaExpectedUpvotes,
 		"sitewideUpvotes", sitewideUpvotes,
-		"totalAttentionShare", totalAttentionShare,
-		"dataPoints", len(items))
+		"totalExpectedUpvotesShare", totalExpectedUpvotesShare,
+		"dataPoints", len(stories))
 
-	logger.Info("Successfully inserted rank data", "nitems", len(items))
+	logger.Info("Successfully inserted rank data", "nitems", len(stories))
 
 	return nil
 }
-

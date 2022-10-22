@@ -39,7 +39,7 @@ func expectedUpvoteShare(pageType, oneBasedRank int) float64 {
 	return math.Exp(logAttentionShare)
 }
 
-func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, storyID int, oneBasedRank int, sampleTime int64, deltaUpvotes int, sitewideUpvotes int) [2]float64 {
+func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, storyID int, oneBasedRank int, sampleTime int64, deltaUpvotes int, sitewideUpvotes int) (float64, float64) {
 
 	attentionShare := expectedUpvoteShare(pageType, oneBasedRank)
 	deltaAttention := float64(sitewideUpvotes) * attentionShare
@@ -58,5 +58,5 @@ func accumulateAttention(ndb newsDatabase, logger leveledLogger, pageType int, s
 	// 	"logAttentionShare", logAttentionShare,
 	// 	"attentionShare", math.Exp(logAttentionShare))
 
-	return [2]float64{deltaAttention, attentionShare}
+	return deltaAttention, attentionShare
 }
