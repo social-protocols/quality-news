@@ -30,14 +30,8 @@ Our solution is to account for the effects of rank and timing, giving upvotes re
 
 We start by looking at historical upvotes on Hacker News for each rank and page type (top/home, new, ask, etc.). For example, the first story on the "top" page receives on average about `10.2%` of all  upvotes (about `1.17` upvotes per minute), whereas the 40th story on the "new" page receives about `0.05%` of all upvotes (about `0.0055` upvotes per minute). We call this number `upvoteShare`.
 
-
-
-
-
-
 We calculated `upvoteShare` for different ranks and page types by [crawling the hacker news API](https://github.com/social-protocols/hacker-news-data) every minute for several months, and recording each story's rank and score. We then made some adjustments for the fact that stories may appear on more than one page type during that minute.
 
-<br style="clear: right"/>
 
 <img src="static/hn-top-page-votehistogram.svg" width="400" style="float: right;">
 
@@ -52,7 +46,6 @@ We calculated `upvoteShare` for different ranks and page types by [crawling the 
 -->
 
 
-
 | topRank  | avgUpvotes   | upvoteShare |
 | -------- | ------------ | ----------- |
 | 1        | 1.169        | 10.2%       |
@@ -65,14 +58,6 @@ We calculated `upvoteShare` for different ranks and page types by [crawling the 
 | ...      |              | ...         |
 | 80       | 0.013        |  0.1%       |
 | **TOTAL**| **11.493**   |  **100%**   |
-
-<style>
-    .markdown-body table {
-        display: inline; 
-    }
-</style>
-
-<br style="clear: right"/>
 
 
 ## The Causal Model
