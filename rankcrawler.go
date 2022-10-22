@@ -127,15 +127,15 @@ STORY:
 	for i, item := range stories {
 		storyID := item.ID
 		ranks := storyRanks[storyID]
-		expectedUpvotesAcrossRanks := 0.0
+		expectedUpvotesAcrossPageTypes := 0.0
 
 	RANKS:
 		for pageType, rank := range ranks {
 			if rank == 0 {
 				continue RANKS
 			}
-			deltaExpectedUpvotes, expectedUpvotesShare := accumulateAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes[i], sitewideUpvotes)
-			expectedUpvotesAcrossRanks += deltaExpectedUpvotes
+			deltaExpectedUpvotes, expectedUpvotesShare := deltaAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes[i], sitewideUpvotes)
+			expectedUpvotesAcrossPageTypes += deltaExpectedUpvotes
 
 			totalDeltaExpectedUpvotes += deltaExpectedUpvotes
 			totalExpectedUpvotesShare += expectedUpvotesShare
@@ -149,7 +149,7 @@ STORY:
 			submissionTime:            submissionTime,
 			sampleTime:                sampleTime,
 			ranks:                     ranks,
-			cumulativeExpectedUpvotes: lastCumulativeExpectedUpvotes[i] + expectedUpvotesAcrossRanks,
+			cumulativeExpectedUpvotes: lastCumulativeExpectedUpvotes[i] + expectedUpvotesAcrossPageTypes,
 			cumulativeUpvotes:         lastCumulativeUpvotes[i] + deltaUpvotes[i],
 		}
 		if err := ndb.insertDataPoint(datapoint); err != nil {

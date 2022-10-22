@@ -44,7 +44,7 @@ func (ndb newsDatabase) init() {
 
 	seedStatements := []string{
 		"CREATE TABLE IF NOT EXISTS stories(id int primary key, by text not null, title text not null, url text not null, timestamp int not null);",
-		"CREATE TABLE IF NOT EXISTS dataset (id integer not null, score integer, descendants integer not null, submissionTime integer not null, sampleTime integer not null, topRank integer, newRank integer, bestRank integer, askRank integer, showRank integer, qnRank integer, cumulativeUpvotes real, cumulativeExpectedUpvotes real, qualityEstimate real);",
+		"CREATE TABLE IF NOT EXISTS dataset (id integer not null, score integer, descendants integer not null, submissionTime integer not null, sampleTime integer not null, topRank integer, newRank integer, bestRank integer, askRank integer, showRank integer, qnRank integer, cumulativeUpvotes integer, cumulativeExpectedUpvotes real, qualityEstimate real);",
 		"CREATE INDEX IF NOT EXISTS dataset_sampletime_id ON dataset(sampletime, id);",
 		"CREATE INDEX IF NOT EXISTS dataset_sampletime_id ON dataset(id);",
 	}
