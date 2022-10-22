@@ -19,15 +19,15 @@ This is the current hacker news ranking formula:
 
      rankingScore = pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
 
-The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **timing** and 4) **rank**. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives the same number of upvotes at rank 50. And upvotes received during peak hours US time are the same as upvotes received in the middle of the night. 
+The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **timing** and 4) **rank**. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives the same number of upvotes at rank 50. And upvotes received during peak hours US time are treated the same as upvotes received in the middle of the night. 
 
 Our solution is to account for the effects of rank and timing, giving upvotes received at high ranks and peak times less weight.
 
 ## Upvote Share by Rank
 
-We start by looking at historical upvotes for each rank for each page type (home/top, new, etc.). For example, the first story on the home page historically receives about 10.2% of all upvotes (about 1.17 upvotes per minute), whereas the 40th story on the "new" page receives about %.05 of upvotes (about 0.0055 upvotes per minute).
+We start by looking at historical upvotes for each rank for each page type (home/top, new, etc.). For example, the first story on the "top" page historically receives about 10.2% of all  upvotes (about 1.17 upvotes per minute), whereas the 40th story on the "new" page receives about %.05 of upvotes (about 0.0055 upvotes per minute).
 
-We calculated this by [crawling the hacker news API](https://github.com/social-protocols/hacker-news-data) every minute for several months, recording each story's rank and score. We then made some adjustments for the fact that stories may appear on more than one page during that minute. Here are the resulting numbers for the home (top) page:
+We calculated this by [crawling the hacker news API](https://github.com/social-protocols/hacker-news-data) every minute for several months, and recording each story's rank and score. We then made some adjustments for the fact that stories may appear on more than one page during that minute. Here are the resulting numbers for the home (top) page:
 
 <img src="static/hn-top-page-upvotes-by-rank.png?raw=true" width="600">
 
@@ -59,9 +59,11 @@ Here is an over-simplified hypothetical causal graph, based on some common sense
      rank   →  upvotes
 
 
-Story is a confounding variable: it has a direct effect on upvotes, but because of the ranking algorithm, story also has an indirect effect on upvotes through rank. This means that the relationship between rank and upvotes is not entirely causal: even if rank had no direct effect on upvotes, there would be a correlation between rank and upvotes in the data!
+Story is a confounding variable: it has a direct effect on upvotes, but because the ranking algorithm favors more up-votable stories, it also has a direct effect on rank. This means that even if rank had no direct effect on upvotes, there would be a correlation between rank and upvotes in the data!
 
-Isolating the **direct causal effect** of rank on upvotes is important, because to properly adjust a story's score for rank, we need to know how many upvotes a story received **because** of the rank it was shown at, and how many it received **because** of how up-votable is is. We plan to publish a writeup on our approach to isolating the causal effect of rank on upvotes soon. 
+Isolating the **direct causal effect** of rank on upvotes is important, because to properly adjust a story's score for rank, we need to know how many upvotes a story received **because** of the rank it was shown at, and how many it received **because** of how up-votable is is. 
+
+We plan to publish a writeup on our approach to isolating the causal effect of rank on upvotes soon. 
 
 Solving this problem tells us the share of upvotes that we would **expect** at each rank **if the ranking algorithm where completely random**.
 
@@ -152,12 +154,11 @@ With the current HN ranking formula, stories that receive a lot of early upvotes
 
 
 
-                             true
-             attention    upvote rate 
-              ↑     ↘       ↓                 
-              +       +     +                                               
-              ↑         ↘   ↓                
-            rank ← + ← upvotes
+               attention
+                ↑     ↘
+                +       +
+                ↑         ↘
+              rank ← + ← upvotes
 
 Our proposed algorithm balances this feedback loop by giving expected upvotes -- our proxy for attention -- a direct negative effect on rank.
 
@@ -173,21 +174,19 @@ Our proposed algorithm balances this feedback loop by giving expected upvotes --
 
 
 
-    expected                   true  
-     upvotes ≈ attention    upvote rate 
-         ↘      ↑     ↘       ↓                 
-           -    +       +     +                                               
-             ↘  ↑         ↘   ↓                
+    expected               
+     upvotes ≈ attention
+         ↘      ↑     ↘
+           -    +       +
+             ↘  ↑         ↘
               rank ← + ← upvotes
 
 
+So a story that gets a lot of upvotes early on will initially enjoy a higher rank and more attention, but this increased attention is a mixed blessing, because now the story is expected to receive more upvotes in proportion to the increased attention. In fact, the more initial success a story has, the quicker the negative penalty from expected upvotes will catch up to the benefits of additional attention. A story must have a high true upvotes rate among the average visitor to the Hacker News home page to sustain a high rank.
 
-So a story that gets a lot of upvotes early on will initially enjoy a higher rank and more attention, but this increased attention is a mixed blessing, because now the story is expected to receive more upvotes in proportion to the increase in attention. In fact, the more initial success a story has, the quicker the negative penalty from expected upvotes will catch up to the benefits of additional attention. A story must have a high true upvotes rate among the average visitor to the Hacker News home page to sustain a high rank.
-
-A large enough number of bots or colluding users can still distort the results. And many good stories will still be overlooked, because there are just too many stories: an above-average story needs several upvotes before there is enough information to overwhelm the weight of the prior assumption of average quality, but there not necessarily enough people looking at the new page (thus the [second chance queue](https://news.ycombinator.com/item?id=11662380)) to provide these upvotes. We hope to experiment with a new reputation system that **rewards people for upvoting** new stories that prove to have a high true upvote rate. 
+A large enough number of bots or colluding users can still distort the results. And many good stories will still be overlooked, because there are just too many stories: an above-average story needs several upvotes before there is enough information to overwhelm the weight of the prior assumption of average quality, but there are not necessarily enough people looking at the new page (thus the [second chance queue](https://news.ycombinator.com/item?id=11662380)) to provide these upvotes. We hope to experiment with a new reputation system that **rewards people for upvoting** new stories that prove to have a high true upvote rate. 
 
 But we think overall this ranking formula should do a better job of giving stories the attention they deserve, reducing both over-ranked and under-ranked stories.
-
 
 ## Penalties for Off-Topic Stories
 
