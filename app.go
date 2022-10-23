@@ -32,7 +32,8 @@ func main() {
 
 	logger := newLogger(logLevelString)
 
-	rankComparisonPlot(db, 33110478)
+	rankPlot(db, 33305234)
+	upvotesPlot(db, 33305234)
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.RetryMax = 3
