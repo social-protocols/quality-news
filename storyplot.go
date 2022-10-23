@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"math/rand"
 
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
@@ -12,19 +11,20 @@ import (
 	"gonum.org/v1/plot/vg"
 )
 
-func storyplot(ndb newsDatabase, storyID int) {
+func rankComparisonPlot(ndb newsDatabase, storyID int) {
 	// https://github.com/gonum/plot/wiki/Example-plots
+
+	topRanks, qnRanks := rankDatapoints(ndb, storyID)
 
 	p := plot.New()
 
 	p.Title.Text = fmt.Sprintf("Story %d", storyID)
 	p.X.Label.Text = "Age [h]"
-
-	upvotes, topRanks := storyDatapoints(ndb, storyID)
+	p.Y.Label.Text = "Rank"
 
 	err := plotutil.AddLinePoints(p,
-		"Upvotes", upvotes,
-		"TopRank", topRanks)
+		"QN Rank", qnRanks,
+		"HN Top Rank", topRanks)
 	if err != nil {
 		panic(err)
 	}
@@ -35,21 +35,7 @@ func storyplot(ndb newsDatabase, storyID int) {
 	}
 }
 
-// randomPoints returns some random x, y points.
-func randomPoints(n int) plotter.XYs {
-	pts := make(plotter.XYs, n)
-	for i := range pts {
-		if i == 0 {
-			pts[i].X = rand.Float64()
-		} else {
-			pts[i].X = pts[i-1].X + rand.Float64()
-		}
-		pts[i].Y = pts[i].X + 10*rand.Float64()
-	}
-	return pts
-}
-
-func storyDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs) {
+func rankDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs) {
 
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
@@ -61,32 +47,36 @@ func storyDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs) {
 		log.Fatal(err)
 	}
 
-	upvotes := make(plotter.XYs, n)
 	topRanks := make(plotter.XYs, n)
+	qnRanks := make(plotter.XYs, n)
 
-	rows, err := ndb.db.Query("select sampleTime, score, topRank from dataset where id = ?", storyID)
+	rows, err := ndb.db.Query("select sampleTime, topRank, qnRank from dataset where id = ?", storyID)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	i := 0
 	for rows.Next() {
-
 		var sampleTime int64
-		var score int
 		var topRank sql.NullInt32
+		var qnRank sql.NullInt32
 
-		err = rows.Scan(&sampleTime, &score, &topRank)
+		err = rows.Scan(&sampleTime, &topRank, &qnRank)
 
 		if err != nil {
 			log.Fatal(err)
 		}
-		upvotes[i].X = float64((sampleTime - submissionTime)) / 3600
-		upvotes[i].Y = float64(score)
 
+		topRanks[i].X = float64((sampleTime - submissionTime)) / 3600
+		topRanks[i].Y = 91
 		if topRank.Valid {
-			topRanks[i].X = float64((sampleTime - submissionTime)) / 3600
 			topRanks[i].Y = float64(topRank.Int32)
+		}
+
+		qnRanks[i].X = float64((sampleTime - submissionTime)) / 3600
+		qnRanks[i].Y = 91
+		if qnRank.Valid {
+			qnRanks[i].Y = float64(qnRank.Int32)
 		}
 		i++
 	}
@@ -96,5 +86,5 @@ func storyDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs) {
 		log.Fatal(err)
 	}
 
-	return upvotes, topRanks
+	return topRanks, qnRanks
 }
