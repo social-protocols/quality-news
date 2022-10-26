@@ -43,10 +43,41 @@ func createDataDirIfNotExists(sqliteDataDir string) {
 func (ndb newsDatabase) init() {
 
 	seedStatements := []string{
-		"CREATE TABLE IF NOT EXISTS stories(id int primary key, by text not null, title text not null, url text not null, timestamp int not null);",
-		"CREATE TABLE IF NOT EXISTS dataset (id integer not null, score integer, descendants integer not null, submissionTime integer not null, sampleTime integer not null, topRank integer, newRank integer, bestRank integer, askRank integer, showRank integer, qnRank integer, cumulativeUpvotes integer, cumulativeExpectedUpvotes real, qualityEstimate real);",
-		"CREATE INDEX IF NOT EXISTS dataset_sampletime_id ON dataset(sampletime, id);",
-		"CREATE INDEX IF NOT EXISTS dataset_sampletime_id ON dataset(id);",
+        `
+        CREATE TABLE IF NOT EXISTS stories(
+            id int primary key
+            , by text not null
+            , title text not null
+            , url text not null
+            , timestamp int not null
+        );
+        `,
+        `
+        CREATE TABLE IF NOT EXISTS dataset (
+            id integer not null
+            , score integer
+            , descendants integer not null
+            , submissionTime integer not null
+            , sampleTime integer not null
+            , topRank integer
+            , newRank integer
+            , bestRank integer
+            , askRank integer
+            , showRank integer
+            , qnRank integer
+            , cumulativeUpvotes integer
+            , cumulativeExpectedUpvotes real
+            , qualityEstimate real
+        );
+        `,
+        `
+        CREATE INDEX IF NOT EXISTS dataset_sampletime_id
+        ON dataset(sampletime, id);
+        `,
+        `
+        CREATE INDEX IF NOT EXISTS dataset_sampletime_id
+        ON dataset(id);
+        `,
 	}
 
 	for _, s := range seedStatements {
@@ -77,25 +108,52 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	ndb.init()
 
+    // the newsDatabase type has four prepared statements that are defined here
 	{
-		sql := `INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url`
+		sql := `
+        INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) 
+        ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url
+        `
 		ndb.insertOrReplaceStoryStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
 		}
-	}
+	} 
 
 	{
-		sql := `INSERT INTO dataset (id, score, descendants, submissionTime, sampleTime, topRank, newRank, bestRank, askRank, showRank, cumulativeUpvotes, cumulativeExpectedUpvotes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		sql := `
+        INSERT INTO dataset (
+            id
+            , score
+            , descendants
+            , submissionTime
+            , sampleTime
+            , topRank
+            , newRank
+            , bestRank
+            , askRank
+            , showRank
+            , cumulativeUpvotes
+            , cumulativeExpectedUpvotes
+        ) VALUES (
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?
+        )
+        `
 		ndb.insertDataPointStatement, err = ndb.db.Prepare(sql) // Prepare statement.
-
 		if err != nil {
 			return ndb, err
 		}
 	}
 
 	{
-		sql := `SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes FROM dataset WHERE id = ? ORDER BY sampleTime DESC LIMIT 1`
+		sql := `
+        SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes
+        FROM dataset
+        WHERE id = ?
+        ORDER BY sampleTime DESC LIMIT 1
+        `
 		ndb.selectLastSeenScoreStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
@@ -103,7 +161,15 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	}
 
 	{
-		sql := `UPDATE dataset set qnRank = ? WHERE id = ? and sampleTime = (select max(sampleTime) from dataset where id = ?)`
+		sql := `
+        UPDATE dataset set qnRank = ?
+        WHERE id = ?
+        AND sampleTime = (
+            SELECT MAX(sampleTime) 
+            FROM dataset
+            WHERE id = ?
+        )
+        `
 		ndb.updateQNRankStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
