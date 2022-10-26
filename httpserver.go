@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"os"
 	"log"
+	"bytes"
+	"compress/gzip"
 
 	// "github.com/dyninc/qstring"
 	"github.com/gorilla/schema"
@@ -39,6 +41,7 @@ func (app app) httpServer() {
 	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
 	router.GET("/", app.frontpageHandler("quality"))
 	router.GET("/hntop", app.frontpageHandler("hntop"))
+	router.GET("/stats/:storyID", app.statsHandler())
 
 	l.Info("HTTP server listening", "port", port)
 	l.Fatal(http.ListenAndServe(":"+port, router))
@@ -89,4 +92,33 @@ func (app app) frontpageHandler(ranking string) func(w http.ResponseWriter, r *h
 
 	})
 }
+
+func (app app) statsHandler() httprouter.Handle {
+
+	return routerHandler(app.logger, func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Content-Encoding", "gzip")
+
+
+		var b bytes.Buffer
+
+		zw := gzip.NewWriter(&b)
+		defer zw.Close()
+
+
+		err := statsPage(zw, r, params)
+		if err != nil {
+			return err
+		}
+
+		zw.Close()
+		_, err = w.Write(b.Bytes())
+		return err
+
+	})
+
+}
+
+
 

@@ -185,7 +185,7 @@ const hnTopPageSQL = `
 //go:embed templates/*
 var resources embed.FS
 
-var t = template.Must(template.ParseFS(resources, "templates/*"))
+var frontPageTemplate = template.Must(template.ParseFS(resources, "templates/*"))
 
 var statements map[string]*sql.Stmt
 
@@ -253,7 +253,7 @@ func (app app) renderFrontPage(d frontPageData) ([]byte, error) {
 	zw := gzip.NewWriter(&b)
 	defer zw.Close()
 
-	if err := t.ExecuteTemplate(zw, "index.html.tmpl", d); err != nil {
+	if err := frontPageTemplate.ExecuteTemplate(zw, "index.html.tmpl", d); err != nil {
 		return nil, errors.Wrap(err, "executing front page template")
 	}
 

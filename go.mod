@@ -16,6 +16,7 @@ require (
 )
 
 require (
+	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/fatih/color v1.12.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
