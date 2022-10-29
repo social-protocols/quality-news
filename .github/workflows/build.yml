@@ -1,0 +1,53 @@
+name: Build
+
+on:
+  push:
+    branches: ["master"]
+    tags: [v*]
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# automatically cancel previous runs on the same PR
+# https://stackoverflow.com/questions/66335225/how-to-cancel-previous-runs-in-the-pr-when-you-push-new-commitsupdate-the-curre/67939898#67939898
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: "Build"
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+      - uses: actions/checkout@v3
+        with:
+          # https://github.com/actions/checkout/issues/626
+          # This is correct, because we're using a merge queue (mergify) which only merges when built against the latest target branch.
+          # https://docs.mergify.com/actions/queue/
+          ref: ${{ github.event.pull_request.head.sha }}
+      - run: go build *.go
+      - name: Check if working directory is clean
+        run: git diff --quiet --exit-code || (git status && false)
+  golangci:
+    name: "golangci"
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+      - uses: actions/checkout@v3
+        with:
+          # https://github.com/actions/checkout/issues/626
+          # This is correct, because we're using a merge queue (mergify) which only merges when built against the latest target branch.
+          # https://docs.mergify.com/actions/queue/
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.50.1
