@@ -5,17 +5,20 @@ import (
 	"fmt"
 	"image/color"
 	"io"
-	"log"
 
+	"github.com/pkg/errors"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/vg"
 )
 
-func ranksPlot(ndb newsDatabase, storyID int) io.WriterTo {
+func ranksPlot(ndb newsDatabase, storyID int) (io.WriterTo, error) {
 	// https://github.com/gonum/plot/wiki/Example-plots
 
-	hnTopRanksData, qnRanksData := rankDatapoints(ndb, storyID)
+	hnTopRanksData, qnRanksData, err := rankDatapoints(ndb, storyID)
+	if err != nil {
+		return nil, errors.Wrap(err, "rankDatapoints")
+	}
 
 	p := plot.New()
 	p.Title.Text = fmt.Sprintf("Story %d", storyID)
@@ -24,7 +27,7 @@ func ranksPlot(ndb newsDatabase, storyID int) io.WriterTo {
 
 	topRankLine, err := plotter.NewLine(hnTopRanksData)
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrap(err, "plotter.NewLine(hnTopRanksData)")
 	}
 	p.Legend.Add("HN Rank", topRankLine)
 	topRankLine.LineStyle.Width = vg.Points(2)
@@ -32,7 +35,7 @@ func ranksPlot(ndb newsDatabase, storyID int) io.WriterTo {
 
 	qnRankLine, err := plotter.NewLine(qnRanksData)
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrap(err, "plotter.NewLine(qnRanksData)")
 	}
 	p.Legend.Add("QN Rank", qnRankLine)
 	qnRankLine.LineStyle.Width = vg.Points(2)
@@ -45,16 +48,17 @@ func ranksPlot(ndb newsDatabase, storyID int) io.WriterTo {
 	p.Y.Max = 90 // cuts off everything that's 91 or higher
 
 	writer, err := p.WriterTo(8*vg.Inch, 6*vg.Inch, "png")
-	if err != nil {
-		panic(err)
-	}
-	return writer
+
+	return writer, errors.Wrap(err, "p.WriterTo")
 }
 
-func upvotesPlot(ndb newsDatabase, storyID int) io.WriterTo {
+func upvotesPlot(ndb newsDatabase, storyID int) (io.WriterTo, error) {
 	// https://github.com/gonum/plot/wiki/Example-plots
 
-	upvotesData, expectedUpvotesData := upvotesDatapoints(ndb, storyID)
+	upvotesData, expectedUpvotesData, err := upvotesDatapoints(ndb, storyID)
+	if err != nil {
+		return nil, errors.Wrap(err, "upvotesDatapoints")
+	}
 
 	p := plot.New()
 	p.Title.Text = fmt.Sprintf("Story %d", storyID)
@@ -63,7 +67,7 @@ func upvotesPlot(ndb newsDatabase, storyID int) io.WriterTo {
 
 	upvotesLine, err := plotter.NewLine(upvotesData)
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrap(err, "plotter.NewLine(upvotesData)")
 	}
 	p.Legend.Add("Upvotes", upvotesLine)
 	upvotesLine.LineStyle.Width = vg.Points(2)
@@ -71,7 +75,7 @@ func upvotesPlot(ndb newsDatabase, storyID int) io.WriterTo {
 
 	expectedUpvotesLine, err := plotter.NewLine(expectedUpvotesData)
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrap(err, "plotter.NewLine(expectedUpvotesData)")
 	}
 	p.Legend.Add("Expected Upvotes", expectedUpvotesLine)
 	expectedUpvotesLine.LineStyle.Width = vg.Points(2)
@@ -81,15 +85,17 @@ func upvotesPlot(ndb newsDatabase, storyID int) io.WriterTo {
 
 	writer, err := p.WriterTo(8*vg.Inch, 6*vg.Inch, "png")
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrap(err, "p.WriterTo")
 	}
-	return writer
+	return writer, nil
 }
 
-func upvoteRatePlot(ndb newsDatabase, storyID int) io.WriterTo {
+func upvoteRatePlot(ndb newsDatabase, storyID int) (io.WriterTo, error) {
 	// https://github.com/gonum/plot/wiki/Example-plots
-
-	upvoteRateData, upvoteRateBayesianData := upvoteRateDatapoints(ndb, storyID)
+	upvoteRateData, upvoteRateBayesianData, err := upvoteRateDatapoints(ndb, storyID)
+	if err != nil {
+		return nil, errors.Wrap(err, "upvoteRateDatapoints")
+	}
 
 	p := plot.New()
 	p.Title.Text = fmt.Sprintf("Story %d", storyID)
@@ -98,7 +104,7 @@ func upvoteRatePlot(ndb newsDatabase, storyID int) io.WriterTo {
 
 	upvotesLine, err := plotter.NewLine(upvoteRateData)
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrap(err, "plotter.NewLine(upvoteRateData)")
 	}
 	p.Legend.Add("Upvote Rate", upvotesLine)
 	upvotesLine.LineStyle.Width = vg.Points(2)
@@ -106,7 +112,7 @@ func upvoteRatePlot(ndb newsDatabase, storyID int) io.WriterTo {
 
 	expectedUpvotesLine, err := plotter.NewLine(upvoteRateBayesianData)
 	if err != nil {
-		panic(err)
+		return nil, errors.Wrap(err, "plotter.NewLine(upvoteRateBayesianData)")
 	}
 	p.Legend.Add("Upvote Rate (Bayesian Avg)", expectedUpvotesLine)
 	expectedUpvotesLine.LineStyle.Width = vg.Points(2)
@@ -115,21 +121,19 @@ func upvoteRatePlot(ndb newsDatabase, storyID int) io.WriterTo {
 	p.Add(upvotesLine, expectedUpvotesLine)
 
 	writer, err := p.WriterTo(8*vg.Inch, 6*vg.Inch, "png")
-	if err != nil {
-		panic(err)
-	}
-	return writer
+
+	return writer, errors.Wrap(err, "p.WriterTo")
 }
 
-func rankDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs) {
+func rankDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs, error) {
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
-		log.Fatal(err)
+		return nil, nil, errors.Wrap(err, "QueryRow: select count")
 	}
 
 	var submissionTime int64
 	if err := ndb.db.QueryRow("select submissionTime from dataset where id = ? limit 1", storyID).Scan(&submissionTime); err != nil {
-		log.Fatal(err)
+		return nil, nil, errors.Wrap(err, "QueryRow: select submissionTime")
 	}
 
 	topRanks := make(plotter.XYs, n)
@@ -137,7 +141,7 @@ func rankDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs) {
 
 	rows, err := ndb.db.Query("select sampleTime, topRank, qnRank from dataset where id = ?", storyID)
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, errors.Wrap(err, "Query: select ranks")
 	}
 
 	i := 0
@@ -149,7 +153,7 @@ func rankDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs) {
 		err = rows.Scan(&sampleTime, &topRank, &qnRank)
 
 		if err != nil {
-			log.Fatal(err)
+			return nil, nil, errors.Wrap(err, "rows.Scan")
 		}
 
 		topRanks[i].X = float64((sampleTime - submissionTime)) / 3600
@@ -167,22 +171,19 @@ func rankDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs) {
 	}
 
 	err = rows.Err()
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	return topRanks, qnRanks
+	return topRanks, qnRanks, errors.Wrap(err, "rows.Err")
 }
 
-func upvotesDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs) {
+func upvotesDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs, error) {
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
-		log.Fatal(err)
+		return nil, nil, errors.Wrap(err, "QueryRow: select count")
 	}
 
 	var submissionTime int64
 	if err := ndb.db.QueryRow("select submissionTime from dataset where id = ? limit 1", storyID).Scan(&submissionTime); err != nil {
-		log.Fatal(err)
+		return nil, nil, errors.Wrap(err, "QueryRow: select submissionTime")
 	}
 
 	upvotesData := make(plotter.XYs, n)
@@ -190,7 +191,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs)
 
 	rows, err := ndb.db.Query("select sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes from dataset where id = ?", storyID)
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, errors.Wrap(err, "Query: select upvotes")
 	}
 
 	i := 0
@@ -202,7 +203,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs)
 		err = rows.Scan(&sampleTime, &upvotes, &expectedUpvotes)
 
 		if err != nil {
-			log.Fatal(err)
+			return nil, nil, errors.Wrap(err, "rows.Scan")
 		}
 
 		upvotesData[i].X = float64((sampleTime - submissionTime)) / 3600
@@ -214,22 +215,19 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs)
 	}
 
 	err = rows.Err()
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	return upvotesData, expectedUpvotesData
+	return upvotesData, expectedUpvotesData, errors.Wrap(err, "rows.Err")
 }
 
-func upvoteRateDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs) {
+func upvoteRateDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs, error) {
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
-		log.Fatal(err)
+		return nil, nil, errors.Wrap(err, "QueryRow: select count")
 	}
 
 	var submissionTime int64
 	if err := ndb.db.QueryRow("select submissionTime from dataset where id = ? limit 1", storyID).Scan(&submissionTime); err != nil {
-		log.Fatal(err)
+		return nil, nil, errors.Wrap(err, "QueryRow: select submissionTime")
 	}
 
 	upvoteRateData := make(plotter.XYs, n)
@@ -237,7 +235,7 @@ func upvoteRateDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.X
 
 	rows, err := ndb.db.Query("select sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes from dataset where id = ?", storyID)
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, errors.Wrap(err, "Query: select plot data")
 	}
 
 	i := 0
@@ -249,7 +247,7 @@ func upvoteRateDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.X
 		err = rows.Scan(&sampleTime, &upvotes, &expectedUpvotes)
 
 		if err != nil {
-			log.Fatal(err)
+			return nil, nil, errors.Wrap(err, "rows.Scan")
 		}
 
 		priorWeight := defaultFrontPageParams.PriorWeight
@@ -263,9 +261,5 @@ func upvoteRateDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.X
 	}
 
 	err = rows.Err()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return upvoteRateData, upvoteRateBayesianData
+	return upvoteRateData, upvoteRateBayesianData, errors.Wrap(err, "rows.Err")
 }

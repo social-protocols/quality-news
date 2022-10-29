@@ -117,11 +117,15 @@ func (app app) statsHandler() httprouter.Handle {
 
 }
 
-func (app app) plotHandler(plotWriter func(ndb newsDatabase, storyID int) io.WriterTo) httprouter.Handle {
+func (app app) plotHandler(plotWriter func(ndb newsDatabase, storyID int) (io.WriterTo, error)) httprouter.Handle {
 	return routerHandler(app.logger, func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
-		writerTo := plotWriter(app.ndb, params.StoryID)
+		writerTo, err := plotWriter(app.ndb, params.StoryID)
+		if err != nil {
+			return err
+		}
+
 		w.Header().Set("Content-Type", "image/png")
-		_, err := writerTo.WriteTo(w)
+		_, err = writerTo.WriteTo(w)
 		return err
 	})
 }
