@@ -20,7 +20,7 @@ func ranksPlot(ndb newsDatabase, storyID int) io.WriterTo {
 	p := plot.New()
 	p.Title.Text = fmt.Sprintf("Story %d", storyID)
 	p.X.Label.Text = "Age [h]"
-	p.Y.Label.Text = "Rank"
+	p.Y.Label.Text = "Rank (log)"
 
 	topRankLine, err := plotter.NewLine(hnTopRanksData)
 	if err != nil {
@@ -39,7 +39,9 @@ func ranksPlot(ndb newsDatabase, storyID int) io.WriterTo {
 	qnRankLine.LineStyle.Color = color.RGBA{R: 0, G: 137, B: 244, A: 255}
 
 	p.Add(topRankLine, qnRankLine)
-	p.Y.Scale = plot.InvertedScale{p.Y.Scale}
+	p.Y.Scale = plot.InvertedScale{Normalizer: plot.LogScale{}}
+	// Y log scale
+	// p.Y.Scale = plot.LogScale{}
 
 	writer, err := p.WriterTo(8*vg.Inch, 6*vg.Inch, "png")
 	if err != nil {
