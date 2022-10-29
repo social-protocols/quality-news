@@ -1,4 +1,23 @@
-# About
+<h1 align="center" style="border-bottom: none">
+    <div>
+        <a href="https://social-protocols-news.fly.dev/">
+            <img src="static/logo.svg" width="80" />
+            <br>
+            Quality News
+        </a>
+    </div>
+    A fair ranking algorithm for Hacker News
+</h1>
+
+<div align="center">
+ 
+![GitHub](https://img.shields.io/github/license/social-protocols/news?style=flat-square)
+
+</div>
+
+
+
+## About
 
 [Quality News](https://social-protocols-news.fly.dev/) implements a new ranking formula for Hacker News, designed to give stories the attention they deserve.
 
