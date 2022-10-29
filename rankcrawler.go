@@ -134,7 +134,7 @@ STORY:
 			if rank == 0 {
 				continue RANKS
 			}
-			deltaExpectedUpvotes, expectedUpvotesShare := deltaAttention(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes[i], sitewideUpvotes)
+			deltaExpectedUpvotes, expectedUpvotesShare := deltaExpectedUpvotes(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes[i], sitewideUpvotes)
 			expectedUpvotesAcrossPageTypes += deltaExpectedUpvotes
 
 			totalDeltaExpectedUpvotes += deltaExpectedUpvotes
@@ -159,7 +159,7 @@ STORY:
 	}
 
 	logger.Debug("Totals",
-		"deltaAttention", totalDeltaExpectedUpvotes,
+		"deltaExpectedUpvotes", totalDeltaExpectedUpvotes,
 		"sitewideUpvotes", sitewideUpvotes,
 		"totalExpectedUpvotesShare", totalExpectedUpvotesShare,
 		"dataPoints", len(stories))

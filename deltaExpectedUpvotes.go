@@ -32,31 +32,31 @@ func expectedUpvoteShare(pageType, oneBasedRank int) float64 {
 
 	cs := coefficients[pageType]
 
-	logAttentionShare := intercept + cs.pageTypeCoefficient +
+	logExpectedUpvoteShare := intercept + cs.pageTypeCoefficient +
 		cs.pageCoefficient*math.Log(float64(zeroBasedPage+1)) +
 		cs.rankCoefficients[zeroBasedPage]*math.Log(float64(oneBasedRankOnPage))
 
-	return math.Exp(logAttentionShare)
+	return math.Exp(logExpectedUpvoteShare)
 }
 
-func deltaAttention(ndb newsDatabase, logger leveledLogger, pageType int, storyID int, oneBasedRank int, sampleTime int64, deltaUpvotes int, sitewideUpvotes int) (float64, float64) {
+func deltaExpectedUpvotes(ndb newsDatabase, logger leveledLogger, pageType int, storyID int, oneBasedRank int, sampleTime int64, deltaUpvotes int, sitewideUpvotes int) (float64, float64) {
 
-	attentionShare := expectedUpvoteShare(pageType, oneBasedRank)
-	deltaAttention := float64(sitewideUpvotes) * attentionShare
+	expectedUpvotesShare := expectedUpvoteShare(pageType, oneBasedRank)
+	deltaExpectedUpvotes := float64(sitewideUpvotes) * expectedUpvotesShare
 
 	// logger.Debug(
-	// 	"Updating cumulative attention",
+	// 	"Updating cumulative expectedUpvotes",
 	// 	"pageType", pageType,
 	// 	"oneBasedPage", zeroBasedPage+1,
 	// 	"oneBasedRankOnPage", oneBasedRankOnPage,
 	// 	"deltaUpvotes", deltaUpvotes,
-	// 	"deltaAttention", deltaAttention,
+	// 	"deltaExpectedUpvotes", deltaExpectedUpvotes,
 	// 	"sitewideUpvotes", sitewideUpvotes,
 	// 	"pageTypeCoefficient", cs.pageTypeCoefficient,
 	// 	"term2", cs.pageCoefficient*math.Log(float64(zeroBasedPage+1)),
 	// 	"term3", cs.rankCoefficients[zeroBasedPage]*math.Log(float64(oneBasedRankOnPage)),
-	// 	"logAttentionShare", logAttentionShare,
-	// 	"attentionShare", math.Exp(logAttentionShare))
+	// 	"logExpectedUpvotesShare", logExpectedUpvotesShare,
+	// 	"expectedUpvotesShare", math.Exp(logExpectedUpvotesShare))
 
-	return deltaAttention, attentionShare
+	return deltaExpectedUpvotes, expectedUpvotesShare
 }
