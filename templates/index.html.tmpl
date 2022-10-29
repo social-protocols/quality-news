@@ -191,7 +191,7 @@ a:link.nav-link.highlighted, a:visited.nav-link.highlighted {
           {{if .HNRankString}}<a href="/hntop#{{.ID}}"><span class="rank-icon hn">#{{.HNRankString}}</span> on HN</a>{{end}}
           {{if .QNRankString}}<a href="/#{{.ID}}"><span class="rank-icon qn">#{{.QNRankString}}</span> on QN</a>{{end}}
         </span> |
-        <a href="https://news.ycombinator.com/item?id={{.ID}}">{{.Comments}}&nbsp;comments</a> </div>
+        <a href="https://news.ycombinator.com/item?id={{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> </div>
     </div>
   </div>
 </li>
