@@ -58,7 +58,9 @@ a:link.upvote-button, a:visited.upvote-button {
   color: #828282;
 }
 
-.quality-string {
+.story-details .quality-string,
+.story-details a:link.quality-string,
+.story-details a:visited.quality-string {
   color: #0089f4;
   text-align: left;
 }
@@ -183,7 +185,7 @@ a:link.nav-link.highlighted, a:visited.nav-link.highlighted {
     <div>
       <a class="story-title" href="{{.URL}}">{{.Title}}</a>
       <div class="story-details">
-        <span class="quality-string">×{{.QualityString}}</span> | 
+        <a href="/stats/{{.ID}}" class="quality-string">×{{.QualityString}}</a> | 
         {{.Upvotes}} points by {{.By}} {{.AgeString}} |
         <span class="comparative-rank">
           {{if .HNRankString}}<a href="/hntop#{{.ID}}"><span class="rank-icon hn">#{{.HNRankString}}</span> on HN</a>{{end}}

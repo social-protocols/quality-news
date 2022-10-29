@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"image/color"
+	"io"
 	"log"
 
 	"gonum.org/v1/plot"
@@ -11,7 +12,7 @@ import (
 	"gonum.org/v1/plot/vg"
 )
 
-func rankPlot(ndb newsDatabase, storyID int) {
+func ranksPlot(ndb newsDatabase, storyID int) io.WriterTo {
 	// https://github.com/gonum/plot/wiki/Example-plots
 
 	hnTopRanksData, qnRanksData := rankDatapoints(ndb, storyID)
@@ -38,14 +39,16 @@ func rankPlot(ndb newsDatabase, storyID int) {
 	qnRankLine.LineStyle.Color = color.RGBA{R: 0, G: 137, B: 244, A: 255}
 
 	p.Add(topRankLine, qnRankLine)
+	p.Y.Scale = plot.InvertedScale{p.Y.Scale}
 
-	// Save the plot to a PNG file.
-	if err := p.Save(8*vg.Inch, 6*vg.Inch, "rankplot.png"); err != nil {
+	writer, err := p.WriterTo(8*vg.Inch, 6*vg.Inch, "png")
+	if err != nil {
 		panic(err)
 	}
+	return writer
 }
 
-func upvotesPlot(ndb newsDatabase, storyID int) {
+func upvotesPlot(ndb newsDatabase, storyID int) io.WriterTo {
 	// https://github.com/gonum/plot/wiki/Example-plots
 
 	upvotesData, expectedUpvotesData := upvotesDatapoints(ndb, storyID)
@@ -73,13 +76,14 @@ func upvotesPlot(ndb newsDatabase, storyID int) {
 
 	p.Add(upvotesLine, expectedUpvotesLine)
 
-	// Save the plot to a PNG file.
-	if err := p.Save(8*vg.Inch, 6*vg.Inch, "upvotesplot.png"); err != nil {
+	writer, err := p.WriterTo(8*vg.Inch, 6*vg.Inch, "png")
+	if err != nil {
 		panic(err)
 	}
+	return writer
 }
 
-func upvoteRatePlot(ndb newsDatabase, storyID int) {
+func upvoteRatePlot(ndb newsDatabase, storyID int) io.WriterTo {
 	// https://github.com/gonum/plot/wiki/Example-plots
 
 	upvoteRateData, upvoteRateBayesianData := upvoteRateDatapoints(ndb, storyID)
@@ -107,10 +111,11 @@ func upvoteRatePlot(ndb newsDatabase, storyID int) {
 
 	p.Add(upvotesLine, expectedUpvotesLine)
 
-	// Save the plot to a PNG file.
-	if err := p.Save(8*vg.Inch, 6*vg.Inch, "upvoterateplot.png"); err != nil {
+	writer, err := p.WriterTo(8*vg.Inch, 6*vg.Inch, "png")
+	if err != nil {
 		panic(err)
 	}
+	return writer
 }
 
 func rankDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs) {
@@ -145,15 +150,15 @@ func rankDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs) {
 		}
 
 		topRanks[i].X = float64((sampleTime - submissionTime)) / 3600
-		topRanks[i].Y = -91
+		topRanks[i].Y = 91
 		if topRank.Valid {
-			topRanks[i].Y = -float64(topRank.Int32)
+			topRanks[i].Y = float64(topRank.Int32)
 		}
 
 		qnRanks[i].X = float64((sampleTime - submissionTime)) / 3600
-		qnRanks[i].Y = -91
+		qnRanks[i].Y = 91
 		if qnRank.Valid {
-			qnRanks[i].Y = -float64(qnRank.Int32)
+			qnRanks[i].Y = float64(qnRank.Int32)
 		}
 		i++
 	}

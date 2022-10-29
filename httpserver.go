@@ -1,14 +1,14 @@
 package main
 
-
 import (
-	"embed"
-	"net/http"
-	"io/fs"
-	"os"
-	"log"
 	"bytes"
 	"compress/gzip"
+	"embed"
+	"io"
+	"io/fs"
+	"log"
+	"net/http"
+	"os"
 
 	// "github.com/dyninc/qstring"
 	"github.com/gorilla/schema"
@@ -16,16 +16,14 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/julienschmidt/httprouter"
-
-
 )
+
 //go:embed static
 var staticFS embed.FS
 
 func (app app) httpServer() {
 
 	l := app.logger
-
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -42,11 +40,13 @@ func (app app) httpServer() {
 	router.GET("/", app.frontpageHandler("quality"))
 	router.GET("/hntop", app.frontpageHandler("hntop"))
 	router.GET("/stats/:storyID", app.statsHandler())
+	router.GET("/stats/:storyID/ranks.png", app.plotHandler(ranksPlot))
+	router.GET("/stats/:storyID/upvotes.png", app.plotHandler(upvotesPlot))
+	router.GET("/stats/:storyID/upvoterate.png", app.plotHandler(upvoteRatePlot))
 
 	l.Info("HTTP server listening", "port", port)
 	l.Fatal(http.ListenAndServe(":"+port, router))
 }
-
 
 var decoder = schema.NewDecoder()
 
@@ -58,7 +58,6 @@ func (app app) frontpageHandler(ranking string) func(w http.ResponseWriter, r *h
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Encoding", "gzip")
-
 
 		var b []byte
 		var err error
@@ -74,7 +73,7 @@ func (app app) frontpageHandler(ranking string) func(w http.ResponseWriter, r *h
 				params.PriorWeight = defaultFrontPageParams.PriorWeight
 			}
 
-			logger.Info("Generating front page with custom parameters", "params",params)
+			logger.Info("Generating front page with custom parameters", "params", params)
 			b, _, err = app.generateFrontPage(ranking, params)
 			if err != nil {
 				return errors.Wrap(err, "renderFrontPage")
@@ -86,7 +85,7 @@ func (app app) frontpageHandler(ranking string) func(w http.ResponseWriter, r *h
 		_, err = w.Write(b)
 
 		if err != nil {
-			return errors.Wrap(err, "write response");
+			return errors.Wrap(err, "write response")
 		}
 		return nil
 
@@ -100,12 +99,10 @@ func (app app) statsHandler() httprouter.Handle {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Encoding", "gzip")
 
-
 		var b bytes.Buffer
 
 		zw := gzip.NewWriter(&b)
 		defer zw.Close()
-
 
 		err := statsPage(zw, r, params)
 		if err != nil {
@@ -120,5 +117,11 @@ func (app app) statsHandler() httprouter.Handle {
 
 }
 
-
-
+func (app app) plotHandler(plotWriter func(ndb newsDatabase, storyID int) io.WriterTo) httprouter.Handle {
+	return routerHandler(app.logger, func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
+		writerTo := plotWriter(app.ndb, params.StoryID)
+		w.Header().Set("Content-Type", "image/png")
+		_, err := writerTo.WriteTo(w)
+		return err
+	})
+}

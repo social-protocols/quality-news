@@ -32,10 +32,6 @@ func main() {
 
 	logger := newLogger(logLevelString)
 
-	rankPlot(db, 33357197)
-	upvotesPlot(db, 33357197)
-	upvoteRatePlot(db, 33357197)
-
 	retryClient := retryablehttp.NewClient()
 	retryClient.RetryMax = 3
 	retryClient.RetryWaitMin = 1 * time.Second
