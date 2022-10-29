@@ -39,9 +39,10 @@ func ranksPlot(ndb newsDatabase, storyID int) io.WriterTo {
 	qnRankLine.LineStyle.Color = color.RGBA{R: 0, G: 137, B: 244, A: 255}
 
 	p.Add(topRankLine, qnRankLine)
+
 	p.Y.Scale = plot.InvertedScale{Normalizer: plot.LogScale{}}
-	// Y log scale
-	// p.Y.Scale = plot.LogScale{}
+	p.Y.Min = 1
+	p.Y.Max = 90 // cuts off everything that's 91 or higher
 
 	writer, err := p.WriterTo(8*vg.Inch, 6*vg.Inch, "png")
 	if err != nil {
@@ -93,7 +94,7 @@ func upvoteRatePlot(ndb newsDatabase, storyID int) io.WriterTo {
 	p := plot.New()
 	p.Title.Text = fmt.Sprintf("Story %d", storyID)
 	p.X.Label.Text = "Age [h]"
-	p.Y.Label.Text = "Upvotes"
+	p.Y.Label.Text = "Upvote Rate"
 
 	upvotesLine, err := plotter.NewLine(upvoteRateData)
 	if err != nil {
