@@ -103,17 +103,18 @@ type FrontPageParams struct {
 	PriorWeight        float64
 	OverallPriorWeight float64
 	Gravity            float64
+	SampleTime         int32
 }
 
 func (p FrontPageParams) String() string {
 	return fmt.Sprintf("%#v", p)
 }
 
-var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4}
+var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4, 0}
 var noFrontPageParams FrontPageParams
 
 const frontPageSQL = `
-  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity),
+  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %d as pastSampleTime),
        penalties as (
          select id, sampleTime, min(score) filter (where score > 0.1) over (partition by sampleTime order by topRank rows unbounded preceding)  / score as penaltyFactor
          from (
@@ -139,7 +140,7 @@ const frontPageSQL = `
   join dataset using(id)
   join parameters
   left join penalties using(id, sampleTime)
-  where sampleTime = (select max(sampleTime) from dataset)
+  where sampleTime = (select max(case when pastSampleTime > 0 and sampleTime > pastSampleTime then null else sampleTime end) from dataset)
   order by 
     pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) 
     / pow(ageHours+ 2, gravity) 
@@ -149,7 +150,7 @@ const frontPageSQL = `
 `
 
 const hnTopPageSQL = `
-  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
+  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %d as pastSampleTime)
   select
     id
     , by
@@ -331,9 +332,9 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 
 		var sql string
 		if ranking == "quality" {
-			sql = fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity)
+			sql = fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity, params.SampleTime)
 		} else if ranking == "hntop" {
-			sql = fmt.Sprintf(hnTopPageSQL, priorWeight, overallPriorWeight, gravity)
+			sql = fmt.Sprintf(hnTopPageSQL, priorWeight, overallPriorWeight, gravity, params.SampleTime)
 		}
 
 		s, err = ndb.db.Prepare(sql)
