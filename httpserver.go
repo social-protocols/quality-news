@@ -39,6 +39,7 @@ func (app app) httpServer() {
 	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
 	router.GET("/", app.frontpageHandler("quality"))
 	router.GET("/hntop", app.frontpageHandler("hntop"))
+	router.GET("/offtopic", app.frontpageHandler("offtopic"))
 	router.GET("/stats/:storyID", app.statsHandler())
 	router.GET("/stats/:storyID/ranks.png", app.plotHandler(ranksPlot))
 	router.GET("/stats/:storyID/upvotes.png", app.plotHandler(upvotesPlot))

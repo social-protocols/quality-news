@@ -171,31 +171,44 @@ const hnTopPageSQL = `
   limit 90;
 `
 
-/* The constant k comes from bayesian-average-quality.R (in the hacker-news-data repo).
+const offtopicPageSQL = `
+  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %d as pastSampleTime),
+       penalties as (
+         select id, sampleTime, min(score) filter (where score > 0.1) over (partition by sampleTime order by topRank rows unbounded preceding)  / score as penaltyFactor
+         from (
+           select id, sampleTime, topRank,
+           pow(score-1, 0.8) / pow((sampleTime - submissionTime)/3600+2, 1.8) as score
+           from dataset
+           where topRank is not null
+         ) where score > 0.1
+       )
+  select
+    id
+    , by
+    , title
+    , url
+    , submissionTime
+    , cast(unixepoch()-submissionTime as real)/3600 as ageHours
+    , score
+    , descendants
+    , (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality 
+    , topRank
+    , qnRank
+  from stories
+  join dataset using(id)
+  join parameters
+  left join penalties using(id, sampleTime)
+  where sampleTime = (select max(case when pastSampleTime > 0 and sampleTime > pastSampleTime then null else sampleTime end) from dataset)
+  order by 
+    pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) 
+    / pow(ageHours+ 2, gravity) 
+    / ifnull(penalties.penaltyFactor,1) 
+    desc
+  limit 90;
+`
 
-   Bayesian Average Quality Formula
-
-   	quality ≈ (upvotes+k)/(cumulativeExpectedUpvotes+k)
-
-   Then add age. We want the age penalty to mimic the original HN formula:
-
-	   pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
-
-	The age penalty actually serves two purposes: 1) a proxy for attention and 2) to make
-	sure stories cycle through the home page.
-
-	But if we find that cumulativeExpectedUpvotes roughly equals ageHours^f, then an
-	age penalty is already "built in" to our formula. But our guess is that
-	f is something like 0.6, so we need to add an addition penalty of:
 
 
-		(ageHours+2)^(1.8-f)
-
-	So the ranking formula is:
-
-   	quality ≈ (upvotes+k)/(cumulativeExpectedUpvotes+k)/(ageHours+2)^(1.8-f)
-
-*/
 
 //go:embed templates/*
 var resources embed.FS
@@ -234,9 +247,8 @@ func (app app) generateAndCacheFrontPages() error {
 	}
 
 	// hntop has to be generated **after** insertQNRanks or we don't
-	// get up-to-date QN rank dat. This seems a bit messy.
-	{
-		ranking := "hntop"
+	// get up-to-date QN rank data. This seems a bit messy.
+	for _, ranking := range []string{"hntop","offtopic"} {
 		b, _, err := app.generateFrontPage(ranking, defaultFrontPageParams)
 		if err != nil {
 			return errors.Wrapf(err, "generateFrontPage for ranking '%s'", ranking)
@@ -335,6 +347,8 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 			sql = fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity, params.SampleTime)
 		} else if ranking == "hntop" {
 			sql = fmt.Sprintf(hnTopPageSQL, priorWeight, overallPriorWeight, gravity, params.SampleTime)
+		} else if ranking == "offtopic" {
+			sql = fmt.Sprintf(offtopicPageSQL, priorWeight, overallPriorWeight, gravity, params.SampleTime)
 		}
 
 		s, err = ndb.db.Prepare(sql)
