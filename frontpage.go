@@ -113,7 +113,16 @@ var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4}
 var noFrontPageParams FrontPageParams
 
 const frontPageSQL = `
-  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
+  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity),
+       penalties as (
+         select id, sampleTime, min(score) filter (where score > 0.1) over (partition by sampleTime order by topRank rows unbounded preceding)  / score as penalty
+         from (
+           select id, sampleTime, topRank,
+           pow(score-1, 0.8) / pow((sampleTime - submissionTime)/3600+2, 1.8) as score
+           from dataset
+           where topRank is not null
+         ) where score > 0
+       )
   select
     id
     , by
@@ -129,8 +138,9 @@ const frontPageSQL = `
   from stories
   join dataset using(id)
   join parameters
+  join penalties using(id, sampleTime)
   where sampleTime = (select max(sampleTime) from dataset)
-  order by pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours+ 2, gravity) desc
+  order by pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours+ 2, gravity) * penalties.penalty desc
   limit 90;
 `
 
