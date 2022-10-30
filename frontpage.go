@@ -121,7 +121,7 @@ const frontPageSQL = `
            pow(score-1, 0.8) / pow((sampleTime - submissionTime)/3600+2, 1.8) as score
            from dataset
            where topRank is not null
-         ) where score > 0
+         ) where score > 0.1
        )
   select
     id
