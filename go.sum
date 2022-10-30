@@ -50,6 +50,8 @@ github.com/johnwarden/hn v0.0.0-20220920125731-82a0daec2f58 h1:u1GJeZ1TDgBz41ydL
 github.com/johnwarden/hn v0.0.0-20220920125731-82a0daec2f58/go.mod h1:ubxUzxsrubrX1QPup1CJhSgDWo+e9MtofcU7hbzdns4=
 github.com/johnwarden/httperror v1.0.0 h1:9ZdfKJU5hOG12K7TfGOssCPpcSxmrsrO9Y8iDmeIobI=
 github.com/johnwarden/httperror v1.0.0/go.mod h1:A7ksF9kdf0Y7tU03UzRi8gY9/TtGvr9ZXZR6hexrrRw=
+github.com/johnwarden/httperror v1.5.0 h1:UQyG9dxX3s7yZHnWcafeEODpnEutkdXIURrGOUhWUIs=
+github.com/johnwarden/httperror v1.5.0/go.mod h1:UJtau/N6fjXkkycDRCjypQClzmutoWimmGyOPx3G16Q=
 github.com/julienschmidt/httprouter v1.3.0 h1:U0609e9tgbseu3rBINet9P48AI/D3oJs4dN7jwJOQ1U=
 github.com/julienschmidt/httprouter v1.3.0/go.mod h1:JR6WtHb+2LUe8TCKY3cZOxFyyO8IZAc4RVcycCCAKdM=
 github.com/jung-kurt/gofpdf v1.0.0/go.mod h1:7Id9E/uU8ce6rXgefFLlgrJj/GYY22cpxn+r32jIOes=

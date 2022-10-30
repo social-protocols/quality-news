@@ -54,7 +54,7 @@ func (app app) frontpageHandler(ranking string) func(w http.ResponseWriter, r *h
 
 	logger := app.logger
 
-	return routerHandler(logger, func(w http.ResponseWriter, r *http.Request, params FrontPageParams) error {
+	return middleware(logger, func(w http.ResponseWriter, r *http.Request, params FrontPageParams) error {
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Encoding", "gzip")
@@ -94,7 +94,7 @@ func (app app) frontpageHandler(ranking string) func(w http.ResponseWriter, r *h
 
 func (app app) statsHandler() httprouter.Handle {
 
-	return routerHandler(app.logger, func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
+	return middleware(app.logger, func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Encoding", "gzip")
@@ -118,7 +118,7 @@ func (app app) statsHandler() httprouter.Handle {
 }
 
 func (app app) plotHandler(plotWriter func(ndb newsDatabase, storyID int) (io.WriterTo, error)) httprouter.Handle {
-	return routerHandler(app.logger, func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
+	return middleware(app.logger, func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
 		writerTo, err := plotWriter(app.ndb, params.StoryID)
 		if err != nil {
 			return err
