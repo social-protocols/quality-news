@@ -108,7 +108,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	ndb.init()
 
-    // the newsDatabase type has four prepared statements that are defined here
+    // the newsDatabase type has a few prepared statements that are defined here
 	{
 		sql := `
         INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) 
