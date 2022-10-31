@@ -14,7 +14,7 @@ import (
 )
 
 type frontPageData struct {
-	Stories        []story
+	Stories        []Story
 	AverageAge     float64
 	AverageQuality float64
 	AverageUpvotes float64
@@ -55,49 +55,6 @@ func (d frontPageData) OverallPriorWeightString() string {
 	return fmt.Sprintf("%.2f", d.Params.OverallPriorWeight)
 }
 
-type story struct {
-	ID             int
-	By             string
-	Title          string
-	URL            string
-	SubmissionTime int64
-	Upvotes        int
-	Comments       int
-	Quality        float64
-	TopRank        int32
-	QNRank         int32
-}
-
-func (s story) AgeString() string {
-	return humanize.Time(time.Unix(int64(s.SubmissionTime), 0))
-}
-
-func (s story) QualityString() string {
-	return fmt.Sprintf("%.2f", s.Quality)
-}
-
-func (s story) HNRankString() string {
-
-	// if s.TopRank == -1 { return "" }
-	//⨂
-
-	if s.TopRank == 0 {
-		return ""
-	}
-
-	return fmt.Sprintf("%d", s.TopRank)
-}
-
-func (s story) QNRankString() string {
-
-	// if s.QNRank == -1 { return "" }
-
-	if s.QNRank == 0 {
-		return ""
-	}
-
-	return fmt.Sprintf("%d", s.QNRank)
-}
 
 type FrontPageParams struct {
 	PriorWeight        float64
@@ -322,7 +279,7 @@ func (app app) getFrontPageData(ranking string, params FrontPageParams) (frontPa
 	return d, nil
 }
 
-func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParams) (stories []story, err error) {
+func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParams) (stories []Story, err error) {
 
 	gravity := params.Gravity
 	overallPriorWeight := params.OverallPriorWeight
@@ -367,7 +324,7 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 
 	for rows.Next() {
 
-		var s story
+		var s Story
 
 		var ageHours float64
 
