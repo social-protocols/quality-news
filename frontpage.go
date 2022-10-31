@@ -197,7 +197,7 @@ const offtopicPageSQL = `
   join dataset using(id)
   join parameters
   left join penalties using(id, sampleTime)
-  where sampleTime = (select max(case when pastSampleTime > 0 and sampleTime > pastSampleTime then null else sampleTime end) from dataset)
+  where sampleTime = (select max(sampleTime) from dataset) and toprank is not null
   order by 
     pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) 
     / pow(ageHours+ 2, gravity) 
