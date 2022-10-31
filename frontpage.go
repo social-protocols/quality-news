@@ -171,7 +171,7 @@ const hnTopPageSQL = `
 `
 
 const offtopicPageSQL = `
-  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %d as pastSampleTime),
+  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity),
        penalties as (
          select id, sampleTime, min(score) filter (where score > 0.1) over (partition by sampleTime order by topRank rows unbounded preceding)  / score as penaltyFactor
          from (
@@ -205,9 +205,6 @@ const offtopicPageSQL = `
     desc
   limit 90;
 `
-
-
-
 
 //go:embed templates/*
 var resources embed.FS
@@ -247,7 +244,7 @@ func (app app) generateAndCacheFrontPages() error {
 
 	// hntop has to be generated **after** insertQNRanks or we don't
 	// get up-to-date QN rank data. This seems a bit messy.
-	for _, ranking := range []string{"hntop","offtopic"} {
+	for _, ranking := range []string{"hntop", "offtopic"} {
 		b, _, err := app.generateFrontPage(ranking, defaultFrontPageParams)
 		if err != nil {
 			return errors.Wrapf(err, "generateFrontPage for ranking '%s'", ranking)
