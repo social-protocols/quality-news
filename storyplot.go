@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"io"
+    "math"
 
 	"github.com/pkg/errors"
 	"gonum.org/v1/plot"
@@ -254,6 +255,9 @@ func upvoteRateDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.X
 
 		upvoteRateData[i].X = float64((sampleTime - submissionTime)) / 3600
 		upvoteRateData[i].Y = float64(upvotes) / float64(expectedUpvotes)
+        if math.IsNaN(upvoteRateData[i].Y) {
+            upvoteRateData[i].Y = 1
+        }
 
 		upvoteRateBayesianData[i].X = float64((sampleTime - submissionTime)) / 3600
 		upvoteRateBayesianData[i].Y = (float64(upvotes) + priorWeight) / float64(expectedUpvotes+priorWeight)
