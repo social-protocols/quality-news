@@ -7,8 +7,8 @@
     <a href="/stats/{{.ID}}" class="quality-string">×{{.QualityString}}</a> | 
     {{.Upvotes}} points by <a href="https://news.ycombinator.com/user?id={{.By}}">{{.By}}</a> <a href="https://news.ycombinator.com/item?id={{.ID}}">{{.AgeString}}</a> |
     <span class="comparative-rank">
-      {{if .HNRankString}}<a href="/hntop#{{.ID}}"><span class="rank-icon hn">#{{.HNRankString}}</span> on HN</a> |{{end}}
-      {{if .QNRankString}}<a href="/#{{.ID}}"><span class="rank-icon qn">#{{.QNRankString}}</span> on QN</a> |{{end}}
+      {{if .TopRank.Valid}}<a href="/hntop#{{.ID}}"><span class="rank-icon hn">#{{.TopRank.Value}}</span> on HN</a> |{{end}}
+      {{if .QNRank.Valid}}<a href="/#{{.ID}}"><span class="rank-icon qn">#{{.QNRank.Value}}</span> on QN</a> |{{end}}
     </span>
     <a href="https://news.ycombinator.com/item?id={{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> </div>
 </div>

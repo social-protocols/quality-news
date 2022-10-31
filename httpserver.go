@@ -105,7 +105,7 @@ func (app app) statsHandler() httprouter.Handle {
 		zw := gzip.NewWriter(&b)
 		defer zw.Close()
 
-		err := statsPage(zw, r, params)
+		err := statsPage(app.ndb, zw, r, params)
 		if err != nil {
 			return err
 		}

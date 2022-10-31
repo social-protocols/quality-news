@@ -22,6 +22,7 @@ type newsDatabase struct {
 	insertOrReplaceStoryStatement *sql.Stmt
 	selectLastSeenScoreStatement  *sql.Stmt
 	updateQNRankStatement         *sql.Stmt
+    selectStoryDetailsStatement   *sql.Stmt
 }
 
 func (ndb newsDatabase) close() {
@@ -176,6 +177,32 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		}
 	}
 
+	{
+		sql := `
+        SELECT 
+            id
+            , by
+            , title
+            , url
+            , timestamp
+            , score
+            , descendants
+            , (cumulativeUpvotes + ?)/(cumulativeExpectedUpvotes + ?) as quality 
+            , topRank
+            , qnRank
+        FROM stories s
+        JOIN dataset d
+        USING (id)
+        WHERE id = ?
+        ORDER BY sampleTime DESC
+        LIMIT 1
+        `
+		ndb.selectStoryDetailsStatement, err = ndb.db.Prepare(sql)
+		if err != nil {
+			return ndb, err
+		}
+	}
+
 	return ndb, nil
 
 }
@@ -246,3 +273,16 @@ func (ndb newsDatabase) updateQNRank(id int, rank int) error {
 	}
 	return nil
 }
+
+func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
+    var s Story
+    priorWeight := defaultFrontPageParams.PriorWeight
+
+	err := ndb.selectStoryDetailsStatement.QueryRow(priorWeight, priorWeight, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.Upvotes, &s.Comments, &s.Quality, &s.TopRank, &s.QNRank)
+	if err != nil {
+		return s, err
+	}
+
+	return s, nil
+}
+

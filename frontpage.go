@@ -326,19 +326,16 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 
 		var s Story
 
-		var ageHours float64
+		var ageHours float64  // included in the query result so we have to read it
 
-		var topRank sql.NullInt32
-		var qnRank sql.NullInt32
-
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &ageHours, &s.Upvotes, &s.Comments, &s.Quality, &topRank, &qnRank)
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &ageHours, &s.Upvotes, &s.Comments, &s.Quality, &s.TopRank, &s.QNRank)
 
 		if ranking == "quality" {
-			s.TopRank = topRank.Int32
+            s.QNRank = sql.NullInt32{Int32: 0, Valid: false}
 		}
 
 		if ranking == "hntop" {
-			s.QNRank = qnRank.Int32
+            s.TopRank = sql.NullInt32{Int32: 0, Valid: false}
 		}
 
 		if err != nil {

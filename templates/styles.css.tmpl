@@ -1,0 +1,155 @@
+{{define "styles"}}
+
+html {
+  scroll-padding-top: 80%;
+}
+
+
+body {
+  background-color: #F6F6EF;
+  font-size:13px;
+  color:#828282;
+  font-family:Verdana, Geneva, sans-serif;
+  margin: 0;
+}
+
+.stories li {
+  margin-bottom: 6px;
+}
+
+.stories li::marker {
+  font-size: 15px;
+  color: #828282;
+}
+
+.stories {
+  margin-left:  5px;
+  margin-right:  7px;
+}
+
+a:link.upvote-button,
+a:visited.upvote-button {
+  color: #9A9A9A;
+  margin-right: 0.5rem;
+  font-size: 13px;
+  align-self: flex-start;
+  flex-shrink: 0;
+  flex-grow: 0;
+  width: 15px;
+}
+
+@media (max-width:480px)  {
+  .stories {
+    margin-left: 0;
+    margin-right: 3px;
+    padding-left: 4ch;
+  }
+  a:link.upvote-button,
+  a:visited.upvote-button {
+    margin-right: 0;
+  }
+}
+
+.story-item {
+  display: flex;
+  align-items: baseline;
+}
+
+.story-title {
+  font-size: 15px;
+}
+
+.story-details {
+  font-size: 12px;
+  color: #828282;
+}
+
+.story-details .quality-string,
+.story-details a:link.quality-string,
+.story-details a:visited.quality-string {
+  color: #0089f4;
+  text-align: left;
+}
+
+
+.rank-icon {
+  display: inline-block;
+  text-align: center;
+  min-width: 2em;
+  padding-left:  2px;
+  padding-right: 3px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  border-radius:  6px;
+}
+
+.rank-icon.hn {
+  background-color:  rgba(255,102,00,.2);
+}
+
+.rank-icon.qn {
+  background-color:  #d0e0f0;
+}
+
+a:link    { color:#000000; text-decoration:none; }
+a:visited { color:#828282; text-decoration:none; }
+
+.story-details a:link { color:#828282; text-decoration:none; }
+.story-details a:hover { text-decoration:underline; }
+
+.header {
+  background-color: #FF6600;
+  color: #000000;
+  font-size: 12px;
+  padding: 6px 10px;
+  display:flex;
+  align-items: center;
+}
+
+.header a:link, .header a:visited {
+  color: #000000;
+}
+
+a:link.header-title, a:visited.header-title {
+  margin-left: 0.5rem;
+  margin-right: 1rem;
+  font-weight: bold;
+  font-size: 15px;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+}
+
+.stats {
+  margin-left:  5px;
+  margin-right:  7px;
+}
+
+a:link.nav-link {
+  margin-left:  5px;
+  margin-right: 5px;
+}
+
+a:link.nav-link.active,
+a:visited.nav-link.active {
+  color:  white;
+}
+
+
+
+@keyframes highlight {
+    0% {
+        background: lightblue;
+    }
+    100% {
+        background: none;
+    }
+}
+
+:target {
+    animation: highlight 2s;
+}
+
+{{end}}
