@@ -1,12 +1,12 @@
 package main
 
 import (
-    "fmt"
-    "time"
-    "database/sql"
+	"database/sql"
+	"fmt"
+	"time"
+
 	humanize "github.com/dustin/go-humanize"
 )
-
 
 type Story struct {
 	ID             int

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"database/sql"
 	"embed"
 	"fmt"
@@ -24,7 +25,6 @@ type frontPageData struct {
 
 func (d frontPageData) AverageAgeString() string {
 	return humanize.Time(time.Unix(time.Now().Unix()-int64(d.AverageAge), 0))
-
 }
 
 func (d frontPageData) AverageQualityString() string {
@@ -65,8 +65,10 @@ func (p FrontPageParams) String() string {
 	return fmt.Sprintf("%#v", p)
 }
 
-var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4}
-var noFrontPageParams FrontPageParams
+var (
+	defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4}
+	noFrontPageParams      FrontPageParams
+)
 
 const frontPageSQL = `
   with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity),
@@ -169,12 +171,11 @@ var frontPageTemplate = template.Must(template.ParseFS(resources, "templates/*")
 
 var statements map[string]*sql.Stmt
 
-func (app app) generateAndCacheFrontPages() error {
-
+func (app app) generateAndCacheFrontPages(ctx context.Context) error {
 	// generate quality page with default params and cache
 	{
 		ranking := "quality"
-		b, d, err := app.generateFrontPage(ranking, defaultFrontPageParams)
+		b, d, err := app.generateFrontPage(ctx, ranking, defaultFrontPageParams)
 
 		// Save our story rankings to update later in the database.
 		app.logger.Debug("Generated front page", "nStories", len(d.Stories))
@@ -201,7 +202,7 @@ func (app app) generateAndCacheFrontPages() error {
 	// hntop has to be generated **after** insertQNRanks or we don't
 	// get up-to-date QN rank data. This seems a bit messy.
 	for _, ranking := range []string{"hntop", "offtopic"} {
-		b, _, err := app.generateFrontPage(ranking, defaultFrontPageParams)
+		b, _, err := app.generateFrontPage(ctx, ranking, defaultFrontPageParams)
 		if err != nil {
 			return errors.Wrapf(err, "generateFrontPage for ranking '%s'", ranking)
 		}
@@ -212,11 +213,10 @@ func (app app) generateAndCacheFrontPages() error {
 	return nil
 }
 
-func (app app) generateFrontPage(ranking string, params FrontPageParams) ([]byte, frontPageData, error) {
-
+func (app app) generateFrontPage(ctx context.Context, ranking string, params FrontPageParams) ([]byte, frontPageData, error) {
 	t := time.Now()
 
-	d, err := app.getFrontPageData(ranking, params)
+	d, err := app.getFrontPageData(ctx, ranking, params)
 	if err != nil {
 		return nil, d, errors.Wrap(err, "getFrontPageData")
 	}
@@ -246,16 +246,15 @@ func (app app) renderFrontPage(d frontPageData) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (app app) getFrontPageData(ranking string, params FrontPageParams) (frontPageData, error) {
-
+func (app app) getFrontPageData(ctx context.Context, ranking string, params FrontPageParams) (frontPageData, error) {
 	logger := app.logger
 	ndb := app.ndb
 
 	var sampleTime int64 = time.Now().Unix()
 
-	logger.Info("Getting front page data", "ranking", ranking)
+	logger.Info("Fetching front page stories from DB", "ranking", ranking)
 
-	stories, err := getFrontPageStories(ndb, ranking, params)
+	stories, err := getFrontPageStories(ctx, ndb, ranking, params)
 	if err != nil {
 		return frontPageData{}, errors.Wrap(err, "getFrontPageStories")
 	}
@@ -283,8 +282,7 @@ func (app app) getFrontPageData(ranking string, params FrontPageParams) (frontPa
 	return d, nil
 }
 
-func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParams) (stories []Story, err error) {
-
+func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, params FrontPageParams) (stories []Story, err error) {
 	gravity := params.Gravity
 	overallPriorWeight := params.OverallPriorWeight
 	priorWeight := params.PriorWeight
@@ -320,7 +318,7 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 		s = statements[ranking]
 	}
 
-	rows, err := s.Query()
+	rows, err := s.QueryContext(ctx)
 	if err != nil {
 		return stories, errors.Wrap(err, "executing front page SQL")
 	}
@@ -354,5 +352,4 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 	}
 
 	return stories, nil
-
 }

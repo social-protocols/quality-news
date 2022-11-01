@@ -7,7 +7,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/johnwarden/httperror"
+	"github.com/johnwarden/httperror/v2"
 )
 
 // middleware converts a handler of type httperror.XHandlerFunc[P] into an
@@ -17,12 +17,10 @@ import (
 // So we wrap our httperror.XHandlerFunc[P], parsing the URL parameters to
 // produce the parameter struct, passing it to the inner handler, then
 // handling any errors that are returned.
-func middleware[P any](logger leveledLogger, onPanic func(), h httperror.XHandlerFunc[P]) httprouter.Handle {
-
+func middleware[P any](logger leveledLogger, onPanic func(error), h httperror.XHandlerFunc[P]) httprouter.Handle {
 	h = httperror.XPanicMiddleware[P](h, onPanic)
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-
 		var params P
 		err := unmarshalRouterRequest(r, ps, &params)
 		if err != nil {
@@ -45,7 +43,6 @@ func middleware[P any](logger leveledLogger, onPanic func(), h httperror.XHandle
 // well as any URL parameters, into a struct of any type, matching query
 // names to struct field names.
 func unmarshalRouterRequest(r *http.Request, ps httprouter.Params, params any) error {
-
 	m := make(map[string][]string)
 
 	// First convert the httprouter.Params into a map

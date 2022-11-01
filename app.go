@@ -29,7 +29,6 @@ func main() {
 	}
 
 	db, err := openNewsDatabase(sqliteDataDir)
-
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -51,6 +50,9 @@ func main() {
 
 	hnClient := hn.NewClient(retryClient.StandardClient())
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	app := app{
 		hnClient:       hnClient,
 		logger:         logger,
@@ -62,51 +64,69 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
-
-	err = app.generateAndCacheFrontPages()
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	app.mainLoop()
-
 	// shutdown function call in case of 1) panic 2) soft kill signal
 	var httpServer *http.Server // this variable included in shutdown closure
+	quit := make(chan struct{})
+
 	shutdown := func() {
+		// cancel the current background context
+		cancel()
 
+		// stop the main app loop
+		quit <- struct{}{}
+
+		logger.Info("Shutting down HTTP server")
 		// shut down the HTTP server with a timeout in case the server doesn't want to shut down.
-		ctx := context.Background()
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, maxShutDownTimeout)
+		// use background context, because we just cancelled ctx
+		ctxWithTimeout, cancel := context.WithTimeout(context.Background(), maxShutDownTimeout)
 		defer cancel()
-		err := httpServer.Shutdown(ctxWithTimeout)
-		if err != nil {
-			logger.Err(errors.Wrap(err, "httpServer.Shutdown"))
-			// if server doesn't respond to shutdown signal, nothing remains but to panic.
-			panic("HTTP server shutdown failed")
-		}
+		if httpServer != nil {
+			err := httpServer.Shutdown(ctxWithTimeout)
+			if err != nil {
+				logger.Err(errors.Wrap(err, "httpServer.Shutdown"))
+				// if server doesn't respond to shutdown signal, nothing remains but to panic.
+				panic("HTTP server shutdown failed")
+			}
 
-		logger.Info("HTTP server shutdown complete")
+			logger.Info("HTTP server shutdown complete")
+		}
+	}
+
+	go func() {
+		sig := <-c
+
+		// Clean shutdown
+		logger.Info("Received shutdown signal", "signal", sig)
+		shutdown()
 
 		// now exit process
 		logger.Info("Main loop exited. Terminating process.")
-	}
+
+		os.Exit(0)
+	}()
 
 	httpServer = app.httpServer(
-		func() {
+		func(error) {
 			logger.Info("Panic in HTTP handler. Shutting down.")
 			shutdown()
 			os.Exit(2)
 		},
 	)
 
-	logger.Info("Waiting for shutdown signal")
+	go func() {
+		logger.Info("HTTP server listening")
+		err = httpServer.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			logger.Err(errors.Wrap(err, "server.ListenAndServe"))
+		}
+	}()
 
-	sig := <-c
+	err = app.generateAndCacheFrontPages(ctx)
+	if err != nil {
+		logger.Fatal(err)
+	}
 
-	// Clean shutdown
-	logger.Info("Received shutdown signal", "signal", sig)
-	shutdown()
-	os.Exit(0)
+	app.mainLoop(ctx, quit)
 }
 
 type app struct {
@@ -116,22 +136,20 @@ type app struct {
 	generatedPages map[string][]byte
 }
 
-func (app app) mainLoop() {
-
+func (app app) mainLoop(ctx context.Context, quit chan struct{}) {
 	logger := app.logger
 
-	err := app.crawlAndGenerate()
+	err := app.crawlAndGenerate(ctx)
 	if err != nil {
 		logger.Err(err)
 	}
 
 	ticker := time.NewTicker(60 * time.Second)
-	quit := make(chan struct{})
 
 	for {
 		select {
 		case <-ticker.C:
-			err := app.crawlAndGenerate()
+			err := app.crawlAndGenerate(ctx)
 			if err != nil {
 				logger.Err(err)
 				continue
@@ -144,14 +162,13 @@ func (app app) mainLoop() {
 	}
 }
 
-func (app app) crawlAndGenerate() error {
-
-	err := app.crawlHN()
+func (app app) crawlAndGenerate(ctx context.Context) error {
+	err := app.crawlHN(ctx)
 	if err != nil {
 		return errors.Wrap(err, "crawlHN")
 	}
 
-	err = app.generateAndCacheFrontPages()
+	err = app.generateAndCacheFrontPages(ctx)
 	if err != nil {
 		return errors.Wrap(err, "renderFrontPages")
 	}
