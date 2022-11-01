@@ -8,7 +8,7 @@ require (
 	github.com/gorilla/schema v1.2.0
 	github.com/hashicorp/go-retryablehttp v0.7.1
 	github.com/johnwarden/hn v0.0.0-20220920125731-82a0daec2f58
-	github.com/johnwarden/httperror v1.5.0
+	github.com/johnwarden/httperror v1.6.0
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/multiprocessio/go-sqlite3-stdlib v0.0.0-20220822170115-9f6825a1cd25
@@ -16,6 +16,8 @@ require (
 	gonum.org/v1/plot v0.12.0
 )
 
+//replace "github.com/johnwarden/httperror" v1.6.0 => "../httperror"
+	 
 require (
 	git.sr.ht/~sbinet/gg v0.3.1 // indirect
 	github.com/ajstarks/svgo v0.0.0-20211024235047-1546f124cd8b // indirect

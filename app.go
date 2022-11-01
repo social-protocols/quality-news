@@ -1,14 +1,20 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
 	"github.com/johnwarden/hn"
 	"github.com/pkg/errors"
 )
+
+const maxShutDownTimeout = 90 * time.Second
 
 func main() {
 	logLevelString := os.Getenv("LOG_LEVEL")
@@ -52,15 +58,55 @@ func main() {
 		generatedPages: make(map[string][]byte),
 	}
 
+	// Listen for a soft kill signal (INT, TERM, HUP)
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+
+
 	err = app.generateAndCacheFrontPages()
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	go app.mainLoop()
+	app.mainLoop()
 
-	app.httpServer()
+	// shutdown function call in case of 1) panic 2) soft kill signal
+	var httpServer *http.Server // this variable included in shutdown closure
+	shutdown := func() {
 
+		// shut down the HTTP server with a timeout in case the server doesn't want to shut down.
+		ctx := context.Background()
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, maxShutDownTimeout)
+		defer cancel()
+		err := httpServer.Shutdown(ctxWithTimeout)
+		if err != nil {
+			logger.Err(errors.Wrap(err, "httpServer.Shutdown"))
+			// if server doesn't respond to shutdown signal, nothing remains but to panic.
+			panic("HTTP server shutdown failed")
+		}
+
+		logger.Info("HTTP server shutdown complete")
+
+		// now exit process
+		logger.Info("Main loop exited. Terminating process.")
+	}
+
+	httpServer = app.httpServer(
+		func() {
+			logger.Info("Panic in HTTP handler. Shutting down.")
+			shutdown()
+			os.Exit(2)
+		},
+	)
+
+	logger.Info("Waiting for shutdown signal")
+
+	sig := <-c
+
+	// Clean shutdown
+	logger.Info("Received shutdown signal", "signal", sig)
+	shutdown()
+	os.Exit(0)
 }
 
 type app struct {

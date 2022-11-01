@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	// "github.com/dyninc/qstring"
 	"github.com/gorilla/schema"
@@ -18,10 +19,13 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+const writeTimeout = 2500 * time.Millisecond
+const readHeaderTimeout = 5 * time.Second
+
 //go:embed static
 var staticFS embed.FS
 
-func (app app) httpServer() {
+func (app app) httpServer(onPanic func()) *http.Server {
 
 	l := app.logger
 
@@ -35,27 +39,42 @@ func (app app) httpServer() {
 		log.Fatal(err)
 	}
 
+	server := &http.Server{
+		Addr:              ":" + port,
+		WriteTimeout:      writeTimeout,
+		ReadHeaderTimeout: readHeaderTimeout,
+	}
+
 	router := httprouter.New()
 	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
-	router.GET("/", app.frontpageHandler("quality"))
-	router.GET("/hntop", app.frontpageHandler("hntop"))
-	router.GET("/offtopic", app.frontpageHandler("offtopic"))
-	router.GET("/stats/:storyID", app.statsHandler())
-	router.GET("/stats/:storyID/ranks.png", app.plotHandler(ranksPlot))
-	router.GET("/stats/:storyID/upvotes.png", app.plotHandler(upvotesPlot))
-	router.GET("/stats/:storyID/upvoterate.png", app.plotHandler(upvoteRatePlot))
+	router.GET("/", middleware(l, onPanic, app.frontpageHandler("quality")))
+	router.GET("/hntop", middleware(l, onPanic, app.frontpageHandler("hntop")))
+	router.GET("/offtopic", middleware(l, onPanic, app.frontpageHandler("offtopic")))
+	router.GET("/stats/:storyID", middleware(l, onPanic, app.statsHandler()))
+	router.GET("/stats/:storyID/ranks.png", middleware(l, onPanic, app.plotHandler(ranksPlot)))
+	router.GET("/stats/:storyID/upvotes.png", middleware(l, onPanic, app.plotHandler(upvotesPlot)))
+	router.GET("/stats/:storyID/upvoterate.png", middleware(l, onPanic, app.plotHandler(upvoteRatePlot)))
+
+	server.Handler = router
 
 	l.Info("HTTP server listening", "port", port)
-	l.Fatal(http.ListenAndServe(":"+port, router))
+	go func() {
+		err := server.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			l.Err(errors.Wrap(err, "server.ListenAndServe"))
+		}
+	}()
+
+	return server
 }
 
 var decoder = schema.NewDecoder()
 
-func (app app) frontpageHandler(ranking string) func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (app app) frontpageHandler(ranking string) func(http.ResponseWriter, *http.Request, FrontPageParams) error {
 
 	logger := app.logger
 
-	return middleware(logger, func(w http.ResponseWriter, r *http.Request, params FrontPageParams) error {
+	return func(w http.ResponseWriter, r *http.Request, params FrontPageParams) error {
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Encoding", "gzip")
@@ -90,12 +109,12 @@ func (app app) frontpageHandler(ranking string) func(w http.ResponseWriter, r *h
 		}
 		return nil
 
-	})
+	}
 }
 
-func (app app) statsHandler() httprouter.Handle {
+func (app app) statsHandler() func(http.ResponseWriter, *http.Request, StatsPageParams) error {
 
-	return middleware(app.logger, func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
+	return func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Encoding", "gzip")
@@ -114,12 +133,11 @@ func (app app) statsHandler() httprouter.Handle {
 		_, err = w.Write(b.Bytes())
 		return err
 
-	})
-
+	}
 }
 
-func (app app) plotHandler(plotWriter func(ndb newsDatabase, storyID int) (io.WriterTo, error)) httprouter.Handle {
-	return middleware(app.logger, func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
+func (app app) plotHandler(plotWriter func(ndb newsDatabase, storyID int) (io.WriterTo, error)) func(http.ResponseWriter, *http.Request, StatsPageParams) error {
+	return func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
 		writerTo, err := plotWriter(app.ndb, params.StoryID)
 		if err != nil {
 			return err
@@ -128,5 +146,5 @@ func (app app) plotHandler(plotWriter func(ndb newsDatabase, storyID int) (io.Wr
 		w.Header().Set("Content-Type", "image/png")
 		_, err = writerTo.WriteTo(w)
 		return err
-	})
+	}
 }

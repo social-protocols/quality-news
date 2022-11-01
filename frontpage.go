@@ -55,7 +55,6 @@ func (d frontPageData) OverallPriorWeightString() string {
 	return fmt.Sprintf("%.2f", d.Params.OverallPriorWeight)
 }
 
-
 type FrontPageParams struct {
 	PriorWeight        float64
 	OverallPriorWeight float64
@@ -214,6 +213,9 @@ func (app app) generateAndCacheFrontPages() error {
 }
 
 func (app app) generateFrontPage(ranking string, params FrontPageParams) ([]byte, frontPageData, error) {
+
+	t := time.Now()
+
 	d, err := app.getFrontPageData(ranking, params)
 	if err != nil {
 		return nil, d, errors.Wrap(err, "getFrontPageData")
@@ -223,6 +225,8 @@ func (app app) generateFrontPage(ranking string, params FrontPageParams) ([]byte
 	if err != nil {
 		return nil, d, errors.Wrap(err, "generateFrontPageHTML")
 	}
+
+	app.logger.Info("Generated front page", "elapsed", time.Since(t), "ranking", ranking)
 
 	return b, d, nil
 }
@@ -249,7 +253,7 @@ func (app app) getFrontPageData(ranking string, params FrontPageParams) (frontPa
 
 	var sampleTime int64 = time.Now().Unix()
 
-	logger.Info("Rendering front page", "ranking", ranking)
+	logger.Info("Getting front page data", "ranking", ranking)
 
 	stories, err := getFrontPageStories(ndb, ranking, params)
 	if err != nil {
@@ -326,16 +330,16 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 
 		var s Story
 
-		var ageHours float64  // included in the query result so we have to read it
+		var ageHours float64 // included in the query result so we have to read it
 
 		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &ageHours, &s.Upvotes, &s.Comments, &s.Quality, &s.TopRank, &s.QNRank)
 
 		if ranking == "quality" {
-            s.QNRank = sql.NullInt32{Int32: 0, Valid: false}
+			s.QNRank = sql.NullInt32{Int32: 0, Valid: false}
 		}
 
 		if ranking == "hntop" {
-            s.TopRank = sql.NullInt32{Int32: 0, Valid: false}
+			s.TopRank = sql.NullInt32{Int32: 0, Valid: false}
 		}
 
 		if err != nil {

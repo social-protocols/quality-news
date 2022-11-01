@@ -17,9 +17,9 @@ import (
 // So we wrap our httperror.XHandlerFunc[P], parsing the URL parameters to
 // produce the parameter struct, passing it to the inner handler, then
 // handling any errors that are returned.
-func middleware[P any](logger leveledLogger, h httperror.XHandlerFunc[P]) httprouter.Handle {
+func middleware[P any](logger leveledLogger, onPanic func(), h httperror.XHandlerFunc[P]) httprouter.Handle {
 
-	h = httperror.XPanicMiddleware[P](h)
+	h = httperror.XPanicMiddleware[P](h, onPanic)
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 
@@ -34,7 +34,7 @@ func middleware[P any](logger leveledLogger, h httperror.XHandlerFunc[P]) httpro
 
 		err = h(w, r, params)
 		if err != nil {
-			logger.Err(err)
+			logger.Err(err, "url", r.URL)
 			httperror.DefaultErrorHandler(w, err)
 		}
 	}
