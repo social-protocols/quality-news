@@ -57,6 +57,8 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.GET("/stats/:storyID/upvotes.png", middleware("upvotes-plot", l, onPanic, app.plotHandler(upvotesPlot)))
 	router.GET("/stats/:storyID/upvoterate.png", middleware("upvoterate-plot", l, onPanic, app.plotHandler(upvoteRatePlot)))
 
+	router.GET("/altcharts/go-chart", middleware(l, onPanic, app.altChartsGoChart()))
+
 	server.Handler = router
 
 	return server
