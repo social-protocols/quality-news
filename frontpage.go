@@ -79,6 +79,7 @@ const frontPageSQL = `
            pow(score-1, 0.8) / pow((sampleTime - submissionTime)/3600+2, 1.8) as score
            from dataset
            where topRank is not null
+           and sampleTime = (select max(sampleTime) from dataset)
          ) where score > 0.1
        )
   select
