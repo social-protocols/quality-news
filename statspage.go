@@ -1,10 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"html/template"
 	"io"
 	"net/http"
-	"database/sql"
 
 	"github.com/pkg/errors"
 
@@ -24,7 +24,6 @@ type StatsPageData struct {
 var statsPageTemplate = template.Must(template.ParseFS(resources, "templates/*"))
 
 var ErrStoryIDNotFound = httperror.New(404, "Story ID not found")
-
 
 func statsPage(ndb newsDatabase, w io.Writer, r *http.Request, params StatsPageParams) error {
 	s, err := ndb.selectStoryDetails(params.StoryID)

@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const maxShutDownTimeout = 90 * time.Second
+const maxShutDownTimeout = 5 * time.Second
 
 func main() {
 	logLevelString := os.Getenv("LOG_LEVEL")
@@ -50,8 +50,8 @@ func main() {
 
 	hnClient := hn.NewClient(retryClient.StandardClient())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx, cancelContext := context.WithCancel(context.Background())
+	defer cancelContext()
 
 	app := app{
 		hnClient:       hnClient,
@@ -70,17 +70,17 @@ func main() {
 
 	shutdown := func() {
 		// cancel the current background context
-		cancel()
+		cancelContext()
 
 		// stop the main app loop
 		quit <- struct{}{}
 
-		logger.Info("Shutting down HTTP server")
-		// shut down the HTTP server with a timeout in case the server doesn't want to shut down.
-		// use background context, because we just cancelled ctx
-		ctxWithTimeout, cancel := context.WithTimeout(context.Background(), maxShutDownTimeout)
-		defer cancel()
 		if httpServer != nil {
+			logger.Info("Shutting down HTTP server")
+			// shut down the HTTP server with a timeout in case the server doesn't want to shut down.
+			// use background context, because we just cancelled ctx
+			ctxWithTimeout, cancel := context.WithTimeout(context.Background(), maxShutDownTimeout)
+			defer cancel()
 			err := httpServer.Shutdown(ctxWithTimeout)
 			if err != nil {
 				logger.Err(errors.Wrap(err, "httpServer.Shutdown"))
@@ -105,6 +105,11 @@ func main() {
 		os.Exit(0)
 	}()
 
+	err = app.generateAndCacheFrontPages(ctx)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 	httpServer = app.httpServer(
 		func(error) {
 			logger.Info("Panic in HTTP handler. Shutting down.")
@@ -114,17 +119,13 @@ func main() {
 	)
 
 	go func() {
-		logger.Info("HTTP server listening")
+		logger.Info("HTTP server listening", "address", httpServer.Addr)
 		err = httpServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			logger.Err(errors.Wrap(err, "server.ListenAndServe"))
 		}
+		logger.Info("Server shut down")
 	}()
-
-	err = app.generateAndCacheFrontPages(ctx)
-	if err != nil {
-		logger.Fatal(err)
-	}
 
 	app.mainLoop(ctx, quit)
 }

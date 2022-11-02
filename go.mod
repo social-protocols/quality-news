@@ -17,7 +17,6 @@ require (
 )
 
 //replace github.com/johnwarden/httperror/v2 v2.3.0 => ../httperror
-
 //replace "github.com/johnwarden/hn" v1.0.0 => "../hn"
 
 require (
