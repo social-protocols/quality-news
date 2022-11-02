@@ -73,13 +73,12 @@ var (
 const frontPageSQL = `
   with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity),
        penalties as (
-         select id, sampleTime, min(score) filter (where score > 0.1) over (partition by sampleTime order by topRank rows unbounded preceding)  / score as penaltyFactor
+         select id, sampleTime, min(score) filter (where score > 0.1 and topRank is not null) over (partition by sampleTime order by topRank rows unbounded preceding)  / score as penaltyFactor
          from (
            select id, sampleTime, topRank,
            pow(score-1, 0.8) / pow((sampleTime - submissionTime)/3600+2, 1.8) as score
            from dataset
-           where topRank is not null
-           and sampleTime = (select max(sampleTime) from dataset)
+           where sampleTime = (select max(sampleTime) from dataset)
          ) where score > 0.1
        )
   select
