@@ -132,6 +132,10 @@ func rankDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs, er
 		return nil, nil, errors.Wrap(err, "QueryRow: select count")
 	}
 
+	if n == 0 {
+		return nil, nil, ErrStoryIDNotFound
+	}
+
 	var submissionTime int64
 	if err := ndb.db.QueryRow("select submissionTime from dataset where id = ? limit 1", storyID).Scan(&submissionTime); err != nil {
 		return nil, nil, errors.Wrap(err, "QueryRow: select submissionTime")
@@ -182,6 +186,10 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.XYs,
 		return nil, nil, errors.Wrap(err, "QueryRow: select count")
 	}
 
+	if n == 0 {
+		return nil, nil, ErrStoryIDNotFound
+	}
+
 	var submissionTime int64
 	if err := ndb.db.QueryRow("select submissionTime from dataset where id = ? limit 1", storyID).Scan(&submissionTime); err != nil {
 		return nil, nil, errors.Wrap(err, "QueryRow: select submissionTime")
@@ -224,6 +232,10 @@ func upvoteRateDatapoints(ndb newsDatabase, storyID int) (plotter.XYs, plotter.X
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
 		return nil, nil, errors.Wrap(err, "QueryRow: select count")
+	}
+
+	if n == 0 {
+		return nil, nil, ErrStoryIDNotFound
 	}
 
 	var submissionTime int64
