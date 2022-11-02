@@ -57,9 +57,15 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.GET("/stats/:storyID/upvotes.png", middleware(l, onPanic, app.plotHandler(upvotesPlot)))
 	router.GET("/stats/:storyID/upvoterate.png", middleware(l, onPanic, app.plotHandler(upvoteRatePlot)))
 
+	router.GET("/admin/panic", middleware(l, onPanic, panicHandler))
+
 	server.Handler = router
 
 	return server
+}
+
+func panicHandler(w http.ResponseWriter, r *http.Request, p FrontPageParams) error {
+	panic("just testing")
 }
 
 var decoder = schema.NewDecoder()
