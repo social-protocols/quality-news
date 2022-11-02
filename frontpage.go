@@ -71,16 +71,7 @@ var (
 )
 
 const frontPageSQL = `
-  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity),
-       penalties as (
-         select id, sampleTime, min(score) filter (where score > 0.1 and topRank is not null) over (partition by sampleTime order by topRank rows unbounded preceding)  / score as penaltyFactor
-         from (
-           select id, sampleTime, topRank,
-           pow(score-1, 0.8) / pow((sampleTime - submissionTime)/3600+2, 1.8) as score
-           from dataset
-           where sampleTime = (select max(sampleTime) from dataset)
-         ) where score > 0.1
-       )
+  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
   select
     id
     , by
@@ -96,12 +87,10 @@ const frontPageSQL = `
   from stories
   join dataset using(id)
   join parameters
-  left join penalties using(id, sampleTime)
   where sampleTime = (select max(sampleTime) from dataset)
   order by 
     pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) 
     / pow(ageHours+ 2, gravity) 
-    * ifnull(penalties.penaltyFactor,1) 
     desc
   limit 90;
 `
@@ -128,41 +117,6 @@ const hnTopPageSQL = `
   limit 90;
 `
 
-const offtopicPageSQL = `
-  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity),
-       penalties as (
-         select id, sampleTime, min(score) filter (where score > 0.1) over (partition by sampleTime order by topRank rows unbounded preceding)  / score as penaltyFactor
-         from (
-           select id, sampleTime, topRank,
-           pow(score-1, 0.8) / pow((sampleTime - submissionTime)/3600+2, 1.8) as score
-           from dataset
-           where topRank is not null
-         ) where score > 0.1
-       )
-  select
-    id
-    , by
-    , title
-    , url
-    , submissionTime
-    , cast(unixepoch()-submissionTime as real)/3600 as ageHours
-    , score
-    , descendants
-    , (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality 
-    , topRank
-    , qnRank
-  from stories
-  join dataset using(id)
-  join parameters
-  left join penalties using(id, sampleTime)
-  where sampleTime = (select max(sampleTime) from dataset) and toprank is not null
-  order by 
-    pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) 
-    / pow(ageHours+ 2, gravity) 
-    / ifnull(penalties.penaltyFactor,1) 
-    desc
-  limit 90;
-`
 
 //go:embed templates/*
 var resources embed.FS
@@ -201,7 +155,8 @@ func (app app) generateAndCacheFrontPages(ctx context.Context) error {
 
 	// hntop has to be generated **after** insertQNRanks or we don't
 	// get up-to-date QN rank data. This seems a bit messy.
-	for _, ranking := range []string{"hntop", "offtopic"} {
+	// for _, ranking := range []string{"hntop", "offtopic"} {
+	for _, ranking := range []string{"hntop"} {
 		b, _, err := app.generateFrontPage(ctx, ranking, defaultFrontPageParams)
 		if err != nil {
 			return errors.Wrapf(err, "generateFrontPage for ranking '%s'", ranking)
@@ -302,8 +257,6 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 			sql = fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity)
 		} else if ranking == "hntop" {
 			sql = fmt.Sprintf(hnTopPageSQL, priorWeight, overallPriorWeight, gravity)
-		} else if ranking == "offtopic" {
-			sql = fmt.Sprintf(offtopicPageSQL, priorWeight, overallPriorWeight, gravity)
 		}
 
 		s, err = ndb.db.Prepare(sql)

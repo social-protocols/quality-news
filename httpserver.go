@@ -51,7 +51,7 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
 	router.GET("/", middleware(l, onPanic, app.frontpageHandler("quality")))
 	router.GET("/hntop", middleware(l, onPanic, app.frontpageHandler("hntop")))
-	router.GET("/offtopic", middleware(l, onPanic, app.frontpageHandler("offtopic")))
+	// router.GET("/offtopic", middleware(l, onPanic, app.frontpageHandler("offtopic")))
 	router.GET("/stats/:storyID", middleware(l, onPanic, app.statsHandler()))
 	router.GET("/stats/:storyID/ranks.png", middleware(l, onPanic, app.plotHandler(ranksPlot)))
 	router.GET("/stats/:storyID/upvotes.png", middleware(l, onPanic, app.plotHandler(upvotesPlot)))
