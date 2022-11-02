@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/dustin/go-humanize v1.0.0
+	github.com/go-echarts/go-echarts/v2 v2.2.4
 	github.com/go-kit/log v0.2.1
 	github.com/gorilla/schema v1.2.0
 	github.com/hashicorp/go-retryablehttp v0.7.1
