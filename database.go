@@ -72,7 +72,7 @@ func (ndb newsDatabase) init() {
         ON dataset(sampletime, id);
         `,
 		`
-        CREATE INDEX IF NOT EXISTS dataset_sampletime_id
+        CREATE INDEX IF NOT EXISTS dataset_id
         ON dataset(id);
         `,
 	}
