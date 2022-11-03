@@ -16,7 +16,10 @@ import (
 
 const maxShutDownTimeout = 5 * time.Second
 
+
 func main() {
+	go servePrometheusMetrics()
+
 	logLevelString := os.Getenv("LOG_LEVEL")
 
 	if logLevelString == "" {

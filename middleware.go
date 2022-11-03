@@ -17,8 +17,10 @@ import (
 // So we wrap our httperror.XHandlerFunc[P], parsing the URL parameters to
 // produce the parameter struct, passing it to the inner handler, then
 // handling any errors that are returned.
-func middleware[P any](logger leveledLogger, onPanic func(error), h httperror.XHandlerFunc[P]) httprouter.Handle {
+func middleware[P any](routeName string, logger leveledLogger, onPanic func(error), h httperror.XHandlerFunc[P]) httprouter.Handle {
 	h = httperror.XPanicMiddleware[P](h, onPanic)
+
+	h = prometheusMiddleware[P](routeName, h)
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		var params P

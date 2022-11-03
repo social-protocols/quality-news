@@ -49,13 +49,13 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 
 	router := httprouter.New()
 	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
-	router.GET("/", middleware(l, onPanic, app.frontpageHandler("quality")))
-	router.GET("/hntop", middleware(l, onPanic, app.frontpageHandler("hntop")))
+	router.GET("/", middleware("qntop", l, onPanic, app.frontpageHandler("quality")))
+	router.GET("/hntop", middleware("hntop", l, onPanic, app.frontpageHandler("hntop")))
 	// router.GET("/offtopic", middleware(l, onPanic, app.frontpageHandler("offtopic")))
-	router.GET("/stats/:storyID", middleware(l, onPanic, app.statsHandler()))
-	router.GET("/stats/:storyID/ranks.png", middleware(l, onPanic, app.plotHandler(ranksPlot)))
-	router.GET("/stats/:storyID/upvotes.png", middleware(l, onPanic, app.plotHandler(upvotesPlot)))
-	router.GET("/stats/:storyID/upvoterate.png", middleware(l, onPanic, app.plotHandler(upvoteRatePlot)))
+	router.GET("/stats/:storyID", middleware("stats", l, onPanic, app.statsHandler()))
+	router.GET("/stats/:storyID/ranks.png", middleware("ranks-plot", l, onPanic, app.plotHandler(ranksPlot)))
+	router.GET("/stats/:storyID/upvotes.png", middleware("upvotes-plot", l, onPanic, app.plotHandler(upvotesPlot)))
+	router.GET("/stats/:storyID/upvoterate.png", middleware("upvoterate-plot", l, onPanic, app.plotHandler(upvoteRatePlot)))
 
 	server.Handler = router
 
