@@ -1,5 +1,8 @@
-{{define "ranks-plot"}}
+{{define "upvotes-plot"}}
 
+
+
+google.charts.load('current', {packages: ['corechart', 'line']});
 
 var getJSON = function(url, callback) {
     var xhr = new XMLHttpRequest();
@@ -17,26 +20,26 @@ var getJSON = function(url, callback) {
 };
 
 
-function drawRanksPlot() {
+function drawUpvotesPlot() {
 
-  var plotDiv = document.getElementById('ranks_plot_div')
+  var plotDiv = document.getElementById('upvotes_plot_div')
   plotDiv.innerHTML = "loading"
 
-  getJSON('/plots/{{.ID}}/ranks.json',
+  getJSON('/plots/{{.ID}}/upvotes.json',
   function(err, dataPoints) {
     if (err !== null) {
       plotDiv.innerHTML = "error fetching chart data"
     } else {
         var data = new google.visualization.DataTable();
         data.addColumn('number', 'Age');
-        data.addColumn('number', 'HN Rank');
-        data.addColumn('number', 'QN Rank');
+        data.addColumn('number', 'Upvotes');
+        data.addColumn('number', 'Expected Upvotes');
 
         data.addRows(dataPoints);
 
         // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
         var options = {
-          title: "HN vs QN Rank",
+          title: "Upvotes vs Expected Upvotes",
           backgroundColor: {fill: 'transparent'},
           // chartArea:{left:100,top:25,width:'75%'},
           chartArea:{left:80,top:50, bottom: 80},
@@ -45,17 +48,15 @@ function drawRanksPlot() {
             logScale: false
           },
           vAxis: {
-            title: 'Rank',
-            logScale: true,
-            direction: -1,
-            viewWindow: {
-              max: 1,
-              min: 91
-            },
-            ticks: [1,2,4,8,16,32,64,{v:91,f:"> 90"}],
+            title: 'Upvotes',
+            viewWindow: 'pretty',
           },
+
+          curveType: 'none',
           lineWidth: 3,
-          colors: ['#FF6600', '#0089F4'],
+//          pointSize: 4,
+//         pointsVisible: true,
+          colors: ['#55cc99', 'black'],
           height: 500,
           width : 1000,
           crosshair: { trigger: 'both' },
