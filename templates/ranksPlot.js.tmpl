@@ -37,7 +37,7 @@ function drawRanksPlot() {
         var options = {
 //          title: "QN vs HN Rank",
           backgroundColor: {fill: 'transparent'},
-          // chartArea:{left:100,top:25,width:'75%'},
+          dataOpacity: 0.85,
           chartArea:{left:80,top:50, bottom: 80},
           hAxis: {
             title: 'Age [h]',
@@ -53,12 +53,15 @@ function drawRanksPlot() {
             },
             ticks: [1,2,4,8,16,32,64,{v:91,f:"> 90"}],
           },
-          pointSize: 4,
-          lineWidth: 0.5,
+          series: {
+            0: {pointShape: 'diamond', pointSize: 7},
+            1: {pointShape: 'circle', pointSize: 4}
+          },
+          lineWidth: 0,
           colors: ['#FF6600', '#0089F4'],
           height: 500,
-          width : 1000
-//          crosshair: { trigger: 'both' },
+          width : 1000,
+          crosshair: { trigger: 'both' },
         };
 
         var chart = new google.visualization.LineChart(plotDiv);
