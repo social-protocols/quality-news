@@ -23,7 +23,7 @@ var (
 	upvotesTotal     = metrics.NewCounter("upvotes_total")
 	submissionsTotal = metrics.NewCounter("submissions_total")
 	crawlErrorsTotal = metrics.NewCounter("crawl_errors_total")
-	crawlDuration    = metrics.NewHistogram("crawl_duration")
+	crawlDuration    = metrics.NewHistogram("crawl_duration_seconds")
 )
 
 type ranksArray [5]int // the ranks of a story for different pageTypes

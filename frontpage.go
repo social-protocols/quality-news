@@ -20,7 +20,7 @@ var generateFrontpageMetrics map[string]*metrics.Histogram
 func init() {
 	generateFrontpageMetrics = make(map[string]*metrics.Histogram)
 	for _, ranking := range []string{"hntop", "quality"} {
-		generateFrontpageMetrics[ranking] = metrics.NewHistogram(`generate_frontpage_duration{ranking="` + ranking + `"}`)
+		generateFrontpageMetrics[ranking] = metrics.NewHistogram(`generate_frontpage_duration_seconds{ranking="` + ranking + `"}`)
 	}
 }
 
