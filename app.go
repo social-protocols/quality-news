@@ -16,7 +16,6 @@ import (
 
 const maxShutDownTimeout = 5 * time.Second
 
-
 func main() {
 	go servePrometheusMetrics()
 
@@ -169,6 +168,7 @@ func (app app) mainLoop(ctx context.Context, quit chan struct{}) {
 func (app app) crawlAndGenerate(ctx context.Context) error {
 	err := app.crawlHN(ctx)
 	if err != nil {
+		crawlErrorsTotal.Inc()
 		return errors.Wrap(err, "crawlHN")
 	}
 

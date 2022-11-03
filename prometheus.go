@@ -29,7 +29,7 @@ func servePrometheusMetrics() {
 
 func prometheusMiddleware[P any](routeName string, h httperror.XHandler[P]) httperror.XHandlerFunc[P] {
 	// Register summary with a single label.
-	requestDuration := metrics.NewSummary(`requests_duration_seconds{route="` + routeName + `"}`)
+	requestDuration := metrics.NewHistogram(`requests_duration_seconds{route="` + routeName + `"}`)
 
 	return func(w http.ResponseWriter, r *http.Request, p P) error {
 		requestsTotal.Inc()

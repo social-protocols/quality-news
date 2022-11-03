@@ -10,9 +10,19 @@ import (
 	"html/template"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 )
+
+var generateFrontpageMetrics map[string]*metrics.Histogram
+
+func init() {
+	generateFrontpageMetrics = make(map[string]*metrics.Histogram)
+	for _, ranking := range []string{"hntop", "quality"} {
+		generateFrontpageMetrics[ranking] = metrics.NewHistogram(`generate_frontpage_duration{ranking="` + ranking + `"}`)
+	}
+}
 
 type frontPageData struct {
 	Stories        []Story
@@ -117,7 +127,6 @@ const hnTopPageSQL = `
   limit 90;
 `
 
-
 //go:embed templates/*
 var resources embed.FS
 
@@ -182,6 +191,8 @@ func (app app) generateFrontPage(ctx context.Context, ranking string, params Fro
 	}
 
 	app.logger.Info("Generated front page", "elapsed", time.Since(t), "ranking", ranking)
+
+	generateFrontpageMetrics[ranking].UpdateDuration(t)
 
 	return b, d, nil
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/pkg/errors"
 )
 
@@ -17,6 +18,13 @@ var pageTypes = map[int]string{
 	3: "ask",
 	4: "show",
 }
+
+var (
+	upvotesTotal     = metrics.NewCounter("upvotes_total")
+	submissionsTotal = metrics.NewCounter("submissions_total")
+	crawlErrorsTotal = metrics.NewCounter("crawl_errors_total")
+	crawlDuration    = metrics.NewHistogram("crawl_duration")
+)
 
 type ranksArray [5]int // the ranks of a story for different pageTypes
 
@@ -45,7 +53,8 @@ func (app app) crawlHN(ctx context.Context) error {
 	logger := app.logger
 	client := app.hnClient
 
-	sampleTime := time.Now().Unix()
+	t := time.Now()
+	sampleTime := t.Unix()
 
 	// calculate ranks for every story
 	storyRanks := map[int]ranksArray{}
@@ -102,7 +111,6 @@ func (app app) crawlHN(ctx context.Context) error {
 		if txErr := tx.Rollback(); txErr != nil {
 			app.logger.Err(errors.Wrap(txErr, "tx.Rollback"))
 		}
-
 	}()
 
 STORY:
@@ -128,7 +136,11 @@ STORY:
 		sitewideUpvotes += deltaUpvotes[i]
 
 		// save story details in database
-		if err := ndb.insertOrReplaceStory(item); err != nil {
+		if c, err := ndb.insertOrReplaceStory(item); err != nil {
+			if c > 0 {
+				submissionsTotal.Inc()
+			}
+
 			return errors.Wrap(err, "insertOrReplaceStory")
 		}
 	}
@@ -169,8 +181,10 @@ STORY:
 		if err := ndb.insertDataPoint(datapoint); err != nil {
 			return errors.Wrap(err, "insertDataPoint")
 		}
-
 	}
+
+	crawlDuration.UpdateDuration(t)
+	upvotesTotal.Add(sitewideUpvotes)
 
 	logger.Debug("Totals",
 		"deltaExpectedUpvotes", totalDeltaExpectedUpvotes,

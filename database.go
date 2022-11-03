@@ -230,16 +230,17 @@ func (ndb newsDatabase) insertDataPoint(d dataPoint) error {
 	return nil
 }
 
-func (ndb newsDatabase) insertOrReplaceStory(story hn.Item) error {
+func (ndb newsDatabase) insertOrReplaceStory(story hn.Item) (int64, error) {
 	if story.Type != "story" {
-		return nil
+		return 0, nil
 	}
 
-	_, err := ndb.insertOrReplaceStoryStatement.Exec(story.ID, story.By, story.Title, story.URL, story.Timestamp)
+	r, err := ndb.insertOrReplaceStoryStatement.Exec(story.ID, story.By, story.Title, story.URL, story.Timestamp)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+
+	return r.RowsAffected()
 }
 
 func (ndb newsDatabase) selectLastSeenData(id int) (int, int, float64, error) {
