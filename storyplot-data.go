@@ -18,20 +18,20 @@ func (app app) ranksDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 			return errors.Wrap(err, "rankDataPoints")
 		}
 
-		w.Write([]byte("[\n"))
+		_, _ = w.Write([]byte("[\n"))
 		for i, age := range xAxis {
 			if i%8 == 0 {
-				w.Write([]byte("\n\t"))
+				_, _ = w.Write([]byte("\n\t"))
 			}
 
 			ageHours := float64(age) / 3600
 
-			w.Write([]byte(fmt.Sprintf("[%.2f,%d,%d]", ageHours, topRanks[i], qnRanks[i])))
+			_, _ = w.Write([]byte(fmt.Sprintf("[%.2f,%d,%d]", ageHours, topRanks[i], qnRanks[i])))
 			if i < len(xAxis)-1 {
-				w.Write([]byte(", "))
+				_, _ = w.Write([]byte(", "))
 			}
 		}
-		w.Write([]byte("\n]"))
+		_, _ = w.Write([]byte("\n]"))
 
 		return nil
 	}
@@ -104,20 +104,20 @@ func (app app) upvotesDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 			return errors.Wrap(err, "rankDataPoints")
 		}
 
-		w.Write([]byte("[\n"))
+		_, _ = w.Write([]byte("[\n"))
 		for i, age := range xAxis {
 			if i%8 == 0 {
-				w.Write([]byte("\n\t"))
+				_, _ = w.Write([]byte("\n\t"))
 			}
 
 			ageHours := float64(age) / 3600
 
-			w.Write([]byte(fmt.Sprintf("[%.2f,%d,%.2f]", ageHours, upvotes[i], expectedUpvotes[i])))
+			_, _ = w.Write([]byte(fmt.Sprintf("[%.2f,%d,%.2f]", ageHours, upvotes[i], expectedUpvotes[i])))
 			if i < len(xAxis)-1 {
-				w.Write([]byte(", "))
+				_, _ = w.Write([]byte(", "))
 			}
 		}
-		w.Write([]byte("\n]"))
+		_, _ = w.Write([]byte("\n]"))
 
 		return nil
 	}
@@ -184,20 +184,20 @@ func (app app) upvoteRateDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 			return errors.Wrap(err, "rankDataPoints")
 		}
 
-		w.Write([]byte("[\n"))
+		_, _ = w.Write([]byte("[\n"))
 		for i, age := range xAxis {
 			if i%8 == 0 {
-				w.Write([]byte("\n\t"))
+				_, _ = w.Write([]byte("\n\t"))
 			}
 
 			ageHours := float64(age) / 3600
 
-			w.Write([]byte(fmt.Sprintf("[%.2f,%.2f]", ageHours, upvoteRates[i])))
+			_, _ = w.Write([]byte(fmt.Sprintf("[%.2f,%.2f]", ageHours, upvoteRates[i])))
 			if i < len(xAxis)-1 {
-				w.Write([]byte(", "))
+				_, _ = w.Write([]byte(", "))
 			}
 		}
-		w.Write([]byte("\n]"))
+		_, _ = w.Write([]byte("\n]"))
 
 		return nil
 	}

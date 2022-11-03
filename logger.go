@@ -55,7 +55,7 @@ func (l leveledLogger) Err(err error, keysAndValues ...interface{}) {
 		return
 	}
 	k := append(keysAndValues, "message", err.Error(), "level", "ERROR")
-	l.logger.Log(k...)
+	_ = l.logger.Log(k...)
 }
 
 func (l leveledLogger) Error(msg string, keysAndValues ...interface{}) {
@@ -63,7 +63,7 @@ func (l leveledLogger) Error(msg string, keysAndValues ...interface{}) {
 		return
 	}
 	k := append(keysAndValues, "message", msg, "level", "ERROR")
-	l.logger.Log(k...)
+	_ = l.logger.Log(k...)
 }
 
 func (l leveledLogger) Warn(msg string, keysAndValues ...interface{}) {
@@ -71,7 +71,7 @@ func (l leveledLogger) Warn(msg string, keysAndValues ...interface{}) {
 		return
 	}
 	k := append(keysAndValues, "message", msg, "level", "WARN")
-	l.logger.Log(k...)
+	_ = l.logger.Log(k...)
 }
 
 func (l leveledLogger) Info(msg string, keysAndValues ...interface{}) {
@@ -79,7 +79,7 @@ func (l leveledLogger) Info(msg string, keysAndValues ...interface{}) {
 		return
 	}
 	k := append(keysAndValues, "message", msg, "level", "INFO")
-	l.logger.Log(k...)
+	_ = l.logger.Log(k...)
 }
 
 func (l leveledLogger) Debug(msg string, keysAndValues ...interface{}) {
@@ -87,5 +87,5 @@ func (l leveledLogger) Debug(msg string, keysAndValues ...interface{}) {
 		return
 	}
 	k := append(keysAndValues, "message", msg, "level", "DEBUG")
-	l.logger.Log(k...)
+	_ = l.logger.Log(k...)
 }

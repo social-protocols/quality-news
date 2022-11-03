@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"embed"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -54,7 +53,7 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 
 	router.GET("/plots/ranks.json", middleware("ranks-plotdata", l, onPanic, app.ranksDataJSON()))
 	router.GET("/plots/upvotes.json", middleware("upvotes-plotdata", l, onPanic, app.upvotesDataJSON()))
-	router.GET("/plots/upvoterate.json", middleware("upvoterate-plotdata",l, onPanic, app.upvoteRateDataJSON()))
+	router.GET("/plots/upvoterate.json", middleware("upvoterate-plotdata", l, onPanic, app.upvoteRateDataJSON()))
 
 	server.Handler = router
 
@@ -121,19 +120,6 @@ func (app app) statsHandler() func(http.ResponseWriter, *http.Request, StatsPage
 
 		zw.Close()
 		_, err = w.Write(b.Bytes())
-		return err
-	}
-}
-
-func (app app) plotHandler(plotWriter func(ndb newsDatabase, storyID int) (io.WriterTo, error)) func(http.ResponseWriter, *http.Request, StatsPageParams) error {
-	return func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
-		writerTo, err := plotWriter(app.ndb, params.StoryID)
-		if err != nil {
-			return err
-		}
-
-		w.Header().Set("Content-Type", "image/png")
-		_, err = writerTo.WriteTo(w)
 		return err
 	}
 }
