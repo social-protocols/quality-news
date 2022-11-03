@@ -61,7 +61,6 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	return server
 }
 
-
 func (app app) frontpageHandler(ranking string) func(http.ResponseWriter, *http.Request, FrontPageParams) error {
 	logger := app.logger
 

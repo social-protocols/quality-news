@@ -23,7 +23,6 @@ var getJSON = function(url, callback) {
 function drawUpvotesPlot() {
 
   var plotDiv = document.getElementById('upvotes_plot_div')
-  plotDiv.innerHTML = "loading"
 
   getJSON('/plots/upvotes.json?id={{.ID}}',
   function(err, dataPoints) {
@@ -63,6 +62,7 @@ function drawUpvotesPlot() {
         };
 
         var chart = new google.visualization.LineChart(plotDiv);
+        plotDiv.classList.remove("spinner")
         chart.draw(data, options);
     }
   })

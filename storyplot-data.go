@@ -175,7 +175,6 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([]int64, []int32, []float
 	return xAxis, upvotesData, expectedUpvotesData, upvoteRateData, errors.Wrap(err, "rows.Err")
 }
 
-
 func (app app) upvoteRateDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -203,4 +202,3 @@ func (app app) upvoteRateDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 		return nil
 	}
 }
-

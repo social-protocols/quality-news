@@ -20,7 +20,6 @@ var getJSON = function(url, callback) {
 function drawRanksPlot() {
 
   var plotDiv = document.getElementById('ranks_plot_div')
-  plotDiv.innerHTML = "loading"
 
   getJSON('/plots/ranks.json?id={{.ID}}',
   function(err, dataPoints) {
@@ -62,8 +61,12 @@ function drawRanksPlot() {
         };
 
         var chart = new google.visualization.LineChart(plotDiv);
+
+        plotDiv.classList.remove("spinner")
         chart.draw(data, options);
     }
+
+
   })
 }
 

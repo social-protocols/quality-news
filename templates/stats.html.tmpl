@@ -20,6 +20,7 @@
 
 {{template "styles"}}
 
+{{template "spinner"}}
 
 </style>
 
@@ -49,9 +50,9 @@ google.charts.setOnLoadCallback(function() {
 
 {{template "story-details" .Story}}
 
-<div id="ranks_plot_div"></div>
-<div id="upvotes_plot_div"></div>
-<div id="upvoterate_plot_div"></div>
+<div id="ranks_plot_div" class="spinner"></div>
+<div id="upvotes_plot_div" class="spinner"></div>
+<div id="upvoterate_plot_div" class="spinner"></div>
 
 </body>
 </html>
