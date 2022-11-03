@@ -176,3 +176,31 @@ func upvotesDatapointsGoogleCharts(ndb newsDatabase, storyID int) ([]int64, []in
 }
 
 
+func (app app) upvoteRateDataJSON() httperror.XHandlerFunc[StatsPageParams] {
+	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		xAxis, _, _, upvoteRates, err := upvotesDatapointsGoogleCharts(app.ndb, p.StoryID)
+		if err != nil {
+			return errors.Wrap(err, "rankDataPoints")
+		}
+
+		w.Write([]byte("[\n"))
+		for i, age := range xAxis {
+			if i%8 == 0 {
+				w.Write([]byte("\n\t"))
+			}
+
+			ageHours := float64(age) / 3600
+
+			w.Write([]byte(fmt.Sprintf("[%.2f,%.2f]", ageHours, upvoteRates[i])))
+			if i < len(xAxis)-1 {
+				w.Write([]byte(", "))
+			}
+		}
+		w.Write([]byte("\n]"))
+
+		return nil
+	}
+}
+

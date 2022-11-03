@@ -32,10 +32,12 @@ google.charts.load('current', {packages: ['corechart', 'line']});
 google.charts.setOnLoadCallback(function() {
   drawRanksPlot()
   drawUpvotesPlot()
+  drawUpvoteRatePlot()
 });
 
 {{template "ranks-plot" .Story}}
 {{template "upvotes-plot" .Story}}
+{{template "upvoterate-plot" .Story}}
 
 </script>
 
@@ -49,8 +51,7 @@ google.charts.setOnLoadCallback(function() {
 
 <div id="ranks_plot_div"></div>
 <div id="upvotes_plot_div"></div>
-
-<div><img src="/stats/{{.StoryID}}/upvoterate.png" /></div>
+<div id="upvoterate_plot_div"></div>
 
 </body>
 </html>

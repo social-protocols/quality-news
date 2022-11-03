@@ -62,6 +62,7 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 
 	router.GET("/plots/:storyID/ranks.json", middleware(l, onPanic, app.ranksDataJSON()))
 	router.GET("/plots/:storyID/upvotes.json", middleware(l, onPanic, app.upvotesDataJSON()))
+	router.GET("/plots/:storyID/upvoterate.json", middleware(l, onPanic, app.upvoteRateDataJSON()))
 
 	server.Handler = router
 

@@ -1,0 +1,77 @@
+{{define "upvoterate-plot"}}
+
+
+
+google.charts.load('current', {packages: ['corechart', 'line']});
+
+var getJSON = function(url, callback) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.responseType = 'json';
+    xhr.onload = function() {
+      var status = xhr.status;
+      if (status === 200) {
+        callback(null, xhr.response);
+      } else {
+        callback(status, xhr.response);
+      }
+    };
+    xhr.send();
+};
+
+
+function drawUpvoteRatePlot() {
+
+  var plotDiv = document.getElementById('upvoterate_plot_div')
+  plotDiv.innerHTML = "loading"
+
+  getJSON('/plots/{{.ID}}/upvoterate.json',
+  function(err, dataPoints) {
+    if (err !== null) {
+      plotDiv.innerHTML = "error fetching chart data"
+    } else {
+        var data = new google.visualization.DataTable();
+        data.addColumn('number', 'Age');
+        data.addColumn('number', 'Estimated Upvote Rate');
+        data.addColumn('number', 'Average Upvote Rate');
+
+        // average upvotes is always 1
+        for (var i = 0; i < dataPoints.length; i++) { 
+          dataPoints[i].push(1)
+        }
+
+        data.addRows(dataPoints);
+
+        // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
+        var options = {
+          title: "Upvote Rate",
+          backgroundColor: {fill: 'transparent'},
+          // chartArea:{left:100,top:25,width:'75%'},
+          chartArea:{left:80,top:50, bottom: 80},
+          hAxis: {
+            title: 'Age [h]',
+            logScale: false
+          },
+          vAxis: {
+            title: 'Upvote Rate',
+            viewWindow: 'pretty',
+          },
+          series: {
+            0: {},
+            1: {lineDashStyle: [4,4], lineWidth: 2}
+          },
+
+          lineWidth: 3,
+          colors: ['#55cc99', 'black'],
+          height: 500,
+          width : 1000
+        };
+
+        var chart = new google.visualization.LineChart(plotDiv);
+        chart.draw(data, options);
+    }
+  })
+}
+
+{{end}}
+
