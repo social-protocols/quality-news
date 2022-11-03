@@ -13,7 +13,7 @@ func (app app) ranksDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-		xAxis, topRanks, qnRanks, err := rankDatapointsGoogleCharts(app.ndb, p.StoryID)
+		xAxis, topRanks, qnRanks, err := rankDatapoints(app.ndb, p.StoryID)
 		if err != nil {
 			return errors.Wrap(err, "rankDataPoints")
 		}
@@ -37,7 +37,7 @@ func (app app) ranksDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 	}
 }
 
-func rankDatapointsGoogleCharts(ndb newsDatabase, storyID int) ([]int64, []int32, []int32, error) {
+func rankDatapoints(ndb newsDatabase, storyID int) ([]int64, []int32, []int32, error) {
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
 		return nil, nil, nil, errors.Wrap(err, "QueryRow: select count")
@@ -99,7 +99,7 @@ func (app app) upvotesDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-		xAxis, upvotes, expectedUpvotes, _, err := upvotesDatapointsGoogleCharts(app.ndb, p.StoryID)
+		xAxis, upvotes, expectedUpvotes, _, err := upvotesDatapoints(app.ndb, p.StoryID)
 		if err != nil {
 			return errors.Wrap(err, "rankDataPoints")
 		}
@@ -123,7 +123,7 @@ func (app app) upvotesDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 	}
 }
 
-func upvotesDatapointsGoogleCharts(ndb newsDatabase, storyID int) ([]int64, []int32, []float64, []float64, error) {
+func upvotesDatapoints(ndb newsDatabase, storyID int) ([]int64, []int32, []float64, []float64, error) {
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
 		return nil, nil, nil, nil, errors.Wrap(err, "QueryRow: select count")
@@ -180,7 +180,7 @@ func (app app) upvoteRateDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-		xAxis, _, _, upvoteRates, err := upvotesDatapointsGoogleCharts(app.ndb, p.StoryID)
+		xAxis, _, _, upvoteRates, err := upvotesDatapoints(app.ndb, p.StoryID)
 		if err != nil {
 			return errors.Wrap(err, "rankDataPoints")
 		}

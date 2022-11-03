@@ -51,18 +51,11 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
 	router.GET("/", middleware("qntop", l, onPanic, app.frontpageHandler("quality")))
 	router.GET("/hntop", middleware("hntop", l, onPanic, app.frontpageHandler("hntop")))
-	// router.GET("/offtopic", middleware(l, onPanic, app.frontpageHandler("offtopic")))
 	router.GET("/stats/:storyID", middleware("stats", l, onPanic, app.statsHandler()))
-	router.GET("/stats/:storyID/ranks.png", middleware("ranks-plot", l, onPanic, app.plotHandler(ranksPlot)))
-	router.GET("/stats/:storyID/upvotes.png", middleware("upvotes-plot", l, onPanic, app.plotHandler(upvotesPlot)))
-	router.GET("/stats/:storyID/upvoterate.png", middleware("upvoterate-plot", l, onPanic, app.plotHandler(upvoteRatePlot)))
 
-	router.GET("/altcharts/go-chart", middleware(l, onPanic, app.altChartsGoChart()))
-	router.GET("/altcharts/go-echarts", middleware(l, onPanic, app.altChartsGoEcharts()))
-
-	router.GET("/plots/:storyID/ranks.json", middleware(l, onPanic, app.ranksDataJSON()))
-	router.GET("/plots/:storyID/upvotes.json", middleware(l, onPanic, app.upvotesDataJSON()))
-	router.GET("/plots/:storyID/upvoterate.json", middleware(l, onPanic, app.upvoteRateDataJSON()))
+	router.GET("/plots/:storyID/ranks.json", middleware("ranks-plotdata", l, onPanic, app.ranksDataJSON()))
+	router.GET("/plots/:storyID/upvotes.json", middleware("upvotes-plotdata", l, onPanic, app.upvotesDataJSON()))
+	router.GET("/plots/:storyID/upvoterate.json", middleware("upvoterate-plotdata",l, onPanic, app.upvoteRateDataJSON()))
 
 	server.Handler = router
 
