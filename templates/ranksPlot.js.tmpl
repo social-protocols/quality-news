@@ -35,7 +35,7 @@ function drawRanksPlot() {
 
         // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
         var options = {
-          title: "Rank",
+//          title: "QN vs HN Rank",
           backgroundColor: {fill: 'transparent'},
           // chartArea:{left:100,top:25,width:'75%'},
           chartArea:{left:80,top:50, bottom: 80},
@@ -53,11 +53,12 @@ function drawRanksPlot() {
             },
             ticks: [1,2,4,8,16,32,64,{v:91,f:"> 90"}],
           },
-          lineWidth: 3,
+          pointSize: 4,
+          lineWidth: 0.5,
           colors: ['#FF6600', '#0089F4'],
           height: 500,
-          width : 1000,
-          crosshair: { trigger: 'both' },
+          width : 1000
+//          crosshair: { trigger: 'both' },
         };
 
         var chart = new google.visualization.LineChart(plotDiv);
