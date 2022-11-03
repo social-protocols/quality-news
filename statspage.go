@@ -12,7 +12,7 @@ import (
 )
 
 type StatsPageParams struct {
-	StoryID int
+	StoryID int `schema:"id,required"`
 }
 
 type StatsPageData struct {

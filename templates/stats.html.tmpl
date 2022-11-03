@@ -20,17 +20,39 @@
 
 {{template "styles"}}
 
+{{template "spinner"}}
 
 </style>
+
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+<script>
+
+google.charts.load('current', {packages: ['corechart', 'line']});
+google.charts.setOnLoadCallback(function() {
+  drawRanksPlot()
+  drawUpvotesPlot()
+  drawUpvoteRatePlot()
+});
+
+{{template "ranks-plot" .Story}}
+{{template "upvotes-plot" .Story}}
+{{template "upvoterate-plot" .Story}}
+
+</script>
+
+
+
 <title>Story Stats</title>
 </head>
 <body>
 
 {{template "story-details" .Story}}
 
-<div><img src="/stats/{{.StoryID}}/ranks.png" /></div>
-<div><img src="/stats/{{.StoryID}}/upvotes.png" /></div>
-<div><img src="/stats/{{.StoryID}}/upvoterate.png" /></div>
+<div id="ranks_plot_div" class="spinner"></div>
+<div id="upvotes_plot_div" class="spinner"></div>
+<div id="upvoterate_plot_div" class="spinner"></div>
 
 </body>
 </html>

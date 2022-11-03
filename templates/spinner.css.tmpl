@@ -1,0 +1,41 @@
+{{define "spinner"}}
+
+.spinner {
+  margin: 50px;
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-color: currentColor;
+  border-style: solid;
+  border-radius: 99999px;
+  border-width: 2px;
+  border-left-color: transparent;
+  color: palevioletred;
+  opacity: 0;
+  animation-name: rotate, fadeIn;
+  animation-duration: 450ms, 600ms;
+  animation-timing-function: linear, ease;
+  animation-iteration-count: infinite, 1;
+  animation-delay: 400ms;
+  animation-fill-mode: forwards;
+}
+
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+{{end}}

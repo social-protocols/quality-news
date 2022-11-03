@@ -4,7 +4,7 @@
 <div>
   <a class="story-title" href="{{.URL}}">{{.Title}}</a>
   <div class="story-details">
-    <a href="/stats/{{.ID}}" class="quality-string">×{{.QualityString}}</a> | 
+    <a href="/stats?id={{.ID}}" class="quality-string">×{{.QualityString}}</a> | 
     {{.Upvotes}} points by <a href="https://news.ycombinator.com/user?id={{.By}}">{{.By}}</a> <a href="https://news.ycombinator.com/item?id={{.ID}}">{{.AgeString}}</a> |
     <span class="comparative-rank">
       {{if .TopRank.Valid}}<a href="/hntop#{{.ID}}"><span class="rank-icon hn">#{{.TopRank.Value}}</span> on HN</a> |{{end}}

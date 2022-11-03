@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"embed"
 	"fmt"
-	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	// "github.com/dyninc/qstring"
-	"github.com/gorilla/schema"
 
 	"github.com/pkg/errors"
 
@@ -51,18 +49,16 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
 	router.GET("/", middleware("qntop", l, onPanic, app.frontpageHandler("quality")))
 	router.GET("/hntop", middleware("hntop", l, onPanic, app.frontpageHandler("hntop")))
-	// router.GET("/offtopic", middleware(l, onPanic, app.frontpageHandler("offtopic")))
-	router.GET("/stats/:storyID", middleware("stats", l, onPanic, app.statsHandler()))
-	router.GET("/stats/:storyID/ranks.png", middleware("ranks-plot", l, onPanic, app.plotHandler(ranksPlot)))
-	router.GET("/stats/:storyID/upvotes.png", middleware("upvotes-plot", l, onPanic, app.plotHandler(upvotesPlot)))
-	router.GET("/stats/:storyID/upvoterate.png", middleware("upvoterate-plot", l, onPanic, app.plotHandler(upvoteRatePlot)))
+	router.GET("/stats", middleware("stats", l, onPanic, app.statsHandler()))
+
+	router.GET("/plots/ranks.json", middleware("ranks-plotdata", l, onPanic, app.ranksDataJSON()))
+	router.GET("/plots/upvotes.json", middleware("upvotes-plotdata", l, onPanic, app.upvotesDataJSON()))
+	router.GET("/plots/upvoterate.json", middleware("upvoterate-plotdata", l, onPanic, app.upvoteRateDataJSON()))
 
 	server.Handler = router
 
 	return server
 }
-
-var decoder = schema.NewDecoder()
 
 func (app app) frontpageHandler(ranking string) func(http.ResponseWriter, *http.Request, FrontPageParams) error {
 	logger := app.logger
@@ -124,19 +120,6 @@ func (app app) statsHandler() func(http.ResponseWriter, *http.Request, StatsPage
 
 		zw.Close()
 		_, err = w.Write(b.Bytes())
-		return err
-	}
-}
-
-func (app app) plotHandler(plotWriter func(ndb newsDatabase, storyID int) (io.WriterTo, error)) func(http.ResponseWriter, *http.Request, StatsPageParams) error {
-	return func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
-		writerTo, err := plotWriter(app.ndb, params.StoryID)
-		if err != nil {
-			return err
-		}
-
-		w.Header().Set("Content-Type", "image/png")
-		_, err = writerTo.WriteTo(w)
 		return err
 	}
 }

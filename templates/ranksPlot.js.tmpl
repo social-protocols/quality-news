@@ -1,0 +1,75 @@
+{{define "ranks-plot"}}
+
+
+var getJSON = function(url, callback) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.responseType = 'json';
+    xhr.onload = function() {
+      var status = xhr.status;
+      if (status === 200) {
+        callback(null, xhr.response);
+      } else {
+        callback(status, xhr.response);
+      }
+    };
+    xhr.send();
+};
+
+
+function drawRanksPlot() {
+
+  var plotDiv = document.getElementById('ranks_plot_div')
+
+  getJSON('/plots/ranks.json?id={{.ID}}',
+  function(err, dataPoints) {
+    if (err !== null) {
+      plotDiv.innerHTML = "error fetching chart data"
+    } else {
+        var data = new google.visualization.DataTable();
+        data.addColumn('number', 'Age');
+        data.addColumn('number', 'HN Rank');
+        data.addColumn('number', 'QN Rank');
+
+        data.addRows(dataPoints);
+
+        // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
+        var options = {
+//          title: "QN vs HN Rank",
+          backgroundColor: {fill: 'transparent'},
+          // chartArea:{left:100,top:25,width:'75%'},
+          chartArea:{left:80,top:50, bottom: 80},
+          hAxis: {
+            title: 'Age [h]',
+            logScale: false
+          },
+          vAxis: {
+            title: 'Rank',
+            logScale: true,
+            direction: -1,
+            viewWindow: {
+              max: 1,
+              min: 91
+            },
+            ticks: [1,2,4,8,16,32,64,{v:91,f:"> 90"}],
+          },
+          pointSize: 4,
+          lineWidth: 0.5,
+          colors: ['#FF6600', '#0089F4'],
+          height: 500,
+          width : 1000
+//          crosshair: { trigger: 'both' },
+        };
+
+        var chart = new google.visualization.LineChart(plotDiv);
+
+        plotDiv.classList.remove("spinner")
+        chart.draw(data, options);
+    }
+
+
+  })
+}
+
+{{end}}
+

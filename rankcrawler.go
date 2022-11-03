@@ -98,7 +98,12 @@ func (app app) crawlHN(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "inserting rank data: BeginTX")
 	}
-	defer tx.Rollback()
+	defer func() {
+		if txErr := tx.Rollback(); txErr != nil {
+			app.logger.Err(errors.Wrap(txErr, "tx.Rollback"))
+		}
+
+	}()
 
 STORY:
 	for i, item := range stories {
