@@ -25,7 +25,7 @@ function drawUpvoteRatePlot() {
   var plotDiv = document.getElementById('upvoterate_plot_div')
   plotDiv.innerHTML = "loading"
 
-  getJSON('/plots/{{.ID}}/upvoterate.json',
+  getJSON('/plots/upvoterate.json?id={{.ID}}',
   function(err, dataPoints) {
     if (err !== null) {
       plotDiv.innerHTML = "error fetching chart data"

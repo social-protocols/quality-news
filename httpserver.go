@@ -13,7 +13,6 @@ import (
 	"time"
 
 	// "github.com/dyninc/qstring"
-	"github.com/gorilla/schema"
 
 	"github.com/pkg/errors"
 
@@ -51,18 +50,17 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
 	router.GET("/", middleware("qntop", l, onPanic, app.frontpageHandler("quality")))
 	router.GET("/hntop", middleware("hntop", l, onPanic, app.frontpageHandler("hntop")))
-	router.GET("/stats/:storyID", middleware("stats", l, onPanic, app.statsHandler()))
+	router.GET("/stats", middleware("stats", l, onPanic, app.statsHandler()))
 
-	router.GET("/plots/:storyID/ranks.json", middleware("ranks-plotdata", l, onPanic, app.ranksDataJSON()))
-	router.GET("/plots/:storyID/upvotes.json", middleware("upvotes-plotdata", l, onPanic, app.upvotesDataJSON()))
-	router.GET("/plots/:storyID/upvoterate.json", middleware("upvoterate-plotdata",l, onPanic, app.upvoteRateDataJSON()))
+	router.GET("/plots/ranks.json", middleware("ranks-plotdata", l, onPanic, app.ranksDataJSON()))
+	router.GET("/plots/upvotes.json", middleware("upvotes-plotdata", l, onPanic, app.upvotesDataJSON()))
+	router.GET("/plots/upvoterate.json", middleware("upvoterate-plotdata",l, onPanic, app.upvoteRateDataJSON()))
 
 	server.Handler = router
 
 	return server
 }
 
-var decoder = schema.NewDecoder()
 
 func (app app) frontpageHandler(ranking string) func(http.ResponseWriter, *http.Request, FrontPageParams) error {
 	logger := app.logger

@@ -22,7 +22,7 @@ function drawRanksPlot() {
   var plotDiv = document.getElementById('ranks_plot_div')
   plotDiv.innerHTML = "loading"
 
-  getJSON('/plots/{{.ID}}/ranks.json',
+  getJSON('/plots/ranks.json?id={{.ID}}',
   function(err, dataPoints) {
     if (err !== null) {
       plotDiv.innerHTML = "error fetching chart data"

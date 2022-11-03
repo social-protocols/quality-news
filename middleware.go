@@ -8,6 +8,8 @@ import (
 	"github.com/julienschmidt/httprouter"
 
 	"github.com/johnwarden/httperror/v2"
+
+	"github.com/gorilla/schema"
 )
 
 // middleware converts a handler of type httperror.XHandlerFunc[P] into an
@@ -39,6 +41,8 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 		}
 	}
 }
+
+var decoder = schema.NewDecoder()
 
 // unmarshalRouterRequest is a generic request URL unmarshaler for use with
 // httprouter. It unmarshals the request parameters parsed by httprouter, as
