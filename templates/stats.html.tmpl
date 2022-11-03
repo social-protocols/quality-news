@@ -22,11 +22,25 @@
 
 
 </style>
+
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+<script>
+
+{{template "ranks-plot" .Story}}
+
+</script>
+
+
+
 <title>Story Stats</title>
 </head>
 <body>
 
 {{template "story-details" .Story}}
+
+<div id="ranks_plot_div"></div>
 
 <div><img src="/stats/{{.StoryID}}/ranks.png" /></div>
 <div><img src="/stats/{{.StoryID}}/upvotes.png" /></div>
