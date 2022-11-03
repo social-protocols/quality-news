@@ -33,14 +33,16 @@ function drawRanksPlot() {
 
         data.addRows(dataPoints);
 
+        var formatter = new google.visualization.NumberFormat({suffix: ' hours'});
+        formatter.format(data, 0); // Apply formatter to second column
+
         // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
         var options = {
-//          title: "QN vs HN Rank",
           backgroundColor: {fill: 'transparent'},
           dataOpacity: 0.85,
           chartArea:{left:80,top:50, bottom: 80},
           hAxis: {
-            title: 'Age [h]',
+            title: 'Age [hours]',
             logScale: false
           },
           vAxis: {

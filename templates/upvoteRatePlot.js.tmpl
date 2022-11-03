@@ -31,8 +31,8 @@ function drawUpvoteRatePlot() {
     } else {
         var data = new google.visualization.DataTable();
         data.addColumn('number', 'Age');
-        data.addColumn('number', 'Estimated Upvote Rate');
-        data.addColumn('number', 'Average Upvote Rate');
+        data.addColumn('number', 'Estimated True Upvote Rate');
+        data.addColumn('number', 'Expected Upvote Rate');
 
         // average upvotes is always 1
         for (var i = 0; i < dataPoints.length; i++) { 
@@ -41,14 +41,15 @@ function drawUpvoteRatePlot() {
 
         data.addRows(dataPoints);
 
+        var formatter = new google.visualization.NumberFormat({suffix: ' hours'});
+        formatter.format(data, 0); // Apply formatter to second column
+
         // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
         var options = {
-//          title: "Upvote Rate",
           backgroundColor: {fill: 'transparent'},
-          // chartArea:{left:100,top:25,width:'75%'},
           chartArea:{left:80,top:50, bottom: 80},
           hAxis: {
-            title: 'Age [h]',
+            title: 'Age [hours]',
             logScale: false
           },
           vAxis: {
@@ -60,11 +61,11 @@ function drawUpvoteRatePlot() {
           },
           series: {
             0: {},
-            1: {lineDashStyle: [4,4], lineWidth: 2}
+            1: {lineDashStyle: [6,6], lineWidth: 3}
           },
 
           lineWidth: 3,
-          colors: ['#55cc99', 'black'],
+          colors: ['#0089F4', 'black'],
           height: 500,
           width : 1000
         };

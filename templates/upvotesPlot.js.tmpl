@@ -29,6 +29,20 @@ function drawUpvotesPlot() {
     if (err !== null) {
       plotDiv.innerHTML = "error fetching chart data"
     } else {
+
+        // Modify our dataset so that we only plot a point in the upvotes
+        // series if there was an upvote. 
+
+        var lastValue = -1
+        for (var i = 0; i < dataPoints.length; i++) { 
+          var p = dataPoints[i]
+          if (p[1] == lastValue) {
+            p[1] = null
+          } else {
+            lastValue = p[1]
+          }
+        }
+
         var data = new google.visualization.DataTable();
         data.addColumn('number', 'Age');
         data.addColumn('number', 'Upvotes');
@@ -36,23 +50,30 @@ function drawUpvotesPlot() {
 
         data.addRows(dataPoints);
 
+        var formatter = new google.visualization.NumberFormat({suffix: ' hours'});
+        formatter.format(data, 0); // Apply formatter to second column
+
         // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
         var options = {
-//          title: "Upvotes vs Expected Upvotes",
           backgroundColor: {fill: 'transparent'},
-          // chartArea:{left:100,top:25,width:'75%'},
           chartArea:{left:80,top:50, bottom: 80},
           hAxis: {
-            title: 'Age [h]',
+            title: 'Age [hours]',
             logScale: false
           },
           vAxis: {
             title: 'Upvotes',
             viewWindow: 'pretty',
           },
+          series: {
+            0: {lineWidth: 2, lineDashStyle: [4,4], pointSize: 5},
+            1: {lineWidth: 3, curveType: 'function'},
+          },
 
-          curveType: 'none',
-          lineWidth: 3,
+          // we want a line to be drawn over intervals where the upvotes is null
+          // since we set the upvotes to null above if there wasn't an increase in upvotes
+          interpolateNulls: true, 
+
           colors: ['#55cccc', 'black'],
           height: 500,
           width : 1000,
