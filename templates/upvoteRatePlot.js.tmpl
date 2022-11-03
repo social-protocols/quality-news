@@ -53,7 +53,10 @@ function drawUpvoteRatePlot() {
           },
           vAxis: {
             title: 'Upvote Rate',
-            viewWindow: 'pretty',
+            logScale: true,
+            viewWindow: {
+              min: 0
+            },
           },
           series: {
             0: {},
