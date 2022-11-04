@@ -36,7 +36,7 @@ function drawRanksPlot() {
 
           // delete dataPoints equal to the previous value 
           // so there is only a point when there is a rank change
-          for (var j = 0; j < 5; j++) {
+          for (var j = 1; j < 5; j++) {
             if (p[j] == lastValue[j]) {
               p[j] = null
             } else {
@@ -46,19 +46,27 @@ function drawRanksPlot() {
             dataPoints[i] = p
         }
 
+
+        // But to make sure the line extends all the way across the chart horizontally 
+        // Always plot a point at the very end.
+        var p = dataPoints[dataPoints.length-1]
+        for (var j = 1; j < 5; j++) {
+          p[j] = lastValue[j]
+        }
+
         var data = new google.visualization.DataTable();
         data.addColumn('number', 'Age');
-        data.addColumn('number', 'QN Top');
-        data.addColumn('number', 'HN Top');
-        data.addColumn('number', 'New');
-        data.addColumn('number', 'Best');
+        data.addColumn('number', 'QN Rank');
+        data.addColumn('number', 'HN Rank');
+        data.addColumn('number', 'New Rank');
+        data.addColumn('number', 'Best Rank');
 //        data.addColumn('number', 'Ask HN');
 //        data.addColumn('number', 'Show HN');
 
         data.addRows(dataPoints);
 
-        var formatter = new google.visualization.NumberFormat({suffix: ' hours old'});
-        formatter.format(data, 0); // Apply formatter to second column
+        var ageFromatter = new google.visualization.NumberFormat({suffix: ' hours old'});
+        ageFromatter.format(data, 0); // Apply ageFromatter to second column
 
         // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
         var options = {

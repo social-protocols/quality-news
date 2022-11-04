@@ -33,7 +33,6 @@ function drawUpvotesPlot() {
 
         // Modify our dataset so that we only plot a point in the upvotes
         // series if there was an upvote. 
-
         var lastValue = -1
         for (var i = 0; i < dataPoints.length; i++) { 
           var p = dataPoints[i]
@@ -43,6 +42,10 @@ function drawUpvotesPlot() {
             lastValue = p[1]
           }
         }
+
+        // But to make sure the line extends all the way across the chart horizontally 
+        // Always plot a point at the very end.
+        dataPoints[dataPoints.length-1][1] = lastValue
 
         var data = new google.visualization.DataTable();
         data.addColumn('number', 'Age');
