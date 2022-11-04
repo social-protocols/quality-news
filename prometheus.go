@@ -11,10 +11,25 @@ import (
 
 // Register various metrics.
 // Metric name may contain labels in Prometheus format - see below.
+
 var (
-	// Register counter without labels.
-	requestsTotal = metrics.NewCounter("requests_total")
+	generateFrontpageErrorsTotal = metrics.NewCounter(`errors_total{type="generateFrontpage"}`)
+	updateQNRanksErrorsTotal     = metrics.NewCounter(`errors_total{type="updateQNRanks"}`)
+	crawlErrorsTotal             = metrics.NewCounter(`errors_total{type="crawl"}`)
+	requestErrorsTotal           = metrics.NewCounter(`errors_total{type="request"}`)
+	crawlDuration                = metrics.NewHistogram("crawl_duration_seconds")
+
+	upvotesTotal = metrics.NewCounter(`upvotes`)
 )
+
+var generateFrontpageMetrics map[string]*metrics.Histogram
+
+func init() {
+	generateFrontpageMetrics = make(map[string]*metrics.Histogram)
+	for _, ranking := range []string{"hntop", "quality"} {
+		generateFrontpageMetrics[ranking] = metrics.NewHistogram(`generate_frontpage_duration_seconds{ranking="` + ranking + `"}`)
+	}
+}
 
 func servePrometheusMetrics() {
 	mux := http.NewServeMux()
@@ -32,7 +47,6 @@ func prometheusMiddleware[P any](routeName string, h httperror.XHandler[P]) http
 	requestDuration := metrics.NewHistogram(`requests_duration_seconds{route="` + routeName + `"}`)
 
 	return func(w http.ResponseWriter, r *http.Request, p P) error {
-		requestsTotal.Inc()
 		startTime := time.Now()
 
 		err := h.Serve(w, r, p)

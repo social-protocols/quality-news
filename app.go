@@ -174,18 +174,9 @@ func (app app) crawlAndGenerate(ctx context.Context) error {
 
 	err = app.generateAndCacheFrontPages(ctx)
 	if err != nil {
+		generateFrontpageErrorsTotal.Inc()
 		return errors.Wrap(err, "renderFrontPages")
 	}
 
-	return nil
-}
-
-func (app app) insertQNRanks(ranks []int) error {
-	for i, id := range ranks {
-		err := app.ndb.updateQNRank(id, i+1)
-		if err != nil {
-			return errors.Wrap(err, "updateQNRank")
-		}
-	}
 	return nil
 }

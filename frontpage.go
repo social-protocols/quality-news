@@ -10,19 +10,9 @@ import (
 	"html/template"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 )
-
-var generateFrontpageMetrics map[string]*metrics.Histogram
-
-func init() {
-	generateFrontpageMetrics = make(map[string]*metrics.Histogram)
-	for _, ranking := range []string{"hntop", "quality"} {
-		generateFrontpageMetrics[ranking] = metrics.NewHistogram(`generate_frontpage_duration_seconds{ranking="` + ranking + `"}`)
-	}
-}
 
 type frontPageData struct {
 	Stories        []Story
@@ -155,8 +145,9 @@ func (app app) generateAndCacheFrontPages(ctx context.Context) error {
 			rankings[i] = s.ID
 		}
 
-		err = app.insertQNRanks(rankings)
+		err = app.updateQNRanks(rankings)
 		if err != nil {
+			updateQNRanksErrorsTotal.Inc()
 			return errors.Wrap(err, "insertQNRanks")
 		}
 
@@ -174,6 +165,16 @@ func (app app) generateAndCacheFrontPages(ctx context.Context) error {
 
 	}
 
+	return nil
+}
+
+func (app app) updateQNRanks(ranks []int) error {
+	for i, id := range ranks {
+		err := app.ndb.updateQNRank(id, i+1)
+		if err != nil {
+			return errors.Wrap(err, "updateQNRank")
+		}
+	}
 	return nil
 }
 

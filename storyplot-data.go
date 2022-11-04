@@ -33,7 +33,6 @@ func (app app) ranksDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 			}
 			_, _ = w.Write([]byte("]"))
 
-
 			if i < len(xAxis)-1 {
 				_, _ = w.Write([]byte(", "))
 			}
@@ -74,7 +73,7 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([]int64, [][nRanks]int32, er
 		var sampleTime int64
 
 		var nullableRanks [nRanks]sql.NullInt32
-	
+
 		err = rows.Scan(&sampleTime, &nullableRanks[0], &nullableRanks[1], &nullableRanks[2], &nullableRanks[3], &nullableRanks[4], &nullableRanks[5])
 
 		if err != nil {
@@ -88,7 +87,6 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([]int64, [][nRanks]int32, er
 				ranks[i][j] = 91
 			}
 		}
-
 
 		xAxis[i] = sampleTime - submissionTime // humanize.Time(time.Unix(sampleTime, 0))
 

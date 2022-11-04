@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/VictoriaMetrics/metrics"
 	"github.com/pkg/errors"
 )
 
@@ -18,13 +17,6 @@ var pageTypes = map[int]string{
 	3: "ask",
 	4: "show",
 }
-
-var (
-	upvotesTotal     = metrics.NewCounter("upvotes_total")
-	submissionsTotal = metrics.NewCounter("submissions_total")
-	crawlErrorsTotal = metrics.NewCounter("crawl_errors_total")
-	crawlDuration    = metrics.NewHistogram("crawl_duration_seconds")
-)
 
 type ranksArray [5]int // the ranks of a story for different pageTypes
 
@@ -110,6 +102,7 @@ func (app app) crawlHN(ctx context.Context) error {
 	defer func() {
 		if txErr := tx.Rollback(); txErr != nil {
 			app.logger.Err(errors.Wrap(txErr, "tx.Rollback"))
+			crawlErrorsTotal.Inc()
 		}
 	}()
 
@@ -126,6 +119,7 @@ STORY:
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				logger.Err(errors.Wrap(err, "selectLastSeenScore"))
+				crawlErrorsTotal.Inc()
 			}
 		} else {
 			deltaUpvotes[i] = item.Score - lastSeenScore
@@ -136,11 +130,7 @@ STORY:
 		sitewideUpvotes += deltaUpvotes[i]
 
 		// save story details in database
-		if c, err := ndb.insertOrReplaceStory(item); err != nil {
-			if c > 0 {
-				submissionsTotal.Inc()
-			}
-
+		if _, err := ndb.insertOrReplaceStory(item); err != nil {
 			return errors.Wrap(err, "insertOrReplaceStory")
 		}
 	}
