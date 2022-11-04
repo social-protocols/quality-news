@@ -36,8 +36,10 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 
 		err = h(w, r, params)
 		if err != nil {
-			logger.Err(err, "url", r.URL)
-			requestErrorsTotal.Inc()
+			if httperror.StatusCode(err) >= 500 {
+				logger.Err(err, "url", r.URL)
+				requestErrorsTotal.Inc()
+			}
 			httperror.DefaultErrorHandler(w, err)
 		}
 	}
