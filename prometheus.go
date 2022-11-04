@@ -19,7 +19,7 @@ var (
 	requestErrorsTotal           = metrics.NewCounter(`errors_total{type="request"}`)
 	crawlDuration                = metrics.NewHistogram("crawl_duration_seconds")
 
-	upvotesTotal = metrics.NewCounter(`upvotes`)
+	upvotesTotal = metrics.NewCounter(`upvotes_total`)
 )
 
 var generateFrontpageMetrics map[string]*metrics.Histogram
