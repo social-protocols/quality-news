@@ -28,14 +28,22 @@ function drawRanksPlot() {
       plotDiv.classList.remove("spinner")
     } else {
 
+        var lastValue = [-1,-1,-1,-1,-1]
         for (var i = 0; i < dataPoints.length; i++) { 
-          var p = dataPoints[i]
-          for (var j = 0; j < p.length; j++) {
-            if (p[j] == 91) {
+
+          // plot only age, qntop, hntop, new, and best
+          var p = dataPoints[i].slice(0, 5)
+
+          // delete dataPoints equal to the previous value 
+          // so there is only a point when there is a rank change
+          for (var j = 0; j < 5; j++) {
+            if (p[j] == lastValue[j]) {
               p[j] = null
+            } else {
+              lastValue[j] = p[j]
             }
-            dataPoints[i] = p.slice(0, 5)
           }
+            dataPoints[i] = p
         }
 
         var data = new google.visualization.DataTable();
@@ -49,7 +57,7 @@ function drawRanksPlot() {
 
         data.addRows(dataPoints);
 
-        var formatter = new google.visualization.NumberFormat({suffix: ' hours'});
+        var formatter = new google.visualization.NumberFormat({suffix: ' hours old'});
         formatter.format(data, 0); // Apply formatter to second column
 
         // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
@@ -67,20 +75,23 @@ function drawRanksPlot() {
             direction: -1,
             viewWindow: {
               max: 1,
-              min: 90
+              min: 91
             },
-            ticks: [1,2,4,8,16,32,64,90],
+            ticks: [1,2,4,8,16,32,64,{v: 91, f: "> 90"}],
           },
           series: {
-            0: {pointShape: 'diamond', pointSize: 7},
-            1: {pointShape: 'circle', pointSize: 4},
-            2: {pointShape: 'square', pointSize: 4},
-            3: {pointShape: 'square', pointSize: 4},
+            0: {pointShape: 'diamond', pointSize: 8},
+            1: {pointShape: 'circle', pointSize: 5},
+            2: {pointShape: 'square', pointSize: 5},
+            3: {pointShape: 'square', pointSize: 5},
 //            4: {pointShape: 'square', pointSize: 0},
 //            5: {pointShape: 'square', pointSize: 0}
           },
-          lineWidth: 0,
-          colors: ['#0089F4', '#FF6600', "#cc6634", "cyan", "green","pink"],
+
+          lineDashStyle: [4,4],
+          interpolateNulls: true, 
+          lineWidth: 2,
+          colors: ['#0089F4', '#FF6600', "#CF9FFF", "cyan", "green","pink"],
           height: 500,
           width : 1000,
           crosshair: { trigger: 'both' },
