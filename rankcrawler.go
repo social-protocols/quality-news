@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
 	"github.com/pkg/errors"
 )
+
+const maxGoroutines = 20
 
 var pageTypes = map[int]string{
 	0: "top",
@@ -30,7 +33,7 @@ type dataPoint struct {
 	cumulativeUpvotes         int
 }
 
-func (app app) crawlHN() error {
+func (app app) crawlHN(ctx context.Context) error {
 	// this function is called every minute.
 	// It queries all storyIDs from all pageTypes from the Hacker News API.
 	// Collect all stories which appear on a rank < 90 and
@@ -42,12 +45,13 @@ func (app app) crawlHN() error {
 	logger := app.logger
 	client := app.hnClient
 
-	sampleTime := time.Now().Unix()
+	t := time.Now()
+	sampleTime := t.Unix()
 
 	// calculate ranks for every story
 	storyRanks := map[int]ranksArray{}
 	for pageType, pageTypeName := range pageTypes {
-		storyIDs, err := client.Stories(pageTypeName)
+		storyIDs, err := client.Stories(ctx, pageTypeName)
 		if err != nil {
 			return errors.Wrap(err, "client.Stories")
 		}
@@ -76,9 +80,9 @@ func (app app) crawlHN() error {
 
 	// get story details
 	logger.Info("Getting details for stories", "num_stories", len(uniqueStoryIds))
-	stories, err := client.GetItems(uniqueStoryIds)
+	stories, err := client.GetItems(ctx, uniqueStoryIds, maxGoroutines)
 	if err != nil {
-		return (errors.Wrap(err, "client.GetItems"))
+		return errors.Wrap(err, "client.GetItems")
 	}
 
 	logger.Info("Inserting rank data", "nitems", len(stories))
@@ -87,9 +91,20 @@ func (app app) crawlHN() error {
 	// for every story, calculate metrices used for ranking
 	var sitewideUpvotes int // total number of upvotes (since last sample point)
 	// per story:
-	var deltaUpvotes = make([]int, len(stories))          // number of upvotes (since last sample point)
-	var lastCumulativeUpvotes = make([]int, len(stories)) // last number of upvotes tracked by our crawler
-	var lastCumulativeExpectedUpvotes = make([]float64, len(stories))
+	deltaUpvotes := make([]int, len(stories))          // number of upvotes (since last sample point)
+	lastCumulativeUpvotes := make([]int, len(stories)) // last number of upvotes tracked by our crawler
+	lastCumulativeExpectedUpvotes := make([]float64, len(stories))
+
+	tx, err := ndb.db.BeginTx(ctx, nil)
+	if err != nil {
+		return errors.Wrap(err, "inserting rank data: BeginTX")
+	}
+	defer func() {
+		if txErr := tx.Rollback(); txErr != nil {
+			app.logger.Err(errors.Wrap(txErr, "tx.Rollback"))
+			crawlErrorsTotal.Inc()
+		}
+	}()
 
 STORY:
 	for i, item := range stories {
@@ -104,6 +119,7 @@ STORY:
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				logger.Err(errors.Wrap(err, "selectLastSeenScore"))
+				crawlErrorsTotal.Inc()
 			}
 		} else {
 			deltaUpvotes[i] = item.Score - lastSeenScore
@@ -114,7 +130,7 @@ STORY:
 		sitewideUpvotes += deltaUpvotes[i]
 
 		// save story details in database
-		if err := ndb.insertOrReplaceStory(item); err != nil {
+		if _, err := ndb.insertOrReplaceStory(item); err != nil {
 			return errors.Wrap(err, "insertOrReplaceStory")
 		}
 	}
@@ -155,8 +171,10 @@ STORY:
 		if err := ndb.insertDataPoint(datapoint); err != nil {
 			return errors.Wrap(err, "insertDataPoint")
 		}
-
 	}
+
+	crawlDuration.UpdateDuration(t)
+	upvotesTotal.Add(sitewideUpvotes)
 
 	logger.Debug("Totals",
 		"deltaExpectedUpvotes", totalDeltaExpectedUpvotes,

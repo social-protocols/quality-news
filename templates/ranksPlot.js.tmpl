@@ -1,0 +1,119 @@
+{{define "ranks-plot"}}
+
+
+var getJSON = function(url, callback) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.responseType = 'json';
+    xhr.onload = function() {
+      var status = xhr.status;
+      if (status === 200) {
+        callback(null, xhr.response);
+      } else {
+        callback(status, xhr.response);
+      }
+    };
+    xhr.send();
+};
+
+
+function drawRanksPlot() {
+
+  var plotDiv = document.getElementById('ranks_plot_div')
+
+  getJSON('/plots/ranks.json?id={{.ID}}',
+  function(err, dataPoints) {
+    if (err !== null) {
+      plotDiv.innerHTML = "error fetching chart data"
+      plotDiv.classList.remove("spinner")
+    } else {
+
+        var lastValue = [-1,-1,-1,-1,-1]
+        for (var i = 0; i < dataPoints.length; i++) { 
+
+          // plot only age, qntop, hntop, new, and best
+          var p = dataPoints[i].slice(0, 5)
+
+          // delete dataPoints equal to the previous value 
+          // so there is only a point when there is a rank change
+          for (var j = 1; j < 5; j++) {
+            if (p[j] == lastValue[j]) {
+              p[j] = null
+            } else {
+              lastValue[j] = p[j]
+            }
+          }
+            dataPoints[i] = p
+        }
+
+
+        // But to make sure the line extends all the way across the chart horizontally 
+        // Always plot a point at the very end.
+        var p = dataPoints[dataPoints.length-1]
+        for (var j = 1; j < 5; j++) {
+          p[j] = lastValue[j]
+        }
+
+        var data = new google.visualization.DataTable();
+        data.addColumn('number', 'Age');
+        data.addColumn('number', 'QN Rank');
+        data.addColumn('number', 'HN Rank');
+        data.addColumn('number', 'New Rank');
+        data.addColumn('number', 'Best Rank');
+//        data.addColumn('number', 'Ask HN');
+//        data.addColumn('number', 'Show HN');
+
+        data.addRows(dataPoints);
+
+        var ageFromatter = new google.visualization.NumberFormat({suffix: ' hours old'});
+        ageFromatter.format(data, 0); // Apply ageFromatter to second column
+
+        // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
+        var options = {
+          backgroundColor: {fill: 'transparent'},
+          dataOpacity: 0.85,
+          chartArea:{left:80,top:50, bottom: 80},
+          hAxis: {
+            title: 'Age [hours]',
+            logScale: false
+          },
+          vAxis: {
+            title: 'Rank',
+            logScale: true,
+            direction: -1,
+            viewWindow: {
+              max: 1,
+              min: 91
+            },
+            ticks: [1,2,4,8,16,32,64,{v: 91, f: "> 90"}],
+          },
+          series: {
+            0: {pointShape: 'diamond', pointSize: 8},
+            1: {pointShape: 'circle', pointSize: 5},
+            2: {pointShape: 'square', pointSize: 5},
+            3: {pointShape: 'square', pointSize: 5},
+//            4: {pointShape: 'square', pointSize: 0},
+//            5: {pointShape: 'square', pointSize: 0}
+          },
+
+          lineDashStyle: [4,4],
+          interpolateNulls: true, 
+          lineWidth: 2,
+          colors: ['#0089F4', '#FF6600', "#CF9FFF", "cyan", "green","pink"],
+          height: 500,
+          width : 1000,
+          crosshair: { trigger: 'both' },
+        };
+
+        var chart = new google.visualization.LineChart(plotDiv);
+
+        plotDiv.classList.remove("spinner")
+        chart.draw(data, options);
+    }
+
+
+  })
+}
+
+{{end}}
+

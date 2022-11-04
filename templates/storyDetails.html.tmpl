@@ -1,0 +1,16 @@
+{{define "story-details"}}
+<div class="story-item">
+<a class="upvote-button" href="https://news.ycombinator.com/item?id={{.ID}}" target="_blank" rel="noopener noreferrer">▲</a>
+<div>
+  <a class="story-title" href="{{.URL}}">{{.Title}}</a>
+  <div class="story-details">
+    <a href="/stats?id={{.ID}}" class="quality-string">×{{.QualityString}}</a> | 
+    {{.Upvotes}} points by <a href="https://news.ycombinator.com/user?id={{.By}}">{{.By}}</a> <a href="https://news.ycombinator.com/item?id={{.ID}}">{{.AgeString}}</a> |
+    <span class="comparative-rank">
+      {{if .TopRank.Valid}}<a href="/hntop#{{.ID}}"><span class="rank-icon hn">#{{.TopRank.Value}}</span> on HN</a> |{{end}}
+      {{if .QNRank.Valid}}<a href="/#{{.ID}}"><span class="rank-icon qn">#{{.QNRank.Value}}</span> on QN</a> |{{end}}
+    </span>
+    <a href="https://news.ycombinator.com/item?id={{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> </div>
+</div>
+</div>
+{{end}}

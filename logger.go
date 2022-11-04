@@ -1,9 +1,10 @@
 package main
 
 import (
-	kitlog "github.com/go-kit/log"
 	"log"
 	"os"
+
+	kitlog "github.com/go-kit/log"
 )
 
 func newLogger(levelString string) leveledLogger {
@@ -12,7 +13,6 @@ func newLogger(levelString string) leveledLogger {
 	logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
 	log.SetOutput(kitlog.NewStdlibAdapter(logger))
 
-
 	logLevels := map[string]logLevel{
 		"DEBUG": logLevelDebug,
 		"INFO":  logLevelInfo,
@@ -20,9 +20,8 @@ func newLogger(levelString string) leveledLogger {
 		"ERROR": logLevelError,
 	}
 
-
 	l, ok := logLevels[levelString]
-	if  !ok {
+	if !ok {
 		panic("Unrecognized log level: " + levelString)
 	}
 
@@ -39,25 +38,24 @@ type leveledLogger struct {
 
 type logLevel int
 
-const logLevelDebug logLevel = 0
-const logLevelInfo logLevel = 1
-const logLevelWarn logLevel = 2
-const logLevelError logLevel = 3
-
-
+const (
+	logLevelDebug logLevel = 0
+	logLevelInfo  logLevel = 1
+	logLevelWarn  logLevel = 2
+	logLevelError logLevel = 3
+)
 
 func (l leveledLogger) Fatal(err error, keysAndValues ...interface{}) {
 	l.Err(err, keysAndValues...)
 	os.Exit(1)
 }
 
-
 func (l leveledLogger) Err(err error, keysAndValues ...interface{}) {
 	if l.level > logLevelError {
 		return
 	}
 	k := append(keysAndValues, "message", err.Error(), "level", "ERROR")
-	l.logger.Log(k...)
+	_ = l.logger.Log(k...)
 }
 
 func (l leveledLogger) Error(msg string, keysAndValues ...interface{}) {
@@ -65,7 +63,7 @@ func (l leveledLogger) Error(msg string, keysAndValues ...interface{}) {
 		return
 	}
 	k := append(keysAndValues, "message", msg, "level", "ERROR")
-	l.logger.Log(k...)
+	_ = l.logger.Log(k...)
 }
 
 func (l leveledLogger) Warn(msg string, keysAndValues ...interface{}) {
@@ -73,8 +71,7 @@ func (l leveledLogger) Warn(msg string, keysAndValues ...interface{}) {
 		return
 	}
 	k := append(keysAndValues, "message", msg, "level", "WARN")
-	l.logger.Log(k...)
-
+	_ = l.logger.Log(k...)
 }
 
 func (l leveledLogger) Info(msg string, keysAndValues ...interface{}) {
@@ -82,7 +79,7 @@ func (l leveledLogger) Info(msg string, keysAndValues ...interface{}) {
 		return
 	}
 	k := append(keysAndValues, "message", msg, "level", "INFO")
-	l.logger.Log(k...)
+	_ = l.logger.Log(k...)
 }
 
 func (l leveledLogger) Debug(msg string, keysAndValues ...interface{}) {
@@ -90,5 +87,5 @@ func (l leveledLogger) Debug(msg string, keysAndValues ...interface{}) {
 		return
 	}
 	k := append(keysAndValues, "message", msg, "level", "DEBUG")
-	l.logger.Log(k...)
+	_ = l.logger.Log(k...)
 }

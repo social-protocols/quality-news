@@ -2,18 +2,16 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/johnwarden/hn"
 
 	_ "github.com/mattn/go-sqlite3"
 
 	stdlib "github.com/multiprocessio/go-sqlite3-stdlib"
-
-	"os"
-
-	"errors"
-	"log"
 )
 
 type newsDatabase struct {
@@ -22,6 +20,7 @@ type newsDatabase struct {
 	insertOrReplaceStoryStatement *sql.Stmt
 	selectLastSeenScoreStatement  *sql.Stmt
 	updateQNRankStatement         *sql.Stmt
+	selectStoryDetailsStatement   *sql.Stmt
 }
 
 func (ndb newsDatabase) close() {
@@ -31,7 +30,6 @@ func (ndb newsDatabase) close() {
 const sqliteDataFilename = "frontpage.sqlite"
 
 func createDataDirIfNotExists(sqliteDataDir string) {
-
 	if _, err := os.Stat(sqliteDataDir); errors.Is(err, os.ErrNotExist) {
 		err := os.Mkdir(sqliteDataDir, os.ModePerm)
 		if err != nil {
@@ -41,12 +39,42 @@ func createDataDirIfNotExists(sqliteDataDir string) {
 }
 
 func (ndb newsDatabase) init() {
-
 	seedStatements := []string{
-		"CREATE TABLE IF NOT EXISTS stories(id int primary key, by text not null, title text not null, url text not null, timestamp int not null);",
-		"CREATE TABLE IF NOT EXISTS dataset (id integer not null, score integer, descendants integer not null, submissionTime integer not null, sampleTime integer not null, topRank integer, newRank integer, bestRank integer, askRank integer, showRank integer, qnRank integer, cumulativeUpvotes integer, cumulativeExpectedUpvotes real, qualityEstimate real);",
-		"CREATE INDEX IF NOT EXISTS dataset_sampletime_id ON dataset(sampletime, id);",
-		"CREATE INDEX IF NOT EXISTS dataset_sampletime_id ON dataset(id);",
+		`
+        CREATE TABLE IF NOT EXISTS stories(
+            id int primary key
+            , by text not null
+            , title text not null
+            , url text not null
+            , timestamp int not null
+        );
+        `,
+		`
+        CREATE TABLE IF NOT EXISTS dataset (
+            id integer not null
+            , score integer
+            , descendants integer not null
+            , submissionTime integer not null
+            , sampleTime integer not null
+            , topRank integer
+            , newRank integer
+            , bestRank integer
+            , askRank integer
+            , showRank integer
+            , qnRank integer
+            , cumulativeUpvotes integer
+            , cumulativeExpectedUpvotes real
+            , qualityEstimate real
+        );
+        `,
+		`
+        CREATE INDEX IF NOT EXISTS dataset_sampletime_id
+        ON dataset(sampletime, id);
+        `,
+		`
+        CREATE INDEX IF NOT EXISTS dataset_id
+        ON dataset(id);
+        `,
 	}
 
 	for _, s := range seedStatements {
@@ -58,7 +86,6 @@ func (ndb newsDatabase) init() {
 }
 
 func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
-
 	createDataDirIfNotExists(sqliteDataDir)
 
 	frontpageDatabaseFilename := fmt.Sprintf("%s/%s", sqliteDataDir, sqliteDataFilename)
@@ -77,8 +104,12 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	ndb.init()
 
+	// the newsDatabase type has a few prepared statements that are defined here
 	{
-		sql := `INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url`
+		sql := `
+        INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) 
+        ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url
+        `
 		ndb.insertOrReplaceStoryStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
@@ -86,16 +117,39 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	}
 
 	{
-		sql := `INSERT INTO dataset (id, score, descendants, submissionTime, sampleTime, topRank, newRank, bestRank, askRank, showRank, cumulativeUpvotes, cumulativeExpectedUpvotes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		sql := `
+        INSERT INTO dataset (
+            id
+            , score
+            , descendants
+            , submissionTime
+            , sampleTime
+            , topRank
+            , newRank
+            , bestRank
+            , askRank
+            , showRank
+            , cumulativeUpvotes
+            , cumulativeExpectedUpvotes
+        ) VALUES (
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?
+        )
+        `
 		ndb.insertDataPointStatement, err = ndb.db.Prepare(sql) // Prepare statement.
-
 		if err != nil {
 			return ndb, err
 		}
 	}
 
 	{
-		sql := `SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes FROM dataset WHERE id = ? ORDER BY sampleTime DESC LIMIT 1`
+		sql := `
+        SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes
+        FROM dataset
+        WHERE id = ?
+        ORDER BY sampleTime DESC LIMIT 1
+        `
 		ndb.selectLastSeenScoreStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
@@ -103,15 +157,48 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	}
 
 	{
-		sql := `UPDATE dataset set qnRank = ? WHERE id = ? and sampleTime = (select max(sampleTime) from dataset where id = ?)`
+		sql := `
+        UPDATE dataset set qnRank = ?
+        WHERE id = ?
+        AND sampleTime = (
+            SELECT MAX(sampleTime) 
+            FROM dataset
+            WHERE id = ?
+        )
+        `
 		ndb.updateQNRankStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
 		}
 	}
 
-	return ndb, nil
+	{
+		sql := `
+        SELECT 
+            id
+            , by
+            , title
+            , url
+            , timestamp
+            , score
+            , descendants
+            , (cumulativeUpvotes + ?)/(cumulativeExpectedUpvotes + ?) as quality 
+            , topRank
+            , qnRank
+        FROM stories s
+        JOIN dataset d
+        USING (id)
+        WHERE id = ?
+        ORDER BY sampleTime DESC
+        LIMIT 1
+        `
+		ndb.selectStoryDetailsStatement, err = ndb.db.Prepare(sql)
+		if err != nil {
+			return ndb, err
+		}
+	}
 
+	return ndb, nil
 }
 
 func rankToNullableInt(rank int) (result sql.NullInt32) {
@@ -119,7 +206,6 @@ func rankToNullableInt(rank int) (result sql.NullInt32) {
 		result = sql.NullInt32{}
 	} else {
 		result = sql.NullInt32{Int32: int32(rank), Valid: true}
-
 	}
 	return
 }
@@ -144,18 +230,17 @@ func (ndb newsDatabase) insertDataPoint(d dataPoint) error {
 	return nil
 }
 
-func (ndb newsDatabase) insertOrReplaceStory(story hn.Item) error {
-
+func (ndb newsDatabase) insertOrReplaceStory(story hn.Item) (int64, error) {
 	if story.Type != "story" {
-		return nil
+		return 0, nil
 	}
 
-	_, err := ndb.insertOrReplaceStoryStatement.Exec(story.ID, story.By, story.Title, story.URL, story.Timestamp)
+	r, err := ndb.insertOrReplaceStoryStatement.Exec(story.ID, story.By, story.Title, story.URL, story.Timestamp)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
 
+	return r.RowsAffected()
 }
 
 func (ndb newsDatabase) selectLastSeenData(id int) (int, int, float64, error) {
@@ -172,11 +257,21 @@ func (ndb newsDatabase) selectLastSeenData(id int) (int, int, float64, error) {
 }
 
 func (ndb newsDatabase) updateQNRank(id int, rank int) error {
-
 	_, err := ndb.updateQNRankStatement.Exec(rank, id, id)
-
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
+	var s Story
+	priorWeight := defaultFrontPageParams.PriorWeight
+
+	err := ndb.selectStoryDetailsStatement.QueryRow(priorWeight, priorWeight, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.Upvotes, &s.Comments, &s.Quality, &s.TopRank, &s.QNRank)
+	if err != nil {
+		return s, err
+	}
+
+	return s, nil
 }

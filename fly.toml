@@ -51,3 +51,8 @@ processes = []
   source = "data"
   destination = "/data"
 
+# prometheus metrics
+[metrics]
+  port = 9091
+  path = "/metrics"
+

@@ -1,6 +1,5 @@
 package main
 
-
 import (
 	"net/http"
 
@@ -8,45 +7,49 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/johnwarden/httperror"
+	"github.com/johnwarden/httperror/v2"
 
+	"github.com/gorilla/schema"
 )
 
-// routerHandler converts a handler of type httperror.XHandlerFunc[P] into an
+// middleware converts a handler of type httperror.XHandlerFunc[P] into an
 // httprouter.Handle. We use the former type for our http handler functions:
 // this is a clean function signature that accepts parameters as a struct and
 // returns an error. But we need to pass an httprouter.Handle to our router.
 // So we wrap our httperror.XHandlerFunc[P], parsing the URL parameters to
 // produce the parameter struct, passing it to the inner handler, then
 // handling any errors that are returned.
-func routerHandler[P any](logger leveledLogger, h httperror.XHandlerFunc[P]) httprouter.Handle {
+func middleware[P any](routeName string, logger leveledLogger, onPanic func(error), h httperror.XHandlerFunc[P]) httprouter.Handle {
+	h = httperror.XPanicMiddleware[P](h, onPanic)
+
+	h = prometheusMiddleware[P](routeName, h)
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-
 		var params P
 		err := unmarshalRouterRequest(r, ps, &params)
 		if err != nil {
 			err = httperror.Wrap(err, http.StatusBadRequest)
-			logger.Err(err)
+			logger.Err(err, "url", r.URL)
 			httperror.DefaultErrorHandler(w, err)
-			return;
+			return
 		}
 
 		err = h(w, r, params)
 		if err != nil {
-			logger.Err(err)
+			logger.Err(err, "url", r.URL)
+			requestErrorsTotal.Inc()
 			httperror.DefaultErrorHandler(w, err)
 		}
 	}
 }
 
+var decoder = schema.NewDecoder()
 
 // unmarshalRouterRequest is a generic request URL unmarshaler for use with
 // httprouter. It unmarshals the request parameters parsed by httprouter, as
 // well as any URL parameters, into a struct of any type, matching query
 // names to struct field names.
 func unmarshalRouterRequest(r *http.Request, ps httprouter.Params, params any) error {
-
 	m := make(map[string][]string)
 
 	// First convert the httprouter.Params into a map
@@ -74,5 +77,5 @@ func unmarshalRouterRequest(r *http.Request, ps httprouter.Params, params any) e
 		return errors.Wrap(err, "decode parameters")
 	}
 
-	return nil;
+	return nil
 }

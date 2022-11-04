@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"database/sql"
 	"embed"
 	"fmt"
@@ -14,7 +15,7 @@ import (
 )
 
 type frontPageData struct {
-	Stories        []story
+	Stories        []Story
 	AverageAge     float64
 	AverageQuality float64
 	AverageUpvotes float64
@@ -24,7 +25,6 @@ type frontPageData struct {
 
 func (d frontPageData) AverageAgeString() string {
 	return humanize.Time(time.Unix(time.Now().Unix()-int64(d.AverageAge), 0))
-
 }
 
 func (d frontPageData) AverageQualityString() string {
@@ -55,50 +55,6 @@ func (d frontPageData) OverallPriorWeightString() string {
 	return fmt.Sprintf("%.2f", d.Params.OverallPriorWeight)
 }
 
-type story struct {
-	ID             int
-	By             string
-	Title          string
-	URL            string
-	SubmissionTime int64
-	Upvotes        int
-	Comments       int
-	Quality        float64
-	TopRank        int32
-	QNRank         int32
-}
-
-func (s story) AgeString() string {
-	return humanize.Time(time.Unix(int64(s.SubmissionTime), 0))
-}
-
-func (s story) QualityString() string {
-	return fmt.Sprintf("%.2f", s.Quality)
-}
-
-func (s story) HNRankString() string {
-
-	// if s.TopRank == -1 { return "" }
-	//⨂
-
-	if s.TopRank == 0 {
-		return ""
-	}
-
-	return fmt.Sprintf("%d", s.TopRank)
-}
-
-func (s story) QNRankString() string {
-
-	// if s.QNRank == -1 { return "" }
-
-	if s.QNRank == 0 {
-		return ""
-	}
-
-	return fmt.Sprintf("%d", s.QNRank)
-}
-
 type FrontPageParams struct {
 	PriorWeight        float64
 	OverallPriorWeight float64
@@ -109,8 +65,10 @@ func (p FrontPageParams) String() string {
 	return fmt.Sprintf("%#v", p)
 }
 
-var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4}
-var noFrontPageParams FrontPageParams
+var (
+	defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4}
+	noFrontPageParams      FrontPageParams
+)
 
 const frontPageSQL = `
   with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
@@ -130,7 +88,10 @@ const frontPageSQL = `
   join dataset using(id)
   join parameters
   where sampleTime = (select max(sampleTime) from dataset)
-  order by pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours+ 2, gravity) desc
+  order by 
+    pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) 
+    / pow(ageHours+ 2, gravity) 
+    desc
   limit 90;
 `
 
@@ -156,32 +117,6 @@ const hnTopPageSQL = `
   limit 90;
 `
 
-/* The constant k comes from bayesian-average-quality.R (in the hacker-news-data repo).
-
-   Bayesian Average Quality Formula
-
-   	quality ≈ (upvotes+k)/(cumulativeExpectedUpvotes+k)
-
-   Then add age. We want the age penalty to mimic the original HN formula:
-
-	   pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
-
-	The age penalty actually serves two purposes: 1) a proxy for attention and 2) to make
-	sure stories cycle through the home page.
-
-	But if we find that cumulativeExpectedUpvotes roughly equals ageHours^f, then an
-	age penalty is already "built in" to our formula. But our guess is that
-	f is something like 0.6, so we need to add an addition penalty of:
-
-
-		(ageHours+2)^(1.8-f)
-
-	So the ranking formula is:
-
-   	quality ≈ (upvotes+k)/(cumulativeExpectedUpvotes+k)/(ageHours+2)^(1.8-f)
-
-*/
-
 //go:embed templates/*
 var resources embed.FS
 
@@ -189,12 +124,11 @@ var frontPageTemplate = template.Must(template.ParseFS(resources, "templates/*")
 
 var statements map[string]*sql.Stmt
 
-func (app app) generateAndCacheFrontPages() error {
-
+func (app app) generateAndCacheFrontPages(ctx context.Context) error {
 	// generate quality page with default params and cache
 	{
 		ranking := "quality"
-		b, d, err := app.generateFrontPage(ranking, defaultFrontPageParams)
+		b, d, err := app.generateFrontPage(ctx, ranking, defaultFrontPageParams)
 
 		// Save our story rankings to update later in the database.
 		app.logger.Debug("Generated front page", "nStories", len(d.Stories))
@@ -211,18 +145,19 @@ func (app app) generateAndCacheFrontPages() error {
 			rankings[i] = s.ID
 		}
 
-		err = app.insertQNRanks(rankings)
+		err = app.updateQNRanks(rankings)
 		if err != nil {
+			updateQNRanksErrorsTotal.Inc()
 			return errors.Wrap(err, "insertQNRanks")
 		}
 
 	}
 
 	// hntop has to be generated **after** insertQNRanks or we don't
-	// get up-to-date QN rank dat. This seems a bit messy.
-	{
-		ranking := "hntop"
-		b, _, err := app.generateFrontPage(ranking, defaultFrontPageParams)
+	// get up-to-date QN rank data. This seems a bit messy.
+	// for _, ranking := range []string{"hntop", "offtopic"} {
+	for _, ranking := range []string{"hntop"} {
+		b, _, err := app.generateFrontPage(ctx, ranking, defaultFrontPageParams)
 		if err != nil {
 			return errors.Wrapf(err, "generateFrontPage for ranking '%s'", ranking)
 		}
@@ -233,8 +168,20 @@ func (app app) generateAndCacheFrontPages() error {
 	return nil
 }
 
-func (app app) generateFrontPage(ranking string, params FrontPageParams) ([]byte, frontPageData, error) {
-	d, err := app.getFrontPageData(ranking, params)
+func (app app) updateQNRanks(ranks []int) error {
+	for i, id := range ranks {
+		err := app.ndb.updateQNRank(id, i+1)
+		if err != nil {
+			return errors.Wrap(err, "updateQNRank")
+		}
+	}
+	return nil
+}
+
+func (app app) generateFrontPage(ctx context.Context, ranking string, params FrontPageParams) ([]byte, frontPageData, error) {
+	t := time.Now()
+
+	d, err := app.getFrontPageData(ctx, ranking, params)
 	if err != nil {
 		return nil, d, errors.Wrap(err, "getFrontPageData")
 	}
@@ -243,6 +190,10 @@ func (app app) generateFrontPage(ranking string, params FrontPageParams) ([]byte
 	if err != nil {
 		return nil, d, errors.Wrap(err, "generateFrontPageHTML")
 	}
+
+	app.logger.Info("Generated front page", "elapsed", time.Since(t), "ranking", ranking)
+
+	generateFrontpageMetrics[ranking].UpdateDuration(t)
 
 	return b, d, nil
 }
@@ -262,16 +213,15 @@ func (app app) renderFrontPage(d frontPageData) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (app app) getFrontPageData(ranking string, params FrontPageParams) (frontPageData, error) {
-
+func (app app) getFrontPageData(ctx context.Context, ranking string, params FrontPageParams) (frontPageData, error) {
 	logger := app.logger
 	ndb := app.ndb
 
 	var sampleTime int64 = time.Now().Unix()
 
-	logger.Info("Rendering front page", "ranking", ranking)
+	logger.Info("Fetching front page stories from DB", "ranking", ranking)
 
-	stories, err := getFrontPageStories(ndb, ranking, params)
+	stories, err := getFrontPageStories(ctx, ndb, ranking, params)
 	if err != nil {
 		return frontPageData{}, errors.Wrap(err, "getFrontPageStories")
 	}
@@ -299,8 +249,7 @@ func (app app) getFrontPageData(ranking string, params FrontPageParams) (frontPa
 	return d, nil
 }
 
-func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParams) (stories []story, err error) {
-
+func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, params FrontPageParams) (stories []Story, err error) {
 	gravity := params.Gravity
 	overallPriorWeight := params.OverallPriorWeight
 	priorWeight := params.PriorWeight
@@ -334,7 +283,7 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 		s = statements[ranking]
 	}
 
-	rows, err := s.Query()
+	rows, err := s.QueryContext(ctx)
 	if err != nil {
 		return stories, errors.Wrap(err, "executing front page SQL")
 	}
@@ -342,21 +291,18 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 
 	for rows.Next() {
 
-		var s story
+		var s Story
 
-		var ageHours float64
+		var ageHours float64 // included in the query result so we have to read it
 
-		var topRank sql.NullInt32
-		var qnRank sql.NullInt32
-
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &ageHours, &s.Upvotes, &s.Comments, &s.Quality, &topRank, &qnRank)
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &ageHours, &s.Upvotes, &s.Comments, &s.Quality, &s.TopRank, &s.QNRank)
 
 		if ranking == "quality" {
-			s.TopRank = topRank.Int32
+			s.QNRank = sql.NullInt32{Int32: 0, Valid: false}
 		}
 
 		if ranking == "hntop" {
-			s.QNRank = qnRank.Int32
+			s.TopRank = sql.NullInt32{Int32: 0, Valid: false}
 		}
 
 		if err != nil {
@@ -371,5 +317,4 @@ func getFrontPageStories(ndb newsDatabase, ranking string, params FrontPageParam
 	}
 
 	return stories, nil
-
 }

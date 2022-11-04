@@ -1,0 +1,53 @@
+<html>
+
+<head>
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  
+
+
+
+<script>
+google.charts.load('current', {packages: ['corechart', 'line']});
+google.charts.setOnLoadCallback(drawRanksPlot);
+
+function drawRanksPlot() {
+      var data = new google.visualization.DataTable();
+      data.addColumn('number', 'Age');
+      data.addColumn('number', 'HN Top');
+      data.addColumn('number', 'QN Top');
+
+      data.addRows([
+		[2.01,10,91],
+	  ]);
+
+      // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
+      var options = {
+        hAxis: {
+          title: 'Age [hours]',
+          logScale: false
+        },
+        vAxis: {
+          title: 'Rank',
+          logScale: true,
+          direction: -1
+        },
+        colors: ['#a52714', '#097138']
+      };
+
+      var chart = new google.visualization.LineChart(document.getElementById('ranks_plot_div'));
+      chart.draw(data, options);
+    }
+
+</script>
+
+</head>
+
+<body style="background-color: green">
+chart
+<div id="ranks_plot_div"></div>
+
+
+test
+</body>
+</html>
