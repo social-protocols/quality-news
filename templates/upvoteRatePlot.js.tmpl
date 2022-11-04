@@ -28,6 +28,7 @@ function drawUpvoteRatePlot() {
   function(err, dataPoints) {
     if (err !== null) {
       plotDiv.innerHTML = "error fetching chart data"
+        plotDiv.classList.remove("spinner")
     } else {
         var data = new google.visualization.DataTable();
         data.addColumn('number', 'Age');

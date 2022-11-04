@@ -28,6 +28,7 @@ function drawUpvotesPlot() {
   function(err, dataPoints) {
     if (err !== null) {
       plotDiv.innerHTML = "error fetching chart data"
+        plotDiv.classList.remove("spinner")
     } else {
 
         // Modify our dataset so that we only plot a point in the upvotes

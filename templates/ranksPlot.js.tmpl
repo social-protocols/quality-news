@@ -25,11 +25,27 @@ function drawRanksPlot() {
   function(err, dataPoints) {
     if (err !== null) {
       plotDiv.innerHTML = "error fetching chart data"
+      plotDiv.classList.remove("spinner")
     } else {
+
+        for (var i = 0; i < dataPoints.length; i++) { 
+          var p = dataPoints[i]
+          for (var j = 0; j < p.length; j++) {
+            if (p[j] == 91) {
+              p[j] = null
+            }
+            dataPoints[i] = p.slice(0, 5)
+          }
+        }
+
         var data = new google.visualization.DataTable();
         data.addColumn('number', 'Age');
-        data.addColumn('number', 'HN Rank');
-        data.addColumn('number', 'QN Rank');
+        data.addColumn('number', 'QN Top');
+        data.addColumn('number', 'HN Top');
+        data.addColumn('number', 'New');
+        data.addColumn('number', 'Best');
+//        data.addColumn('number', 'Ask HN');
+//        data.addColumn('number', 'Show HN');
 
         data.addRows(dataPoints);
 
@@ -51,16 +67,20 @@ function drawRanksPlot() {
             direction: -1,
             viewWindow: {
               max: 1,
-              min: 91
+              min: 90
             },
-            ticks: [1,2,4,8,16,32,64,{v:91,f:"> 90"}],
+            ticks: [1,2,4,8,16,32,64,90],
           },
           series: {
             0: {pointShape: 'diamond', pointSize: 7},
-            1: {pointShape: 'circle', pointSize: 4}
+            1: {pointShape: 'circle', pointSize: 4},
+            2: {pointShape: 'square', pointSize: 4},
+            3: {pointShape: 'square', pointSize: 4},
+//            4: {pointShape: 'square', pointSize: 0},
+//            5: {pointShape: 'square', pointSize: 0}
           },
           lineWidth: 0,
-          colors: ['#FF6600', '#0089F4'],
+          colors: ['#0089F4', '#FF6600', "#cc6634", "cyan", "green","pink"],
           height: 500,
           width : 1000,
           crosshair: { trigger: 'both' },
