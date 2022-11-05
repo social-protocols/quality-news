@@ -26,7 +26,7 @@ func (app app) ranksDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 
 			ageHours := float64(age) / 3600
 
-			_, _ = w.Write([]byte(fmt.Sprintf("[%.2f", ageHours)))
+			_, _ = w.Write([]byte(fmt.Sprintf("[%.4f", ageHours)))
 
 			for _, rank := range ranks[i] {
 				_, _ = w.Write([]byte(fmt.Sprintf(",%d", rank)))
@@ -115,7 +115,7 @@ func (app app) upvotesDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 
 			ageHours := float64(age) / 3600
 
-			_, _ = w.Write([]byte(fmt.Sprintf("[%.2f,%d,%.2f]", ageHours, upvotes[i], expectedUpvotes[i])))
+			_, _ = w.Write([]byte(fmt.Sprintf("[%.4f,%d,%.2f]", ageHours, upvotes[i], expectedUpvotes[i])))
 			if i < len(xAxis)-1 {
 				_, _ = w.Write([]byte(", "))
 			}
@@ -195,7 +195,7 @@ func (app app) upvoteRateDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 
 			ageHours := float64(age) / 3600
 
-			_, _ = w.Write([]byte(fmt.Sprintf("[%.2f,%.2f]", ageHours, upvoteRates[i])))
+			_, _ = w.Write([]byte(fmt.Sprintf("[%.4f,%.2f]", ageHours, upvoteRates[i])))
 			if i < len(xAxis)-1 {
 				_, _ = w.Write([]byte(", "))
 			}

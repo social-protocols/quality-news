@@ -1,0 +1,45 @@
+{{define "storyplots"}}
+
+
+google.charts.load('current', {packages: ['corechart', 'line']});
+google.charts.setOnLoadCallback(function() {
+  drawRanksPlot()
+  drawUpvotesPlot()
+  drawUpvoteRatePlot()
+});
+
+
+class rankFormat {
+  format(dt, column) {
+    for (var i=0;i<dt.getNumberOfRows();i++) {
+      var v = dt.getValue(i, column);
+      if (v == 91) {
+        v = "> 90"
+      }
+      dt.setFormattedValue(i, column, v);
+    }
+  }
+}
+
+
+class ageFormat {
+  format(dt, column) {
+    for (var i=0;i<dt.getNumberOfRows();i++) {
+      var v = dt.getValue(i, column);
+      var minutes = Math.floor(v*60)
+      if (minutes < 60) {
+        v = minutes + " minutes old"
+      } else {
+        v = v + " hours old"
+      }
+      dt.setFormattedValue(i, column, v);
+    }
+  }
+}
+
+
+{{template "ranks-plot" .}}
+{{template "upvotes-plot" .}}
+{{template "upvoterate-plot" .}}
+
+{{end}}

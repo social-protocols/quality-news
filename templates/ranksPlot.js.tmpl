@@ -17,38 +17,8 @@ var getJSON = function(url, callback) {
 };
 
 
-class rankFormat {
-  format(dt, column) {
-    for (var i=0;i<dt.getNumberOfRows();i++) {
-      var v = dt.getValue(i, column);
-      if (v == 91) {
-        v = "> 90"
-      }
-      dt.setFormattedValue(i, column, v);
-    }
-  }
-}
-
-
-class ageFormat {
-  format(dt, column) {
-    for (var i=0;i<dt.getNumberOfRows();i++) {
-      var v = dt.getValue(i, column);
-      var minutes = Math.floor(v*60)
-      if (minutes < 60) {
-        v = minutes + " minutes old"
-      } else {
-        v = v + " hours old"
-      }
-      dt.setFormattedValue(i, column, v);
-    }
-  }
-}
-
 
 function drawRanksPlot() {
-
-
 
   var plotDiv = document.getElementById('ranks_plot_div')
 
@@ -68,17 +38,16 @@ function drawRanksPlot() {
 
           var p = dataPoints[i].slice(0, n)
 
-          // delete dataPoints equal to the previous value 
-          // so there are only points between rank changes
-          // this makes
+          // only plot a single point when a line leaves/exits the chart from below rank 91
           for (var j = 1; j < n; j++) {
             var lastValueIsOffChart = ( lastValue[j] == 91 || lastValue[j] == null )
             var nextValueIsOnChart = ( i+1 < dataPoints.length && dataPoints[i+1][j] != null && dataPoints[i+1][j] != 91)
 
             if ( p[j] == 91 && (lastValueIsOffChart && !nextValueIsOnChart) ) {
               p[j] = null
+            } else {
+              lastValue[j] = p[j]
             } 
-            lastValue[j] = p[j]
           }
           dataPoints[i] = p
         }
@@ -98,10 +67,10 @@ function drawRanksPlot() {
 
         data.addRows(dataPoints);
 
-        //var ageFromatter = new google.visualization.NumberFormat({suffix: ' hours old'});
-        var ageFromatter = new ageFormat();
+        //var ageFormatter = new google.visualization.NumberFormat({suffix: ' hours old'});
+        var ageFormatter = new ageFormat();
         
-        ageFromatter.format(data, 0); // Apply ageFromatter to second column
+        ageFormatter.format(data, 0);
 
         var rankFormatter = new rankFormat()
         rankFormatter.format(data, 1);

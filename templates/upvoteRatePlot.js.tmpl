@@ -42,8 +42,8 @@ function drawUpvoteRatePlot() {
 
         data.addRows(dataPoints);
 
-        var formatter = new google.visualization.NumberFormat({suffix: ' hours old'});
-        formatter.format(data, 0); // Apply formatter to second column
+        var ageFormatter = new ageFormat()
+        ageFormatter.format(data, 0);
 
         // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
         var options = {

@@ -29,16 +29,7 @@
 
 <script>
 
-google.charts.load('current', {packages: ['corechart', 'line']});
-google.charts.setOnLoadCallback(function() {
-  drawRanksPlot()
-  drawUpvotesPlot()
-  drawUpvoteRatePlot()
-});
-
-{{template "ranks-plot" .Story}}
-{{template "upvotes-plot" .Story}}
-{{template "upvoterate-plot" .Story}}
+{{template "storyplots" .Story}}
 
 </script>
 
