@@ -30,6 +30,21 @@ function drawUpvotesPlot() {
       plotDiv.innerHTML = "error fetching chart data"
         plotDiv.classList.remove("spinner")
     } else {
+
+        // Modify our dataset so that we only plot points immediately
+        // before or after a change. This way the plot looks more like a staircase
+        // where the line is horizontal until there is an upvote then jumps up. Then we
+        // only have diagonal lines where there is missing data.
+        var lastValue = null
+        for (var i = 0; i < dataPoints.length; i++) { 
+          var p = dataPoints[i]
+          if ( p[1] != lastValue || i+1 == dataPoints.length || p[1] != dataPoints[i+1][1] )  {
+            lastValue = p[1]
+          } else {
+            p[1] = null
+          }
+        }
+
         var data = new google.visualization.DataTable();
         data.addColumn('number', 'Age');
         data.addColumn('number', 'Upvotes');
@@ -37,8 +52,8 @@ function drawUpvotesPlot() {
 
         data.addRows(dataPoints);
 
-        var ageFormatter = new google.visualization.NumberFormat({suffix: ' hours old'});
-        ageFormatter.format(data, 0); // Apply formatter to second column
+        var formatter = new google.visualization.NumberFormat({suffix: ' hours old'});
+        formatter.format(data, 0); // Apply formatter to second column
 
         // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
         var options = {
