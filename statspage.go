@@ -21,6 +21,14 @@ type StatsPageData struct {
 	Story               Story
 }
 
+func (d StatsPageData) IsQualityPage() bool {
+	return false
+}
+
+func (d StatsPageData) IsHNTopPage() bool {
+	return false
+}
+
 var statsPageTemplate = template.Must(template.ParseFS(resources, "templates/*"))
 
 var ErrStoryIDNotFound = httperror.New(404, "Story ID not found")

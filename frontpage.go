@@ -35,11 +35,11 @@ func (d frontPageData) AverageUpvotesString() string {
 	return fmt.Sprintf("%.0f", d.AverageUpvotes)
 }
 
-func (d frontPageData) Quality() bool {
+func (d frontPageData) IsQualityPage() bool {
 	return d.Ranking == "quality"
 }
 
-func (d frontPageData) HNTop() bool {
+func (d frontPageData) IsHNTopPage() bool {
 	return d.Ranking == "hntop"
 }
 
