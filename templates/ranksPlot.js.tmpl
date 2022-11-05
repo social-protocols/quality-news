@@ -83,7 +83,6 @@ function drawRanksPlot() {
         var options = {
           backgroundColor: {fill: 'transparent'},
           dataOpacity: 0.85,
-          chartArea:{left:80,top:50, bottom: 80},
           hAxis: {
             title: 'Age [hours]',
             logScale: false
@@ -111,9 +110,10 @@ function drawRanksPlot() {
           lineDashStyle: [4,4],
           lineWidth: 2,
           colors: ['#0089F4', '#FF6600', "#CF9FFF", "cyan", "green","pink"],
+          chartArea:{left:80,top:50, bottom: 80, right: 20},
+          legend: { position: 'bottom' },
           height: 500,
-          width : 1000,
-          crosshair: { trigger: 'both' },
+          crosshair: { trigger: 'focus' },
         };
 
         var chart = new google.visualization.LineChart(plotDiv);

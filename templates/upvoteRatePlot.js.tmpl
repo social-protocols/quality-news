@@ -48,7 +48,6 @@ function drawUpvoteRatePlot() {
         // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
         var options = {
           backgroundColor: {fill: 'transparent'},
-          chartArea:{left:80,top:50, bottom: 80},
           hAxis: {
             title: 'Age [hours]',
             logScale: false
@@ -67,8 +66,10 @@ function drawUpvoteRatePlot() {
 
           lineWidth: 3,
           colors: ['#0089F4', 'black'],
+          chartArea:{left:80,top:50, bottom: 80, right: 20},
+          legend: { position: 'bottom' },
           height: 500,
-          width : 1000
+          crosshair: { trigger: 'focus' },
         };
 
         var chart = new google.visualization.LineChart(plotDiv);

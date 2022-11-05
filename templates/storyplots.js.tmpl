@@ -2,12 +2,15 @@
 
 
 google.charts.load('current', {packages: ['corechart', 'line']});
-google.charts.setOnLoadCallback(function() {
+google.charts.setOnLoadCallback(drawCharts);
+
+window.addEventListener('resize', drawCharts, false);
+
+function drawCharts() {
   drawRanksPlot()
   drawUpvotesPlot()
   drawUpvoteRatePlot()
-});
-
+}
 
 class rankFormat {
   format(dt, column) {
