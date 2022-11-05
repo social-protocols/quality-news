@@ -17,7 +17,38 @@ var getJSON = function(url, callback) {
 };
 
 
+class rankFormat {
+  format(dt, column) {
+    for (var i=0;i<dt.getNumberOfRows();i++) {
+      var v = dt.getValue(i, column);
+      if (v == 91) {
+        v = "> 90"
+      }
+      dt.setFormattedValue(i, column, v);
+    }
+  }
+}
+
+
+class ageFormat {
+  format(dt, column) {
+    for (var i=0;i<dt.getNumberOfRows();i++) {
+      var v = dt.getValue(i, column);
+      var minutes = Math.floor(v*60)
+      if (minutes < 60) {
+        v = minutes + " minutes old"
+      } else {
+        v = v + " hours old"
+      }
+      dt.setFormattedValue(i, column, v);
+    }
+  }
+}
+
+
 function drawRanksPlot() {
+
+
 
   var plotDiv = document.getElementById('ranks_plot_div')
 
@@ -28,30 +59,28 @@ function drawRanksPlot() {
       plotDiv.classList.remove("spinner")
     } else {
 
-        var lastValue = [-1,-1,-1,-1,-1]
+
+        // plot only age, qntop, hntop, new, and best
+        // so 5 columns of data (x axis plus 4 ranks) 
+        var n = 5 
+        var lastValue = [null,null,null,null,null]
         for (var i = 0; i < dataPoints.length; i++) { 
 
-          // plot only age, qntop, hntop, new, and best
-          var p = dataPoints[i].slice(0, 5)
+          var p = dataPoints[i].slice(0, n)
 
           // delete dataPoints equal to the previous value 
-          // so there is only a point when there is a rank change
-          for (var j = 1; j < 5; j++) {
-            if (p[j] == lastValue[j]) {
+          // so there are only points between rank changes
+          // this makes
+          for (var j = 1; j < n; j++) {
+            var lastValueIsOffChart = ( lastValue[j] == 91 || lastValue[j] == null )
+            var nextValueIsOnChart = ( i+1 < dataPoints.length && dataPoints[i+1][j] != null && dataPoints[i+1][j] != 91)
+
+            if ( p[j] == 91 && (lastValueIsOffChart && !nextValueIsOnChart) ) {
               p[j] = null
-            } else {
-              lastValue[j] = p[j]
-            }
+            } 
+            lastValue[j] = p[j]
           }
-            dataPoints[i] = p
-        }
-
-
-        // But to make sure the line extends all the way across the chart horizontally 
-        // Always plot a point at the very end.
-        var p = dataPoints[dataPoints.length-1]
-        for (var j = 1; j < 5; j++) {
-          p[j] = lastValue[j]
+          dataPoints[i] = p
         }
 
         var data = new google.visualization.DataTable();
@@ -60,13 +89,26 @@ function drawRanksPlot() {
         data.addColumn('number', 'HN Rank');
         data.addColumn('number', 'New Rank');
         data.addColumn('number', 'Best Rank');
-//        data.addColumn('number', 'Ask HN');
-//        data.addColumn('number', 'Show HN');
+
+        // these lines add too much noise to the plot and they
+        // have little influence on upvotes and thus on understanding
+        // story performance
+        // data.addColumn('number', 'Ask HN');
+        // data.addColumn('number', 'Show HN');
 
         data.addRows(dataPoints);
 
-        var ageFromatter = new google.visualization.NumberFormat({suffix: ' hours old'});
+        //var ageFromatter = new google.visualization.NumberFormat({suffix: ' hours old'});
+        var ageFromatter = new ageFormat();
+        
         ageFromatter.format(data, 0); // Apply ageFromatter to second column
+
+        var rankFormatter = new rankFormat()
+        rankFormatter.format(data, 1);
+        rankFormatter.format(data, 2);
+        rankFormatter.format(data, 3);
+        rankFormatter.format(data, 4);
+
 
         // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
         var options = {
@@ -87,17 +129,17 @@ function drawRanksPlot() {
             },
             ticks: [1,2,4,8,16,32,64,{v: 91, f: "> 90"}],
           },
+          interpolateNulls: false, 
           series: {
-            0: {pointShape: 'diamond', pointSize: 8},
-            1: {pointShape: 'circle', pointSize: 5},
-            2: {pointShape: 'square', pointSize: 5},
-            3: {pointShape: 'square', pointSize: 5},
+            0: {pointShape: 'diamond', pointSize: 8, interpolateNulls: false},
+            1: {pointShape: 'circle', pointSize: 5, interpolateNulls: false},
+            2: {pointShape: 'square', pointSize: 5, interpolateNulls: false},
+            3: {pointShape: 'square', pointSize: 5, interpolateNulls: false},
 //            4: {pointShape: 'square', pointSize: 0},
 //            5: {pointShape: 'square', pointSize: 0}
           },
 
           lineDashStyle: [4,4],
-          interpolateNulls: true, 
           lineWidth: 2,
           colors: ['#0089F4', '#FF6600', "#CF9FFF", "cyan", "green","pink"],
           height: 500,

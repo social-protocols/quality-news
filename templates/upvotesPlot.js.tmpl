@@ -30,23 +30,6 @@ function drawUpvotesPlot() {
       plotDiv.innerHTML = "error fetching chart data"
         plotDiv.classList.remove("spinner")
     } else {
-
-        // Modify our dataset so that we only plot a point in the upvotes
-        // series if there was an upvote. 
-        var lastValue = -1
-        for (var i = 0; i < dataPoints.length; i++) { 
-          var p = dataPoints[i]
-          if (p[1] == lastValue) {
-            p[1] = null
-          } else {
-            lastValue = p[1]
-          }
-        }
-
-        // But to make sure the line extends all the way across the chart horizontally 
-        // Always plot a point at the very end.
-        dataPoints[dataPoints.length-1][1] = lastValue
-
         var data = new google.visualization.DataTable();
         data.addColumn('number', 'Age');
         data.addColumn('number', 'Upvotes');
@@ -54,8 +37,8 @@ function drawUpvotesPlot() {
 
         data.addRows(dataPoints);
 
-        var formatter = new google.visualization.NumberFormat({suffix: ' hours old'});
-        formatter.format(data, 0); // Apply formatter to second column
+        var ageFormatter = new google.visualization.NumberFormat({suffix: ' hours old'});
+        ageFormatter.format(data, 0); // Apply formatter to second column
 
         // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
         var options = {
