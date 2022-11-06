@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/johnwarden/httperror/v2"
+	"github.com/johnwarden/httperror"
 	"github.com/pkg/errors"
 )
 

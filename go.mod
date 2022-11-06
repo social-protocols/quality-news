@@ -9,14 +9,14 @@ require (
 	github.com/gorilla/schema v1.2.0
 	github.com/hashicorp/go-retryablehttp v0.7.1
 	github.com/johnwarden/hn v1.0.0
-	github.com/johnwarden/httperror/v2 v2.3.0
+	github.com/johnwarden/httperror v1.6.0
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/multiprocessio/go-sqlite3-stdlib v0.0.0-20220822170115-9f6825a1cd25
 	github.com/pkg/errors v0.9.1
 )
 
-//replace github.com/johnwarden/httperror/v2 v2.3.0 => ../httperror
+//replace github.com/johnwarden/httperror v1.6.0 => ../httperror
 //replace "github.com/johnwarden/hn" v1.0.0 => "../hn"
 
 require (

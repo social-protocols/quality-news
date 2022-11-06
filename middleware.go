@@ -7,7 +7,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/johnwarden/httperror/v2"
+	"github.com/johnwarden/httperror"
 
 	"github.com/gorilla/schema"
 )
@@ -20,9 +20,19 @@ import (
 // produce the parameter struct, passing it to the inner handler, then
 // handling any errors that are returned.
 func middleware[P any](routeName string, logger leveledLogger, onPanic func(error), h httperror.XHandlerFunc[P]) httprouter.Handle {
-	h = httperror.XPanicMiddleware[P](h, onPanic)
+	h = httperror.XPanicMiddleware[P](h)
 
 	h = prometheusMiddleware[P](routeName, h)
+
+	handleError := func(w http.ResponseWriter, err error) {
+		if errors.Is(err, httperror.Panic) {
+			// do this in a goroutine otherwise we get deadline if onPanic shutdowns the HTTP server
+			// because the http server shutdown function will wait for all requests to terminate,
+			// including this one!
+			go onPanic(err)
+		}
+		httperror.DefaultErrorHandler(w, err)
+	}
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		var params P
@@ -30,7 +40,7 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 		if err != nil {
 			err = httperror.Wrap(err, http.StatusBadRequest)
 			logger.Err(err, "url", r.URL)
-			httperror.DefaultErrorHandler(w, err)
+			handleError(w, err)
 			return
 		}
 
@@ -40,7 +50,7 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 				logger.Err(err, "url", r.URL)
 				requestErrorsTotal.Inc()
 			}
-			httperror.DefaultErrorHandler(w, err)
+			handleError(w, err)
 		}
 	}
 }

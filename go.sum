@@ -26,8 +26,8 @@ github.com/hashicorp/go-retryablehttp v0.7.1 h1:sUiuQAnLlbvmExtFQs72iFW/HXeUn8Z1
 github.com/hashicorp/go-retryablehttp v0.7.1/go.mod h1:vAew36LZh98gCBJNLH42IQ1ER/9wtLZZ8meHqQvEYWY=
 github.com/johnwarden/hn v1.0.0 h1:Y7oKKKV7kbFkF2J32UFkfHW9NE9xuMa2yO9RBHaCQPE=
 github.com/johnwarden/hn v1.0.0/go.mod h1:ubxUzxsrubrX1QPup1CJhSgDWo+e9MtofcU7hbzdns4=
-github.com/johnwarden/httperror/v2 v2.3.0 h1:G4L2yMkVELHl3iIiB9zUqVHn9xze/0SVD3zxynk73Hk=
-github.com/johnwarden/httperror/v2 v2.3.0/go.mod h1:0XgMH+jwAQHvjD7XU29FqvF450YLJdt9fFlFJ3tOSLU=
+github.com/johnwarden/httperror v1.6.0 h1:RYrTqtS7u2Zs/cUfjuTyEN97DHtSh3kaTRxlQfVrbqo=
+github.com/johnwarden/httperror v1.6.0/go.mod h1:UJtau/N6fjXkkycDRCjypQClzmutoWimmGyOPx3G16Q=
 github.com/julienschmidt/httprouter v1.3.0 h1:U0609e9tgbseu3rBINet9P48AI/D3oJs4dN7jwJOQ1U=
 github.com/julienschmidt/httprouter v1.3.0/go.mod h1:JR6WtHb+2LUe8TCKY3cZOxFyyO8IZAc4RVcycCCAKdM=
 github.com/mattn/go-colorable v0.1.4/go.mod h1:U0ppj6V5qS13XJ6of8GYAs25YV2eR4EVcfRqFIhoBtE=

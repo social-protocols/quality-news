@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/johnwarden/httperror/v2"
+	"github.com/johnwarden/httperror"
 )
 
 // Register various metrics.
