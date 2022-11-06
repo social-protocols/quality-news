@@ -44,6 +44,9 @@ This is the current hacker news ranking formula:
 The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **timing** or 4) **rank**. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30. And upvotes received during peak hours US time are treated the same as upvotes received in the middle of the night.
 
 Our solution is to account for the effects of rank and timing, giving upvotes received at high ranks and peak times less weight.
+By doing this, the effects of the positive feedback loop are eliminated, and the best stories are given the attention they deserve.
+
+Note, that in this work we're not addressing the problem of overlooked stories. We'll approach this problem in the future.
 
 ## Upvote Share by Rank
 
@@ -164,11 +167,11 @@ However, we cannot simply replace upvotes with the estimated upvote rate in the 
 
      rankingScore = pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
 
-`rankingScore` is ratio, where the numerator grows as a function of upvotes and the denominator grows as a function of age. If the numerator in our formula does not also grow similarly as a function of age, the result is an effectively stronger age penalty.
+`rankingScore` is a ratio, where the numerator grows as a function of upvotes and the denominator grows as a function of age. If the numerator in our formula does not also grow similarly as a function of age, the result is an effectively stronger age penalty.
 
 To make our formula as much like the HN formula as possible, the numerator should grow at exactly the same rate as it does in the current ranking formula for the average story, but it should grow at a faster (slower) rate for stories with above-average (below-average) true upvote rate.
 
-We can accomplish this is instead of using the number of upvotes a story actually received, we estimate how many upvotes that story **would have received if it had the same history as the average story**. 
+We can accomplish this instead of using the number of upvotes a story actually received, we estimate how many upvotes that story **would have received if it had the same history as the average story**. 
 
 At each time interval, the average story received `sidewideUpvotes[timeInterval]/nStories` upvotes. So a story with a given upvoteRate would hypothetically have received:
 
