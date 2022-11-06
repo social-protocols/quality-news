@@ -29,16 +29,35 @@ class ageFormat {
   format(dt, column) {
     for (var i=0;i<dt.getNumberOfRows();i++) {
       var v = dt.getValue(i, column);
-      var minutes = Math.floor(v*60)
-      if (minutes < 60) {
-        v = minutes + " minutes old"
-      } else {
-        v = v + " hours old"
+      var minutes = Math.floor(v*60) % 60
+      var hours = Math.floor(v)
+
+      var f = ""
+      if (hours > 1) {
+        f = hours + "h"
       }
-      dt.setFormattedValue(i, column, v);
+      if (minutes > 0 || hours < 1) {
+        f = f + " " + minutes + "m"
+      }
+      dt.setFormattedValue(i, column, f + " old");
     }
   }
 }
+
+var getJSON = function(url, callback) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.responseType = 'json';
+    xhr.onload = function() {
+      var status = xhr.status;
+      if (status === 200) {
+        callback(null, xhr.response);
+      } else {
+        callback(status, xhr.response);
+      }
+    };
+    xhr.send();
+};
 
 
 {{template "ranks-plot" .}}
