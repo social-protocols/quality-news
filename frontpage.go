@@ -88,34 +88,11 @@ const frontPageSQL = `
   join dataset using(id)
   join parameters
   where sampleTime = (select max(sampleTime) from dataset)
-  order by 
-    pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) 
-    / pow(ageHours+ 2, gravity) 
-    desc
+  order by %s
   limit 90;
 `
 
-const hnTopPageSQL = `
-  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
-  select
-    id
-    , by
-    , title
-    , url
-    , submissionTime
-    , cast(unixepoch()-submissionTime as real)/3600 as age
-    , score
-    , descendants
-    , (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes+2.2956) as quality 
-    , topRank
-    , qnRank
-  from stories
-  join dataset using(id)
-  join  parameters
-  where sampleTime = (select max(sampleTime) from dataset) and toprank is not null
-  order by toprank asc
-  limit 90;
-`
+const qnRankFormulaSQL = "pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours + 2, gravity) desc"
 
 //go:embed templates/*
 var resources embed.FS
@@ -128,28 +105,14 @@ func (app app) generateAndCacheFrontPages(ctx context.Context) error {
 	// generate quality page with default params and cache
 	{
 		ranking := "quality"
-		b, d, err := app.generateFrontPage(ctx, ranking, defaultFrontPageParams)
-
+		b, _, err := app.generateFrontPage(ctx, ranking, defaultFrontPageParams)
 		// Save our story rankings to update later in the database.
-		app.logger.Debug("Generated front page", "nStories", len(d.Stories))
 		if err != nil {
 			return errors.Wrapf(err, "generateFrontPage for ranking '%s'", ranking)
 		}
 
 		// Cache it
 		app.generatedPages[ranking] = b
-
-		// Pull out rankings and update
-		rankings := make([]int, len(d.Stories))
-		for i, s := range d.Stories {
-			rankings[i] = s.ID
-		}
-
-		err = app.updateQNRanks(rankings)
-		if err != nil {
-			updateQNRanksErrorsTotal.Inc()
-			return errors.Wrap(err, "insertQNRanks")
-		}
 
 	}
 
@@ -168,16 +131,6 @@ func (app app) generateAndCacheFrontPages(ctx context.Context) error {
 	return nil
 }
 
-func (app app) updateQNRanks(ranks []int) error {
-	for i, id := range ranks {
-		err := app.ndb.updateQNRank(id, i+1)
-		if err != nil {
-			return errors.Wrap(err, "updateQNRank")
-		}
-	}
-	return nil
-}
-
 func (app app) generateFrontPage(ctx context.Context, ranking string, params FrontPageParams) ([]byte, frontPageData, error) {
 	t := time.Now()
 
@@ -191,7 +144,7 @@ func (app app) generateFrontPage(ctx context.Context, ranking string, params Fro
 		return nil, d, errors.Wrap(err, "generateFrontPageHTML")
 	}
 
-	app.logger.Info("Generated front page", "elapsed", time.Since(t), "ranking", ranking)
+	app.logger.Info("Generated front page", "elapsed", time.Since(t), "ranking", ranking, "stories", len(d.Stories))
 
 	generateFrontpageMetrics[ranking].UpdateDuration(t)
 
@@ -264,19 +217,20 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 	// custom parameters
 	if statements[ranking] == nil || params != defaultFrontPageParams {
 
-		var sql string
-		if ranking == "quality" {
-			sql = fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity)
-		} else if ranking == "hntop" {
-			sql = fmt.Sprintf(hnTopPageSQL, priorWeight, overallPriorWeight, gravity)
+		orderBy := "qnRank"
+		if ranking == "hntop" {
+			orderBy = "topRank"
+		} else if params != defaultFrontPageParams {
+			orderBy = qnRankFormulaSQL
 		}
+		sql := fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity, orderBy)
 
 		s, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return stories, errors.Wrap(err, "preparing front page SQL")
 		}
 
-		if params != defaultFrontPageParams {
+		if params == defaultFrontPageParams {
 			statements[ranking] = s
 		}
 	} else {

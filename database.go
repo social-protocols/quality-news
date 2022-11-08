@@ -19,7 +19,7 @@ type newsDatabase struct {
 	insertDataPointStatement      *sql.Stmt
 	insertOrReplaceStoryStatement *sql.Stmt
 	selectLastSeenScoreStatement  *sql.Stmt
-	updateQNRankStatement         *sql.Stmt
+	selectLastCrawlTimeStatement  *sql.Stmt
 	selectStoryDetailsStatement   *sql.Stmt
 }
 
@@ -158,15 +158,9 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	{
 		sql := `
-        UPDATE dataset set qnRank = ?
-        WHERE id = ?
-        AND sampleTime = (
-            SELECT MAX(sampleTime) 
-            FROM dataset
-            WHERE id = ?
-        )
+        SELECT ifnull(max(sampleTime),0) from dataset
         `
-		ndb.updateQNRankStatement, err = ndb.db.Prepare(sql)
+		ndb.selectLastCrawlTimeStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
 		}
@@ -210,8 +204,10 @@ func rankToNullableInt(rank int) (result sql.NullInt32) {
 	return
 }
 
-func (ndb newsDatabase) insertDataPoint(d dataPoint) error {
-	_, err := ndb.insertDataPointStatement.Exec(d.id,
+func (ndb newsDatabase) insertDataPoint(tx *sql.Tx, d dataPoint) error {
+	stmt := tx.Stmt(ndb.insertDataPointStatement)
+
+	_, err := stmt.Exec(d.id,
 		d.score,
 		d.descendants,
 		d.submissionTime,
@@ -230,12 +226,14 @@ func (ndb newsDatabase) insertDataPoint(d dataPoint) error {
 	return nil
 }
 
-func (ndb newsDatabase) insertOrReplaceStory(story hn.Item) (int64, error) {
+func (ndb newsDatabase) insertOrReplaceStory(tx *sql.Tx, story hn.Item) (int64, error) {
 	if story.Type != "story" {
 		return 0, nil
 	}
 
-	r, err := ndb.insertOrReplaceStoryStatement.Exec(story.ID, story.By, story.Title, story.URL, story.Timestamp)
+	stmt := tx.Stmt(ndb.insertOrReplaceStoryStatement)
+
+	r, err := stmt.Exec(story.ID, story.By, story.Title, story.URL, story.Timestamp)
 	if err != nil {
 		return 0, err
 	}
@@ -243,12 +241,14 @@ func (ndb newsDatabase) insertOrReplaceStory(story hn.Item) (int64, error) {
 	return r.RowsAffected()
 }
 
-func (ndb newsDatabase) selectLastSeenData(id int) (int, int, float64, error) {
+func (ndb newsDatabase) selectLastSeenData(tx *sql.Tx, id int) (int, int, float64, error) {
 	var score int
 	var cumulativeUpvotes int
 	var cumulativeExpectedUpvotes float64
 
-	err := ndb.selectLastSeenScoreStatement.QueryRow(id).Scan(&score, &cumulativeUpvotes, &cumulativeExpectedUpvotes)
+	stmt := tx.Stmt(ndb.selectLastSeenScoreStatement)
+
+	err := stmt.QueryRow(id).Scan(&score, &cumulativeUpvotes, &cumulativeExpectedUpvotes)
 	if err != nil {
 		return score, cumulativeUpvotes, cumulativeExpectedUpvotes, err
 	}
@@ -256,12 +256,12 @@ func (ndb newsDatabase) selectLastSeenData(id int) (int, int, float64, error) {
 	return score, cumulativeUpvotes, cumulativeExpectedUpvotes, nil
 }
 
-func (ndb newsDatabase) updateQNRank(id int, rank int) error {
-	_, err := ndb.updateQNRankStatement.Exec(rank, id, id)
-	if err != nil {
-		return err
-	}
-	return nil
+func (ndb newsDatabase) selectLastCrawlTime() (int, error) {
+	var sampleTime int
+
+	err := ndb.selectLastCrawlTimeStatement.QueryRow().Scan(&sampleTime)
+
+	return sampleTime, err
 }
 
 func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {

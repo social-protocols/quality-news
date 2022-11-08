@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -33,7 +34,7 @@ type dataPoint struct {
 	cumulativeUpvotes         int
 }
 
-func (app app) crawlHN(ctx context.Context) error {
+func (app app) crawlHN(ctx context.Context) (err error) {
 	// this function is called every minute.
 	// It queries all storyIDs from all pageTypes from the Hacker News API.
 	// Collect all stories which appear on a rank < 90 and
@@ -44,6 +45,26 @@ func (app app) crawlHN(ctx context.Context) error {
 	ndb := app.ndb
 	logger := app.logger
 	client := app.hnClient
+
+	tx, e := ndb.db.BeginTx(ctx, nil)
+	app.logger.Debug("Begin transaction")
+	if e != nil {
+		err = errors.Wrap(e, "BeginTX")
+		crawlErrorsTotal.Inc()
+		return
+	}
+
+	// Use the commit/rollback in a defer pattern described in:
+	// https://stackoverflow.com/questions/16184238/database-sql-tx-detecting-commit-or-rollback
+	defer func() {
+		if err != nil {
+			// https://go.dev/doc/database/execute-transactions
+			// If the transaction succeeds, it will be committed before the function exits, making the deferred rollback call a no-op.
+			tx.Rollback()
+			return
+		}
+		err = tx.Commit()
+	}()
 
 	t := time.Now()
 	sampleTime := t.Unix()
@@ -95,17 +116,6 @@ func (app app) crawlHN(ctx context.Context) error {
 	lastCumulativeUpvotes := make([]int, len(stories)) // last number of upvotes tracked by our crawler
 	lastCumulativeExpectedUpvotes := make([]float64, len(stories))
 
-	tx, err := ndb.db.BeginTx(ctx, nil)
-	if err != nil {
-		return errors.Wrap(err, "inserting rank data: BeginTX")
-	}
-	defer func() {
-		if txErr := tx.Rollback(); txErr != nil {
-			app.logger.Err(errors.Wrap(txErr, "tx.Rollback"))
-			crawlErrorsTotal.Inc()
-		}
-	}()
-
 STORY:
 	for i, item := range stories {
 		// Skip any stories that were not fetched successfully.
@@ -115,11 +125,10 @@ STORY:
 
 		storyID := item.ID
 
-		lastSeenScore, lastSeenUpvotes, lastSeenExpectedUpvotes, err := ndb.selectLastSeenData(storyID)
+		lastSeenScore, lastSeenUpvotes, lastSeenExpectedUpvotes, err := ndb.selectLastSeenData(tx, storyID)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				logger.Err(errors.Wrap(err, "selectLastSeenScore"))
-				crawlErrorsTotal.Inc()
+				return errors.Wrap(err, "selectLastSeenScore")
 			}
 		} else {
 			deltaUpvotes[i] = item.Score - lastSeenScore
@@ -130,7 +139,7 @@ STORY:
 		sitewideUpvotes += deltaUpvotes[i]
 
 		// save story details in database
-		if _, err := ndb.insertOrReplaceStory(item); err != nil {
+		if _, err := ndb.insertOrReplaceStory(tx, item); err != nil {
 			return errors.Wrap(err, "insertOrReplaceStory")
 		}
 	}
@@ -168,7 +177,7 @@ STORY:
 			cumulativeExpectedUpvotes: lastCumulativeExpectedUpvotes[i] + expectedUpvotesAcrossPageTypes,
 			cumulativeUpvotes:         lastCumulativeUpvotes[i] + deltaUpvotes[i],
 		}
-		if err := ndb.insertDataPoint(datapoint); err != nil {
+		if err := ndb.insertDataPoint(tx, datapoint); err != nil {
 			return errors.Wrap(err, "insertDataPoint")
 		}
 	}
@@ -184,5 +193,47 @@ STORY:
 
 	logger.Info("Successfully inserted rank data", "nitems", len(stories))
 
-	return nil
+	err = app.updateQNRanks(ctx, tx)
+	return errors.Wrap(err, "update QN Ranks")
+}
+
+const updateQNRanksSQL = `
+	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
+	, latestData as (
+		select	
+			id
+			, score
+			, sampleTime
+			, cast(sampleTime-submissionTime as real)/3600 as ageHours
+			, cumulativeUpvotes
+			, cumulativeExpectedUpvotes
+		from dataset 
+		where sampleTime = (select max(sampleTime) from dataset)
+	),
+	qnRanks as (
+		select 
+		id
+			, dense_rank() over(order by %s) as rank
+			, sampleTime
+		from latestData join parameters
+	)
+	update dataset as d set qnRank = qnRanks.rank
+	from qnRanks
+	where d.id = qnRanks.id and d.sampleTime = qnRanks.sampleTime;
+`
+
+func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
+	gravity := defaultFrontPageParams.Gravity
+	overallPriorWeight := defaultFrontPageParams.OverallPriorWeight
+	priorWeight := defaultFrontPageParams.PriorWeight
+
+	sql := fmt.Sprintf(updateQNRanksSQL, priorWeight, overallPriorWeight, gravity, qnRankFormulaSQL)
+	stmt, err := tx.Prepare(sql)
+	if err != nil {
+		return errors.Wrap(err, "preparing updateQNRanksSQL")
+	}
+
+	_, err = stmt.ExecContext(ctx)
+
+	return errors.Wrap(err, "executing updateQNRanksSQL")
 }

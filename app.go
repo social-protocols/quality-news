@@ -165,18 +165,19 @@ func (app app) mainLoop(ctx context.Context, quit chan struct{}) {
 	}
 }
 
-func (app app) crawlAndGenerate(ctx context.Context) error {
-	err := app.crawlHN(ctx)
-	if err != nil {
+
+func (app app) crawlAndGenerate(ctx context.Context) (err error) {
+	if err = app.crawlHN(ctx); err != nil {
 		crawlErrorsTotal.Inc()
-		return errors.Wrap(err, "crawlHN")
+		err = errors.Wrap(err, "crawlHN")
+		return
 	}
 
-	err = app.generateAndCacheFrontPages(ctx)
-	if err != nil {
+	if err = app.generateAndCacheFrontPages(ctx); err != nil {
 		generateFrontpageErrorsTotal.Inc()
-		return errors.Wrap(err, "renderFrontPages")
+		err = errors.Wrap(err, "renderFrontPages")
+		return
 	}
 
-	return nil
+	return
 }
