@@ -137,23 +137,76 @@ type app struct {
 	generatedPages map[string][]byte
 }
 
+
+
+// sleeps but stops sleeping if the context is cancelled.
+func sleepCtx(ctx context.Context, dur time.Duration) {
+
+    ch := make(chan bool)
+
+    go func() {
+        <-time.After(dur)
+        ch <- true
+    }()
+
+    select {
+    case <-ch:
+        break
+    case <-ctx.Done():
+        break
+    }
+}
+
 func (app app) mainLoop(ctx context.Context) {
 	logger := app.logger
 
-	err := app.crawlAndGenerate(ctx)
+	lastCrawlTime, err := app.ndb.selectLastCrawlTime()
 	if err != nil {
-		logger.Err(err)
+		logger.Err(errors.Wrap(err, "selectLastCrawlTime"))
+		os.Exit(2)
 	}
 
+	t := time.Now().Unix()
+
+	elapsed := int(t) - lastCrawlTime
+
+	// If it has been more than a minute since our last crawl,
+	// and more than half a minute to the next on-the-minute crawl
+	// then then crawl right away.
+	if elapsed > 60 {
+		logger.Info("Elapsed since last crawl > 60 seconds. Crawling now.")
+		if err = app.crawlAndGenerate(ctx); err != nil {
+			logger.Err(err)
+
+			if errors.Is(err, context.Canceled) {
+				return
+			}
+		}
+	} else {
+		logger.Info("Elapsed since last < 60 seconds. Waiting.", "seconds", 60-time.Now().Unix()%60)
+
+	}
+
+	// Now the next crawl happens on the minute
+	t = time.Now().Unix()
+	sleepCtx(ctx, time.Duration(60-t%60) * time.Second)
+
+	// And now set a ticker so we crawl every minute going forward
 	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+
+	if err := app.crawlAndGenerate(ctx); err != nil {
+		app.logger.Err(err)
+		if errors.Is(err, context.Canceled) {
+			return
+		}
+	}
 
 	for {
 		select {
 		case <-ticker.C:
-			err := app.crawlAndGenerate(ctx)
-			if err != nil {
+			if err = app.crawlAndGenerate(ctx); err != nil {
 				logger.Err(err)
-				continue
 			}
 
 		case <-ctx.Done():
