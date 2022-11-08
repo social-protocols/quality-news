@@ -24,8 +24,8 @@ github.com/hashicorp/go-hclog v0.16.2 h1:K4ev2ib4LdQETX5cSZBG0DVLk1jwGqSPXBjdah3
 github.com/hashicorp/go-hclog v0.16.2/go.mod h1:whpDNt7SSdeAju8AWKIWsul05p54N/39EeqMAyrmvFQ=
 github.com/hashicorp/go-retryablehttp v0.7.1 h1:sUiuQAnLlbvmExtFQs72iFW/HXeUn8Z1aJLQ4LJJbTQ=
 github.com/hashicorp/go-retryablehttp v0.7.1/go.mod h1:vAew36LZh98gCBJNLH42IQ1ER/9wtLZZ8meHqQvEYWY=
-github.com/johnwarden/hn v1.0.0 h1:Y7oKKKV7kbFkF2J32UFkfHW9NE9xuMa2yO9RBHaCQPE=
-github.com/johnwarden/hn v1.0.0/go.mod h1:ubxUzxsrubrX1QPup1CJhSgDWo+e9MtofcU7hbzdns4=
+github.com/johnwarden/hn v1.0.1 h1:RqQwFZ6ZWgImvCoUFruhR1RudjN+eyqfZzA5dKpMc40=
+github.com/johnwarden/hn v1.0.1/go.mod h1:ubxUzxsrubrX1QPup1CJhSgDWo+e9MtofcU7hbzdns4=
 github.com/johnwarden/httperror v1.6.0 h1:RYrTqtS7u2Zs/cUfjuTyEN97DHtSh3kaTRxlQfVrbqo=
 github.com/johnwarden/httperror v1.6.0/go.mod h1:UJtau/N6fjXkkycDRCjypQClzmutoWimmGyOPx3G16Q=
 github.com/julienschmidt/httprouter v1.3.0 h1:U0609e9tgbseu3rBINet9P48AI/D3oJs4dN7jwJOQ1U=

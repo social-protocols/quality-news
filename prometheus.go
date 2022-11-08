@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
@@ -31,7 +32,7 @@ func init() {
 	}
 }
 
-func servePrometheusMetrics() {
+func servePrometheusMetrics() func(ctx context.Context) error {
 	mux := http.NewServeMux()
 
 	// Export all the registered metrics in Prometheus format at `/metrics` http path.
@@ -39,7 +40,16 @@ func servePrometheusMetrics() {
 		metrics.WritePrometheus(w, true)
 	})
 
-	log.Fatal(http.ListenAndServe(":9091", mux))
+	s := &http.Server{
+		Addr:    ":9091",
+		Handler: mux,
+	}
+
+	go func() {
+		log.Fatal(s.ListenAndServe())
+	}()
+
+	return s.Shutdown
 }
 
 func prometheusMiddleware[P any](routeName string, h httperror.XHandler[P]) httperror.XHandlerFunc[P] {

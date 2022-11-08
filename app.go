@@ -17,7 +17,7 @@ import (
 const maxShutDownTimeout = 5 * time.Second
 
 func main() {
-	go servePrometheusMetrics()
+	shutdownPrometheusServer := servePrometheusMetrics()
 
 	logLevelString := os.Getenv("LOG_LEVEL")
 
@@ -68,14 +68,12 @@ func main() {
 
 	// shutdown function call in case of 1) panic 2) soft kill signal
 	var httpServer *http.Server // this variable included in shutdown closure
-	quit := make(chan struct{})
 
 	shutdown := func() {
 		// cancel the current background context
 		cancelContext()
 
-		// stop the main app loop
-		quit <- struct{}{}
+		shutdownPrometheusServer(ctx)
 
 		if httpServer != nil {
 			logger.Info("Shutting down HTTP server")
@@ -102,7 +100,7 @@ func main() {
 		shutdown()
 
 		// now exit process
-		logger.Info("Main loop exited. Terminating process.")
+		logger.Info("Main loop exited. Terminating process")
 
 		os.Exit(0)
 	}()
@@ -114,7 +112,7 @@ func main() {
 
 	httpServer = app.httpServer(
 		func(error) {
-			logger.Info("Panic in HTTP handler. Shutting down.")
+			logger.Info("Panic in HTTP handler. Shutting down")
 			shutdown()
 			os.Exit(2)
 		},
@@ -129,7 +127,7 @@ func main() {
 		logger.Info("Server shut down")
 	}()
 
-	app.mainLoop(ctx, quit)
+	app.mainLoop(ctx)
 }
 
 type app struct {
@@ -139,7 +137,7 @@ type app struct {
 	generatedPages map[string][]byte
 }
 
-func (app app) mainLoop(ctx context.Context, quit chan struct{}) {
+func (app app) mainLoop(ctx context.Context) {
 	logger := app.logger
 
 	err := app.crawlAndGenerate(ctx)
@@ -158,7 +156,7 @@ func (app app) mainLoop(ctx context.Context, quit chan struct{}) {
 				continue
 			}
 
-		case <-quit:
+		case <-ctx.Done():
 			ticker.Stop()
 			return
 		}
