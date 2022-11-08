@@ -108,8 +108,10 @@ func (app app) generateAndCacheFrontPages(ctx context.Context) error {
 		if err != nil {
 			return errors.Wrapf(err, "generateFrontPage for ranking '%s'", ranking)
 		}
-		app.generatedPages[ranking] = b
 
+		app.generatedPagesMU.Lock()
+		app.generatedPages[ranking] = b
+		app.generatedPagesMU.Unlock()
 	}
 
 	return nil

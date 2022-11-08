@@ -87,7 +87,9 @@ func (app app) frontpageHandler(ranking string) func(http.ResponseWriter, *http.
 				return errors.Wrap(err, "renderFrontPage")
 			}
 		} else {
+			app.generatedPagesMU.Lock()
 			b = app.generatedPages[ranking]
+			app.generatedPagesMU.Unlock()
 		}
 
 		if len(b) == 0 {

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -55,11 +56,13 @@ func main() {
 	ctx, cancelContext := context.WithCancel(context.Background())
 	defer cancelContext()
 
+	var generatedPagesMU sync.Mutex
 	app := app{
-		hnClient:       hnClient,
-		logger:         logger,
-		ndb:            db,
-		generatedPages: make(map[string][]byte),
+		hnClient:         hnClient,
+		logger:           logger,
+		ndb:              db,
+		generatedPages:   make(map[string][]byte),
+		generatedPagesMU: &generatedPagesMU,
 	}
 
 	// Listen for a soft kill signal (INT, TERM, HUP)
