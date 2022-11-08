@@ -102,24 +102,8 @@ var frontPageTemplate = template.Must(template.ParseFS(resources, "templates/*")
 var statements map[string]*sql.Stmt
 
 func (app app) generateAndCacheFrontPages(ctx context.Context) error {
-	// generate quality page with default params and cache
-	{
-		ranking := "quality"
-		b, _, err := app.generateFrontPage(ctx, ranking, defaultFrontPageParams)
-		// Save our story rankings to update later in the database.
-		if err != nil {
-			return errors.Wrapf(err, "generateFrontPage for ranking '%s'", ranking)
-		}
 
-		// Cache it
-		app.generatedPages[ranking] = b
-
-	}
-
-	// hntop has to be generated **after** insertQNRanks or we don't
-	// get up-to-date QN rank data. This seems a bit messy.
-	// for _, ranking := range []string{"hntop", "offtopic"} {
-	for _, ranking := range []string{"hntop"} {
+	for _, ranking := range []string{"quality", "hntop"} {
 		b, _, err := app.generateFrontPage(ctx, ranking, defaultFrontPageParams)
 		if err != nil {
 			return errors.Wrapf(err, "generateFrontPage for ranking '%s'", ranking)

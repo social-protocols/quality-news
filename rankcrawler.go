@@ -47,7 +47,6 @@ func (app app) crawlHN(ctx context.Context) (err error) {
 	client := app.hnClient
 
 	tx, e := ndb.db.BeginTx(ctx, nil)
-	app.logger.Debug("Begin transaction")
 	if e != nil {
 		err = errors.Wrap(e, "BeginTX")
 		crawlErrorsTotal.Inc()

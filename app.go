@@ -131,30 +131,28 @@ func main() {
 }
 
 type app struct {
-	ndb            newsDatabase
-	hnClient       *hn.Client
-	logger         leveledLogger
-	generatedPages map[string][]byte
+	ndb              newsDatabase
+	hnClient         *hn.Client
+	logger           leveledLogger
+	generatedPages   map[string][]byte
+	generatedPagesMU *sync.Mutex
 }
-
-
 
 // sleeps but stops sleeping if the context is cancelled.
 func sleepCtx(ctx context.Context, dur time.Duration) {
+	ch := make(chan bool)
 
-    ch := make(chan bool)
+	go func() {
+		<-time.After(dur)
+		ch <- true
+	}()
 
-    go func() {
-        <-time.After(dur)
-        ch <- true
-    }()
-
-    select {
-    case <-ch:
-        break
-    case <-ctx.Done():
-        break
-    }
+	select {
+	case <-ch:
+		break
+	case <-ctx.Done():
+		break
+	}
 }
 
 func (app app) mainLoop(ctx context.Context) {
@@ -171,10 +169,9 @@ func (app app) mainLoop(ctx context.Context) {
 	elapsed := int(t) - lastCrawlTime
 
 	// If it has been more than a minute since our last crawl,
-	// and more than half a minute to the next on-the-minute crawl
-	// then then crawl right away.
+	// then crawl right away.
 	if elapsed > 60 {
-		logger.Info("Elapsed since last crawl > 60 seconds. Crawling now.")
+		logger.Info("More than 60 seconds since last crawl. Crawling now.")
 		if err = app.crawlAndGenerate(ctx); err != nil {
 			logger.Err(err)
 
@@ -183,39 +180,43 @@ func (app app) mainLoop(ctx context.Context) {
 			}
 		}
 	} else {
-		logger.Info("Elapsed since last < 60 seconds. Waiting.", "seconds", 60-time.Now().Unix()%60)
-
+		logger.Info("Less than 60 seconds since last crawl. Waiting.", "seconds", 60-time.Now().Unix()%60)
 	}
-
-	// Now the next crawl happens on the minute
-	t = time.Now().Unix()
-	sleepCtx(ctx, time.Duration(60-t%60) * time.Second)
 
 	// And now set a ticker so we crawl every minute going forward
-	ticker := time.NewTicker(60 * time.Second)
-	defer ticker.Stop()
+	ticker := make(chan struct{})
 
-	if err := app.crawlAndGenerate(ctx); err != nil {
-		app.logger.Err(err)
-		if errors.Is(err, context.Canceled) {
-			return
-		}
-	}
+	// Now the next crawl happens on the minute. Make the first tick happen at the next
+	// Minute mark.
+	go func() {
+		t = time.Now().Unix()
+		logger.Debug("Waiting for next minute mark", "seconds", time.Duration(60-t%60), "now", time.Now())
+		<-time.After(time.Duration(60-t%60) * time.Second)
+		ticker <- struct{}{}
+	}()
 
 	for {
 		select {
-		case <-ticker.C:
+		case <-ticker:
+			logger.Debug("Got ticker", "now", time.Now())
+
+			// Set the next tick at the minute mark. We use this instead of using
+			// time.NewTicker because in dev mode our app can be suspended, and I
+			// want to see all the timestamps in the DB as multiples of 60.
+			go func() {
+				t := time.Now().Unix()
+				<-time.After(time.Duration(60-t%60) * time.Second)
+				ticker <- struct{}{}
+			}()
 			if err = app.crawlAndGenerate(ctx); err != nil {
 				logger.Err(err)
 			}
 
 		case <-ctx.Done():
-			ticker.Stop()
 			return
 		}
 	}
 }
-
 
 func (app app) crawlAndGenerate(ctx context.Context) (err error) {
 	if err = app.crawlHN(ctx); err != nil {
