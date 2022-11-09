@@ -4,12 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 )
-
-const maxGoroutines = 20
 
 var pageTypes = map[int]string{
 	0: "top",
@@ -35,19 +34,14 @@ type dataPoint struct {
 }
 
 func (app app) crawlHN(ctx context.Context) (err error) {
-	// this function is called every minute.
-	// It queries all storyIDs from all pageTypes from the Hacker News API.
-	// Collect all stories which appear on a rank < 90 and
-	// store its ranks for all different pageTypes.
-	// For every resulting story request all details from the Hacker News API.
-	// With this data, we can compute the expected upvotes per story.
+	// this function is called every minute. It crawls the hacker news
+	// website, collects all stories which appear on a rank < 90 and stores
+	// its ranks for all different pageTypes, and updates the story in the DB
 
 	ndb := app.ndb
 	logger := app.logger
-	client := app.hnClient
 
 	tx, e := ndb.db.BeginTx(ctx, nil)
-	app.logger.Debug("Begin transaction")
 	if e != nil {
 		err = errors.Wrap(e, "BeginTX")
 		crawlErrorsTotal.Inc()
@@ -60,7 +54,10 @@ func (app app) crawlHN(ctx context.Context) (err error) {
 		if err != nil {
 			// https://go.dev/doc/database/execute-transactions
 			// If the transaction succeeds, it will be committed before the function exits, making the deferred rollback call a no-op.
-			tx.Rollback()
+			e := tx.Rollback()
+			if e != nil {
+				logger.Err(errors.Wrap(e, "tx.Rollback"))
+			}
 			return
 		}
 		err = tx.Commit()
@@ -69,61 +66,90 @@ func (app app) crawlHN(ctx context.Context) (err error) {
 	t := time.Now()
 	sampleTime := t.Unix()
 
-	// calculate ranks for every story
 	storyRanks := map[int]ranksArray{}
-	for pageType, pageTypeName := range pageTypes {
-		storyIDs, err := client.Stories(ctx, pageTypeName)
-		if err != nil {
-			return errors.Wrap(err, "client.Stories")
-		}
+	stories := map[int]Story{}
 
-		for zeroBasedRank, ID := range storyIDs {
+	for pageType := 0; pageType < len(pageTypes); pageType++ {
+		pageTypeName := pageTypes[pageType]
+
+		nSuccess := 0
+
+		resultCh := make(chan ScrapedStory)
+		errCh := make(chan error)
+
+		var wg sync.WaitGroup
+
+		// scrape in a goroutine. the scraper will write results to the channel
+		// we provide
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			app.scrapeHN(pageTypeName, resultCh, errCh)
+		}()
+
+		// read from the error channel in print errors in a separate goroutine.
+		// The scraper will block writing to the error channel if nothing is reading
+		// from it.
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for err := range errCh {
+				app.logger.Err(errors.Wrap(err, "Error parsing story"))
+				crawlErrorsTotal.Inc()
+			}
+		}()
+
+		for result := range resultCh {
+			oneBasedRank := result.Rank
+			story := result.Story
+			id := story.ID
+
 			var ranks ranksArray
 			var ok bool
 
-			if ranks, ok = storyRanks[ID]; !ok {
+			if ranks, ok = storyRanks[id]; !ok {
 				// if story is not in storyRanks, initialize it with empty ranks
 				ranks = ranksArray{}
 			}
 
-			ranks[pageType] = zeroBasedRank + 1
-			storyRanks[ID] = ranks
+			ranks[pageType] = oneBasedRank
+			storyRanks[id] = ranks
+			stories[id] = story
 
-			// only take stories which appear on the first 90 ranks
-			if zeroBasedRank+1 >= 90 {
-				break
-			}
-
+			nSuccess += 1
 		}
+
+		logger.Debugf("Successfully crawled %d stories on %s page", nSuccess, pageTypeName)
+
+		wg.Wait()
+
+		// Sleep a bit to avoid rate limiting
+		time.Sleep(time.Millisecond * 100)
 	}
 
 	uniqueStoryIds := getKeys(storyRanks)
 
-	// get story details
-	logger.Info("Getting details for stories", "num_stories", len(uniqueStoryIds))
-	stories, err := client.GetItems(ctx, uniqueStoryIds, maxGoroutines)
-	if err != nil {
-		return errors.Wrap(err, "client.GetItems")
-	}
-
-	logger.Info("Inserting rank data", "nitems", len(stories))
-	// get details for every unique story
+	logger.Info("Inserting rank data", "nitems", len(uniqueStoryIds))
 
 	// for every story, calculate metrices used for ranking
 	var sitewideUpvotes int // total number of upvotes (since last sample point)
 	// per story:
-	deltaUpvotes := make([]int, len(stories))          // number of upvotes (since last sample point)
-	lastCumulativeUpvotes := make([]int, len(stories)) // last number of upvotes tracked by our crawler
-	lastCumulativeExpectedUpvotes := make([]float64, len(stories))
+	deltaUpvotes := make([]int, len(uniqueStoryIds))          // number of upvotes (since last sample point)
+	lastCumulativeUpvotes := make([]int, len(uniqueStoryIds)) // last number of upvotes tracked by our crawler
+	lastCumulativeExpectedUpvotes := make([]float64, len(uniqueStoryIds))
 
 STORY:
-	for i, item := range stories {
+	for i, id := range uniqueStoryIds {
+		story := stories[id]
+
 		// Skip any stories that were not fetched successfully.
-		if item.ID == 0 {
+		if story.ID == 0 {
+			logger.Error("Missing story id in story")
+			crawlErrorsTotal.Inc()
 			continue STORY
 		}
 
-		storyID := item.ID
+		storyID := story.ID
 
 		lastSeenScore, lastSeenUpvotes, lastSeenExpectedUpvotes, err := ndb.selectLastSeenData(tx, storyID)
 		if err != nil {
@@ -131,7 +157,7 @@ STORY:
 				return errors.Wrap(err, "selectLastSeenScore")
 			}
 		} else {
-			deltaUpvotes[i] = item.Score - lastSeenScore
+			deltaUpvotes[i] = story.Upvotes + 1 - lastSeenScore
 			lastCumulativeUpvotes[i] = lastSeenUpvotes
 			lastCumulativeExpectedUpvotes[i] = lastSeenExpectedUpvotes
 		}
@@ -139,7 +165,7 @@ STORY:
 		sitewideUpvotes += deltaUpvotes[i]
 
 		// save story details in database
-		if _, err := ndb.insertOrReplaceStory(tx, item); err != nil {
+		if _, err := ndb.insertOrReplaceStory(tx, story); err != nil {
 			return errors.Wrap(err, "insertOrReplaceStory")
 		}
 	}
@@ -149,9 +175,10 @@ STORY:
 	var totalDeltaExpectedUpvotes float64
 	var totalExpectedUpvotesShare float64
 
-	for i, item := range stories {
-		storyID := item.ID
-		ranks := storyRanks[storyID]
+	for i, id := range uniqueStoryIds {
+		story := stories[id]
+
+		ranks := storyRanks[id]
 		expectedUpvotesAcrossPageTypes := 0.0
 
 	RANKS:
@@ -159,30 +186,33 @@ STORY:
 			if rank == 0 {
 				continue RANKS
 			}
-			deltaExpectedUpvotes, expectedUpvotesShare := deltaExpectedUpvotes(ndb, logger, pageType, storyID, rank, sampleTime, deltaUpvotes[i], sitewideUpvotes)
+			deltaExpectedUpvotes, expectedUpvotesShare := deltaExpectedUpvotes(ndb, logger, pageType, id, rank, sampleTime, deltaUpvotes[i], sitewideUpvotes)
 			expectedUpvotesAcrossPageTypes += deltaExpectedUpvotes
 
 			totalDeltaExpectedUpvotes += deltaExpectedUpvotes
 			totalExpectedUpvotesShare += expectedUpvotesShare
 		}
 
-		submissionTime := int64(item.Time().Unix())
+		submissionTime := int64(story.SubmissionTime)
 		datapoint := dataPoint{
-			id:                        storyID,
-			score:                     item.Score,
-			descendants:               item.Descendants,
+			id:                        id,
+			score:                     story.Upvotes + 1,
+			descendants:               story.Comments,
 			submissionTime:            submissionTime,
 			sampleTime:                sampleTime,
 			ranks:                     ranks,
 			cumulativeExpectedUpvotes: lastCumulativeExpectedUpvotes[i] + expectedUpvotesAcrossPageTypes,
 			cumulativeUpvotes:         lastCumulativeUpvotes[i] + deltaUpvotes[i],
 		}
+
 		if err := ndb.insertDataPoint(tx, datapoint); err != nil {
 			return errors.Wrap(err, "insertDataPoint")
 		}
 	}
 
 	crawlDuration.UpdateDuration(t)
+	logger.Info("Completed crawl", "nitems", len(stories), "elapsed", time.Since(t))
+
 	upvotesTotal.Add(sitewideUpvotes)
 
 	logger.Debug("Totals",
@@ -190,8 +220,6 @@ STORY:
 		"sitewideUpvotes", sitewideUpvotes,
 		"totalExpectedUpvotesShare", totalExpectedUpvotesShare,
 		"dataPoints", len(stories))
-
-	logger.Info("Successfully inserted rank data", "nitems", len(stories))
 
 	err = app.updateQNRanks(ctx, tx)
 	return errors.Wrap(err, "update QN Ranks")

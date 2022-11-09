@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -88,4 +89,11 @@ func (l leveledLogger) Debug(msg string, keysAndValues ...interface{}) {
 	}
 	k := append(keysAndValues, "message", msg, "level", "DEBUG")
 	_ = l.logger.Log(k...)
+}
+
+func (l leveledLogger) Debugf(msg string, args ...interface{}) {
+	if l.level > logLevelDebug {
+		return
+	}
+	_ = l.logger.Log("message", fmt.Sprintf(msg, args...))
 }
