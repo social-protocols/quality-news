@@ -71,19 +71,19 @@ var (
 )
 
 const frontPageSQL = `
-  with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
-  select
-    id
-    , by
-    , title
-    , url
-    , submissionTime
-    , cast(unixepoch()-submissionTime as real)/3600 as ageHours
-    , score
-    , descendants
-    , (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality 
-    , topRank
-    , qnRank
+	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
+	select
+		id
+		, by
+		, title
+		, url
+		, submissionTime
+		, cast(unixepoch()-submissionTime as real)/3600 as ageHours
+		, score
+		, descendants
+		, (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality 
+		, topRank
+		, qnRank
   from stories
   join dataset using(id)
   join parameters

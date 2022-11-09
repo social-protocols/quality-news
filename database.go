@@ -19,6 +19,7 @@ type newsDatabase struct {
 	selectLastSeenScoreStatement  *sql.Stmt
 	selectLastCrawlTimeStatement  *sql.Stmt
 	selectStoryDetailsStatement   *sql.Stmt
+	selectStoryCountStatement	 *sql.Stmt
 }
 
 func (ndb newsDatabase) close() {
@@ -39,40 +40,40 @@ func createDataDirIfNotExists(sqliteDataDir string) {
 func (ndb newsDatabase) init() {
 	seedStatements := []string{
 		`
-        CREATE TABLE IF NOT EXISTS stories(
-            id int primary key
-            , by text not null
-            , title text not null
-            , url text not null
-            , timestamp int not null
-        );
-        `,
+		CREATE TABLE IF NOT EXISTS stories(
+			id int primary key
+			, by text not null
+			, title text not null
+			, url text not null
+			, timestamp int not null
+		);
+		`,
 		`
-        CREATE TABLE IF NOT EXISTS dataset (
-            id integer not null
-            , score integer
-            , descendants integer not null
-            , submissionTime integer not null
-            , sampleTime integer not null
-            , topRank integer
-            , newRank integer
-            , bestRank integer
-            , askRank integer
-            , showRank integer
-            , qnRank integer
-            , cumulativeUpvotes integer
-            , cumulativeExpectedUpvotes real
-            , qualityEstimate real
-        );
-        `,
+		CREATE TABLE IF NOT EXISTS dataset (
+			id integer not null
+			, score integer
+			, descendants integer not null
+			, submissionTime integer not null
+			, sampleTime integer not null
+			, topRank integer
+			, newRank integer
+			, bestRank integer
+			, askRank integer
+			, showRank integer
+			, qnRank integer
+			, cumulativeUpvotes integer
+			, cumulativeExpectedUpvotes real
+			, qualityEstimate real
+		);
+		`,
 		`
-        CREATE INDEX IF NOT EXISTS dataset_sampletime_id
-        ON dataset(sampletime, id);
-        `,
+		CREATE INDEX IF NOT EXISTS dataset_sampletime_id
+		ON dataset(sampletime, id);
+		`,
 		`
-        CREATE INDEX IF NOT EXISTS dataset_id
-        ON dataset(id);
-        `,
+		CREATE INDEX IF NOT EXISTS dataset_id
+		ON dataset(id);
+		`,
 	}
 
 	for _, s := range seedStatements {
@@ -105,9 +106,9 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	// the newsDatabase type has a few prepared statements that are defined here
 	{
 		sql := `
-        INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) 
-        ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url
-        `
+		INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) 
+		ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url
+		`
 		ndb.insertOrReplaceStoryStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
@@ -116,25 +117,25 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	{
 		sql := `
-        INSERT INTO dataset (
-            id
-            , score
-            , descendants
-            , submissionTime
-            , sampleTime
-            , topRank
-            , newRank
-            , bestRank
-            , askRank
-            , showRank
-            , cumulativeUpvotes
-            , cumulativeExpectedUpvotes
-        ) VALUES (
-            ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?,
-            ?, ?
-        )
-        `
+		INSERT INTO dataset (
+			id
+			, score
+			, descendants
+			, submissionTime
+			, sampleTime
+			, topRank
+			, newRank
+			, bestRank
+			, askRank
+			, showRank
+			, cumulativeUpvotes
+			, cumulativeExpectedUpvotes
+		) VALUES (
+			?, ?, ?, ?, ?,
+			?, ?, ?, ?, ?,
+			?, ?
+		)
+		`
 		ndb.insertDataPointStatement, err = ndb.db.Prepare(sql) // Prepare statement.
 		if err != nil {
 			return ndb, err
@@ -143,11 +144,11 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	{
 		sql := `
-        SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes
-        FROM dataset
-        WHERE id = ?
-        ORDER BY sampleTime DESC LIMIT 1
-        `
+		SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes
+		FROM dataset
+		WHERE id = ?
+		ORDER BY sampleTime DESC LIMIT 1
+		`
 		ndb.selectLastSeenScoreStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
@@ -156,8 +157,8 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	{
 		sql := `
-        SELECT ifnull(max(sampleTime),0) from dataset
-        `
+		SELECT ifnull(max(sampleTime),0) from dataset
+		`
 		ndb.selectLastCrawlTimeStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
@@ -166,25 +167,35 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	{
 		sql := `
-        SELECT 
-            id
-            , by
-            , title
-            , url
-            , timestamp
-            , score
-            , descendants
-            , (cumulativeUpvotes + ?)/(cumulativeExpectedUpvotes + ?) as quality 
-            , topRank
-            , qnRank
-        FROM stories s
-        JOIN dataset d
-        USING (id)
-        WHERE id = ?
-        ORDER BY sampleTime DESC
-        LIMIT 1
-        `
+		SELECT 
+			id
+			, by
+			, title
+			, url
+			, timestamp
+			, score
+			, descendants
+			, (cumulativeUpvotes + ?)/(cumulativeExpectedUpvotes + ?) as quality 
+			, topRank
+			, qnRank
+		FROM stories s
+		JOIN dataset d
+		USING (id)
+		WHERE id = ?
+		ORDER BY sampleTime DESC
+		LIMIT 1
+		`
 		ndb.selectStoryDetailsStatement, err = ndb.db.Prepare(sql)
+		if err != nil {
+			return ndb, err
+		}
+	}
+
+	{
+		sql := `
+		SELECT count(distinct id) from dataset
+		`
+		ndb.selectStoryCountStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, err
 		}
@@ -268,4 +279,14 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	}
 
 	return s, nil
+}
+
+func (ndb newsDatabase) storyCount(tx *sql.Tx) (int, error) {
+	var count int
+
+	stmt := tx.Stmt(ndb.selectStoryCountStatement)
+
+	err := stmt.QueryRow().Scan(&count)
+
+	return count, err
 }

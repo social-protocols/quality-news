@@ -14,7 +14,6 @@ import (
 const maxShutDownTimeout = 5 * time.Second
 
 func main() {
-
 	app := initApp()
 	defer app.cleanup()
 
@@ -96,7 +95,6 @@ func main() {
 	app.mainLoop(ctx)
 }
 
-
 func (app app) mainLoop(ctx context.Context) {
 	logger := app.logger
 
@@ -162,9 +160,10 @@ func (app app) mainLoop(ctx context.Context) {
 }
 
 func (app app) crawlAndGenerate(ctx context.Context) (err error) {
-	if err = app.crawlHN(ctx); err != nil {
+	if c, e := app.crawlHN(ctx); err != nil {
 		crawlErrorsTotal.Inc()
-		err = errors.Wrap(err, "crawlHN")
+		submissionsTotal.Add(c)
+		err = errors.Wrap(e, "crawlHN")
 		return
 	}
 

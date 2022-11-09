@@ -21,6 +21,7 @@ var (
 
 	upvotesTotal       = metrics.NewCounter(`upvotes_total`)
 	resubmissionsTotal = metrics.NewCounter(`resubmissions_total`)
+	submissionsTotal   = metrics.NewCounter(`submissions_total`)
 )
 
 var generateFrontpageMetrics map[string]*metrics.Histogram
