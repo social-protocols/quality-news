@@ -19,6 +19,9 @@ type Story struct {
 	Quality        float64
 	TopRank        sql.NullInt32
 	QNRank         sql.NullInt32
+
+	Flagged bool
+	Duplicate bool
 }
 
 func (s Story) AgeString() string {

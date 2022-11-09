@@ -137,7 +137,7 @@ func (app app) mainLoop(ctx context.Context) {
 			}
 		}
 	} else {
-		logger.Info("Less than 60 seconds since last crawl. Waiting.", "seconds", 60-time.Now().Unix()%60)
+		logger.Info("Less than 60 seconds since last crawl.", "seconds", 60-time.Now().Unix()%60)
 	}
 
 	// And now set a ticker so we crawl every minute going forward
@@ -164,9 +164,11 @@ func (app app) mainLoop(ctx context.Context) {
 				<-time.After(time.Duration(60-t%60) * time.Second)
 				ticker <- struct{}{}
 			}()
+			logger.Info("Beginning crawl")
 			if err = app.crawlAndGenerate(ctx); err != nil {
 				logger.Err(err)
 			}
+			logger.Debug("Waiting for next minute mark", "seconds", 60-t%60)
 
 		case <-ctx.Done():
 			return

@@ -203,9 +203,9 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 	// custom parameters
 	if statements[ranking] == nil || params != defaultFrontPageParams {
 
-		orderBy := "qnRank"
+		orderBy := "qnRank nulls last"
 		if ranking == "hntop" {
-			orderBy = "topRank"
+			orderBy = "topRank nulls last"
 		} else if params != defaultFrontPageParams {
 			orderBy = qnRankFormulaSQL
 		}

@@ -7,8 +7,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/johnwarden/hn"
-
 	_ "github.com/mattn/go-sqlite3"
 
 	stdlib "github.com/multiprocessio/go-sqlite3-stdlib"
@@ -226,14 +224,10 @@ func (ndb newsDatabase) insertDataPoint(tx *sql.Tx, d dataPoint) error {
 	return nil
 }
 
-func (ndb newsDatabase) insertOrReplaceStory(tx *sql.Tx, story hn.Item) (int64, error) {
-	if story.Type != "story" {
-		return 0, nil
-	}
-
+func (ndb newsDatabase) insertOrReplaceStory(tx *sql.Tx, story Story) (int64, error) {
 	stmt := tx.Stmt(ndb.insertOrReplaceStoryStatement)
 
-	r, err := stmt.Exec(story.ID, story.By, story.Title, story.URL, story.Timestamp)
+	r, err := stmt.Exec(story.ID, story.By, story.Title, story.URL, story.SubmissionTime)
 	if err != nil {
 		return 0, err
 	}
