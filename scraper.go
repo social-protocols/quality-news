@@ -40,7 +40,11 @@ type ScrapedStory struct {
 
 func (rs rawStory) Clean() (ScrapedStory, error) {
 	result := ScrapedStory{}
-	story := &result.Story
+	story := Story{
+		Title: rs.Title,
+		By:    rs.Author,
+		URL:   rs.URL,
+	}
 
 	// parse id
 	{
