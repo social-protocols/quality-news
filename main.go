@@ -160,12 +160,14 @@ func (app app) mainLoop(ctx context.Context) {
 }
 
 func (app app) crawlAndGenerate(ctx context.Context) (err error) {
-	if c, e := app.crawlHN(ctx); err != nil {
+	c, e := app.crawlHN(ctx)
+
+	if e != nil {
 		crawlErrorsTotal.Inc()
-		submissionsTotal.Add(c)
 		err = errors.Wrap(e, "crawlHN")
 		return
 	}
+	submissionsTotal.Add(c)
 
 	if err = app.generateAndCacheFrontPages(ctx); err != nil {
 		generateFrontpageErrorsTotal.Inc()
