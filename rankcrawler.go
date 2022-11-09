@@ -33,7 +33,7 @@ type dataPoint struct {
 	cumulativeUpvotes         int
 }
 
-func (app app) crawlHN(ctx context.Context) (err error) {
+func (app app) crawlHN(ctx context.Context) (count int, err error) {
 	// this function is called every minute. It crawls the hacker news
 	// website, collects all stories which appear on a rank < 90 and stores
 	// its ranks for all different pageTypes, and updates the story in the DB
@@ -46,6 +46,11 @@ func (app app) crawlHN(ctx context.Context) (err error) {
 		err = errors.Wrap(e, "BeginTX")
 		crawlErrorsTotal.Inc()
 		return
+	}
+
+	initialStoryCount, err := ndb.storyCount(tx)
+	if err != nil {
+		return 0, errors.Wrap(err, "storyCount")
 	}
 
 	// Use the commit/rollback in a defer pattern described in:
@@ -116,10 +121,15 @@ func (app app) crawlHN(ctx context.Context) (err error) {
 			storyRanks[id] = ranks
 			stories[id] = story
 
+			if result.Resubmitted {
+				logger.Info("Got resubmitted story", "id", id, "new submission time", story.SubmissionTime)
+				resubmissionsTotal.Inc()
+			}
+
 			nSuccess += 1
 		}
 
-		logger.Debugf("Successfully crawled %d stories on %s page", nSuccess, pageTypeName)
+		logger.Debugf("Crawled %d stories on %s page", nSuccess, pageTypeName)
 
 		wg.Wait()
 
@@ -154,7 +164,7 @@ STORY:
 		lastSeenScore, lastSeenUpvotes, lastSeenExpectedUpvotes, err := ndb.selectLastSeenData(tx, storyID)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				return errors.Wrap(err, "selectLastSeenScore")
+				return 0, errors.Wrap(err, "selectLastSeenScore")
 			}
 		} else {
 			deltaUpvotes[i] = story.Upvotes + 1 - lastSeenScore
@@ -166,7 +176,7 @@ STORY:
 
 		// save story details in database
 		if _, err := ndb.insertOrReplaceStory(tx, story); err != nil {
-			return errors.Wrap(err, "insertOrReplaceStory")
+			return 0, errors.Wrap(err, "insertOrReplaceStory")
 		}
 	}
 
@@ -206,7 +216,7 @@ STORY:
 		}
 
 		if err := ndb.insertDataPoint(tx, datapoint); err != nil {
-			return errors.Wrap(err, "insertDataPoint")
+			return 0, errors.Wrap(err, "insertDataPoint")
 		}
 	}
 
@@ -221,8 +231,13 @@ STORY:
 		"totalExpectedUpvotesShare", totalExpectedUpvotesShare,
 		"dataPoints", len(stories))
 
+	finalStoryCount, err := ndb.storyCount(tx)
+	if err != nil {
+		return 0, errors.Wrap(err, "storyCount")
+	}
+
 	err = app.updateQNRanks(ctx, tx)
-	return errors.Wrap(err, "update QN Ranks")
+	return finalStoryCount - initialStoryCount, errors.Wrap(err, "update QN Ranks")
 }
 
 const updateQNRanksSQL = `

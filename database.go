@@ -13,8 +13,8 @@ import (
 )
 
 type newsDatabase struct {
-	db                            *sql.DB
-	insertDataPointStatement      *sql.Stmt
+	db							*sql.DB
+	insertDataPointStatement	  *sql.Stmt
 	insertOrReplaceStoryStatement *sql.Stmt
 	selectLastSeenScoreStatement  *sql.Stmt
 	selectLastCrawlTimeStatement  *sql.Stmt
