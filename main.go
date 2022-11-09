@@ -14,8 +14,6 @@ import (
 const maxShutDownTimeout = 5 * time.Second
 
 func main() {
-	// testCrawl()
-	// return
 
 	app := initApp()
 	defer app.cleanup()
@@ -38,7 +36,10 @@ func main() {
 		// cancel the current background context
 		cancelContext()
 
-		shutdownPrometheusServer(ctx)
+		err := shutdownPrometheusServer(ctx)
+		if err != nil {
+			logger.Err(errors.Wrap(err, "shutdownPrometheusServer"))
+		}
 
 		if httpServer != nil {
 			logger.Info("Shutting down HTTP server")
@@ -95,22 +96,6 @@ func main() {
 	app.mainLoop(ctx)
 }
 
-// sleeps but stops sleeping if the context is cancelled.
-func sleepCtx(ctx context.Context, dur time.Duration) {
-	ch := make(chan bool)
-
-	go func() {
-		<-time.After(dur)
-		ch <- true
-	}()
-
-	select {
-	case <-ch:
-		break
-	case <-ctx.Done():
-		break
-	}
-}
 
 func (app app) mainLoop(ctx context.Context) {
 	logger := app.logger

@@ -15,7 +15,6 @@ import (
 
 var (
 	generateFrontpageErrorsTotal = metrics.NewCounter(`errors_total{type="generateFrontpage"}`)
-	updateQNRanksErrorsTotal     = metrics.NewCounter(`errors_total{type="updateQNRanks"}`)
 	crawlErrorsTotal             = metrics.NewCounter(`errors_total{type="crawl"}`)
 	requestErrorsTotal           = metrics.NewCounter(`errors_total{type="request"}`)
 	crawlDuration                = metrics.NewHistogram("crawl_duration_seconds")

@@ -35,7 +35,6 @@ func initApp() app {
 		log.Fatal(err)
 	}
 
-
 	logger := newLogger(logLevelString)
 
 	retryClient := retryablehttp.NewClient()
@@ -62,5 +61,5 @@ func initApp() app {
 }
 
 func (app app) cleanup() {
-	app.ndb.db.Close()
+	app.ndb.close()
 }

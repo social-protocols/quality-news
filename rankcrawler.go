@@ -10,8 +10,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const maxGoroutines = 20
-
 var pageTypes = map[int]string{
 	0: "top",
 	1: "new",
@@ -40,7 +38,6 @@ func (app app) crawlHN(ctx context.Context) (err error) {
 	// website, collects all stories which appear on a rank < 90 and stores
 	// its ranks for all different pageTypes, and updates the story in the DB
 
-
 	ndb := app.ndb
 	logger := app.logger
 
@@ -57,7 +54,10 @@ func (app app) crawlHN(ctx context.Context) (err error) {
 		if err != nil {
 			// https://go.dev/doc/database/execute-transactions
 			// If the transaction succeeds, it will be committed before the function exits, making the deferred rollback call a no-op.
-			tx.Rollback()
+			e := tx.Rollback()
+			if e != nil {
+				logger.Err(errors.Wrap(e, "tx.Rollback"))
+			}
 			return
 		}
 		err = tx.Commit()
@@ -80,7 +80,7 @@ func (app app) crawlHN(ctx context.Context) (err error) {
 		var wg sync.WaitGroup
 
 		// scrape in a goroutine. the scraper will write results to the channel
-		// we provide 
+		// we provide
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -126,7 +126,6 @@ func (app app) crawlHN(ctx context.Context) (err error) {
 		// Sleep a bit to avoid rate limiting
 		time.Sleep(time.Millisecond * 100)
 	}
-
 
 	uniqueStoryIds := getKeys(storyRanks)
 
@@ -221,7 +220,6 @@ STORY:
 		"sitewideUpvotes", sitewideUpvotes,
 		"totalExpectedUpvotesShare", totalExpectedUpvotesShare,
 		"dataPoints", len(stories))
-
 
 	err = app.updateQNRanks(ctx, tx)
 	return errors.Wrap(err, "update QN Ranks")

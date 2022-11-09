@@ -102,7 +102,6 @@ var frontPageTemplate = template.Must(template.ParseFS(resources, "templates/*")
 var statements map[string]*sql.Stmt
 
 func (app app) generateAndCacheFrontPages(ctx context.Context) error {
-
 	for _, ranking := range []string{"quality", "hntop"} {
 		b, _, err := app.generateFrontPage(ctx, ranking, defaultFrontPageParams)
 		if err != nil {

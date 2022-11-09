@@ -20,7 +20,7 @@ type Story struct {
 	TopRank        sql.NullInt32
 	QNRank         sql.NullInt32
 
-	Flagged bool
+	Flagged   bool
 	Duplicate bool
 }
 

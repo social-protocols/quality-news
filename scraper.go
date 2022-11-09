@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -100,7 +98,7 @@ func (rs rawStory) Clean() (Story, int, error) {
 		if fs := strings.Fields(commentString); len(fs) > 1 {
 			c, err := strconv.Atoi(fs[0])
 			if err != nil {
-				return story, 0, errors.Wrapf(err, "parse comments", commentString)
+				return story, 0, errors.Wrapf(err, "parse comments %s", commentString)
 			}
 			story.Comments = c
 		}
@@ -185,39 +183,39 @@ func (app app) newScraper(logger leveledLogger, resultCh chan ScrapedStory, errC
 	return c
 }
 
-func testScrape() {
-	localFile := "hacker-news-show-p3-deadlinks.html"
+// func testScrape() {
+// 	localFile := "hacker-news-show-p3-deadlinks.html"
 
-	app := initApp()
-	app.logger.Debug("Doing test scrape")
+// 	app := initApp()
+// 	app.logger.Debug("Doing test scrape")
 
-	resultCh := make(chan ScrapedStory)
-	errCh := make(chan error)
-	go func() {
-		t := &http.Transport{}
-		//		t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
-		t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
+// 	resultCh := make(chan ScrapedStory)
+// 	errCh := make(chan error)
+// 	go func() {
+// 		t := &http.Transport{}
+// 		//		t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
+// 		t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
 
-		c := app.newScraper(app.logger, resultCh, errCh)
-		c.WithTransport(t)
+// 		c := app.newScraper(app.logger, resultCh, errCh)
+// 		c.WithTransport(t)
 
-		dir, _ := os.Getwd()
-		fmt.Println("Visiting", localFile)
-		c.Visit("file://" + dir + "/" + localFile)
-	}()
+// 		dir, _ := os.Getwd()
+// 		fmt.Println("Visiting", localFile)
+// 		_ = c.Visit("file://" + dir + "/" + localFile)
+// 	}()
 
-	go func() {
-		app.logger.Debug("Range over errch")
-		for e := range errCh {
-			fmt.Println("Go terror", e)
-		}
-	}()
+// 	go func() {
+// 		app.logger.Debug("Range over errch")
+// 		for e := range errCh {
+// 			fmt.Println("Go terror", e)
+// 		}
+// 	}()
 
-	app.logger.Debug("Range over resultch")
-	for result := range resultCh {
-		fmt.Printf("Got result %#v\n", result)
-	}
-}
+// 	app.logger.Debug("Range over resultch")
+// 	for result := range resultCh {
+// 		fmt.Printf("Got result %#v\n", result)
+// 	}
+// }
 
 func (app app) scrapeHN(pageType string, resultCh chan ScrapedStory, errCh chan error) {
 	logger := app.logger
@@ -237,7 +235,10 @@ func (app app) scrapeHN(pageType string, resultCh chan ScrapedStory, errCh chan 
 			if page > 1 {
 				u = url + "?p=" + strconv.Itoa(page)
 			}
-			c.Visit(u)
+			err := c.Visit(u)
+			if err != nil {
+				errCh <- err
+			}
 		}(p)
 	}
 	wg.Wait()
