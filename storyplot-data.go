@@ -63,7 +63,7 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([]int64, [][nRanks]int32, er
 	xAxis := make([]int64, n)
 	ranks := make([][nRanks]int32, n)
 
-	rows, err := ndb.db.Query("select sampleTime, qnRank, topRank, newRank, bestRank, askRank, showRank from dataset where id = ?", storyID)
+	rows, err := ndb.db.Query("select sampleTime, (case when qnRank > 90 then 91 else qnRank end) as qnRank, topRank, newRank, bestRank, askRank, showRank from dataset where id = ?", storyID)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Query: select ranks")
 	}
