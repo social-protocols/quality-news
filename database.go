@@ -13,13 +13,15 @@ import (
 )
 
 type newsDatabase struct {
-	db							*sql.DB
-	insertDataPointStatement	  *sql.Stmt
+	*sql.DB
+
+	db                            *sql.DB
+	insertDataPointStatement      *sql.Stmt
 	insertOrReplaceStoryStatement *sql.Stmt
 	selectLastSeenScoreStatement  *sql.Stmt
 	selectLastCrawlTimeStatement  *sql.Stmt
 	selectStoryDetailsStatement   *sql.Stmt
-	selectStoryCountStatement	 *sql.Stmt
+	selectStoryCountStatement     *sql.Stmt
 }
 
 func (ndb newsDatabase) close() {
@@ -51,10 +53,10 @@ func (ndb newsDatabase) init() {
 		`
 		CREATE TABLE IF NOT EXISTS dataset (
 			id integer not null
-			, score integer
+			, score integer not null
 			, descendants integer not null
-			, submissionTime integer not null
 			, sampleTime integer not null
+			, submissionTime integer not null
 			, topRank integer
 			, newRank integer
 			, bestRank integer
@@ -63,7 +65,10 @@ func (ndb newsDatabase) init() {
 			, qnRank integer
 			, cumulativeUpvotes integer
 			, cumulativeExpectedUpvotes real
-			, qualityEstimate real
+			, flagged boolean
+			, job boolean
+			, ageApprox int not null
+			, penalty real not null default 0
 		);
 		`,
 		`
@@ -121,8 +126,9 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			id
 			, score
 			, descendants
-			, submissionTime
 			, sampleTime
+			, submissionTime
+			, ageApprox
 			, topRank
 			, newRank
 			, bestRank
@@ -130,12 +136,15 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			, showRank
 			, cumulativeUpvotes
 			, cumulativeExpectedUpvotes
+			, flagged
+			, job
 		) VALUES (
 			?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?,
-			?, ?
+			?, ?, ?, ?, ?
 		)
 		`
+
 		ndb.insertDataPointStatement, err = ndb.db.Prepare(sql) // Prepare statement.
 		if err != nil {
 			return ndb, err
@@ -172,10 +181,13 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			, by
 			, title
 			, url
-			, timestamp
-			, score
+			, submissionTime
+			, timestamp as originalSubmissionTime
+			, ageApprox
+			, score-1
 			, descendants
 			, (cumulativeUpvotes + ?)/(cumulativeExpectedUpvotes + ?) as quality 
+			, penalty
 			, topRank
 			, qnRank
 		FROM stories s
@@ -219,8 +231,9 @@ func (ndb newsDatabase) insertDataPoint(tx *sql.Tx, d dataPoint) error {
 	_, err := stmt.Exec(d.id,
 		d.score,
 		d.descendants,
-		d.submissionTime,
 		d.sampleTime,
+		d.submissionTime,
+		d.ageApprox,
 		rankToNullableInt(d.ranks[0]),
 		rankToNullableInt(d.ranks[1]),
 		rankToNullableInt(d.ranks[2]),
@@ -228,6 +241,8 @@ func (ndb newsDatabase) insertDataPoint(tx *sql.Tx, d dataPoint) error {
 		rankToNullableInt(d.ranks[4]),
 		d.cumulativeUpvotes,
 		d.cumulativeExpectedUpvotes,
+		d.flagged,
+		d.job,
 	)
 	if err != nil {
 		return err
@@ -273,7 +288,7 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	var s Story
 	priorWeight := defaultFrontPageParams.PriorWeight
 
-	err := ndb.selectStoryDetailsStatement.QueryRow(priorWeight, priorWeight, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.Upvotes, &s.Comments, &s.Quality, &s.TopRank, &s.QNRank)
+	err := ndb.selectStoryDetailsStatement.QueryRow(priorWeight, priorWeight, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank)
 	if err != nil {
 		return s, err
 	}

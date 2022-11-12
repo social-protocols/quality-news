@@ -25,112 +25,91 @@ type row1 struct {
 }
 
 type row2 struct {
-	Author      string   `selector:"a.hnuser"`
-	Score       string   `selector:"span.score"`
-	Age         string   `selector:"span.age" attr:"title"`
-	RelativeAge string   `selector:"span.age"`
-	Links       []string `selector:"a"`
+	Author         string   `selector:"a.hnuser"`
+	Score          string   `selector:"span.score"`
+	SubmissionTime string   `selector:"span.age" attr:"title"`
+	AgeApprox      string   `selector:"span.age"`
+	Links          []string `selector:"a"`
 }
 
 type ScrapedStory struct {
-	Rank int
 	Story
-	Resubmitted bool
+	Rank      int
+	AgeApprox int64
+	Flagged   bool
+	Dupe      bool
+	Job       bool
 }
 
 func (rs rawStory) Clean() (ScrapedStory, error) {
-	result := ScrapedStory{
+	story := ScrapedStory{
 		Story: Story{
 			Title: rs.Title,
 			By:    rs.Author,
 			URL:   rs.URL,
 		},
 	}
-	story := &result.Story
 
 	// parse id
 	{
 		id, err := strconv.Atoi(rs.ID)
 		if err != nil {
-			return result, errors.Wrapf(err, "parse story id %s", rs.ID)
+			return story, errors.Wrapf(err, "parse story id %s", rs.ID)
 		}
 		story.ID = id
 	}
 
-	// parse secore
-	// field will look like "4 points"
+	// parse score. This field will look like "4 points"
 	{
 		if fs := strings.Fields(rs.Score); len(fs) > 0 {
 			scoreStr := strings.Fields(rs.Score)[0]
 
 			score, err := strconv.Atoi(scoreStr)
-			story.Upvotes = score - 1
+			story.Score = score
 			if err != nil {
-				return result, errors.Wrapf(err, "parse story score %s", rs.Score)
+				return story, errors.Wrapf(err, "parse story score %s", rs.Score)
 			}
+		} else {
+			// if there is no upvotes field, then this is an HN job.
+			// we want to include these in the database because they get ranked
+			story.Job = true
 		}
-		// if there is no upvotes field, it is a job
-		// we want to treat these as stories because they get ranked
 	}
 
-	// parse age (submission time)
+	// parse submission time
 	{
-		submissionTime, err := time.Parse("2006-01-02T15:04:05", rs.Age)
+		submissionTime, err := time.Parse("2006-01-02T15:04:05", rs.SubmissionTime)
 		if err != nil {
-			return result, errors.Wrapf(err, "parse submission time %s", rs.Age)
+			return story, errors.Wrapf(err, "parse submission time %s", rs.SubmissionTime)
 		}
 		story.SubmissionTime = submissionTime.Unix()
+	}
 
+	// parse approximate age
+	{
 		// this will be something like "1 minute ago" or "3 hours ago"
-		if fs := strings.Fields(rs.RelativeAge); len(fs) > 1 {
-			var s int64
-			underOneHour := false
+		if fs := strings.Fields(rs.AgeApprox); len(fs) > 1 {
+			n, err := strconv.Atoi(fs[0])
+			if err != nil {
+				return story, errors.Wrapf(err, "parse relative age %s", rs.AgeApprox)
+			}
+
+			var units int64
 			if strings.HasPrefix(fs[1], "minute") { // "minute" or "minutes"
-				underOneHour = true
-				//				fmt.Println("Got relative age", rs.RelativeAge)
-				m, err := strconv.Atoi(fs[0])
-				if err != nil {
-					return result, errors.Wrapf(err, "parse relative age %s", rs.RelativeAge)
-				}
-				s = time.Now().Unix() - int64(m*60)
-
+				units = 60
 			} else if strings.HasPrefix(fs[1], "hour") {
-				//				fmt.Println("Got relative age", rs.RelativeAge)
-				m, err := strconv.Atoi(fs[0])
-				if err != nil {
-					return result, errors.Wrapf(err, "parse relative age %s", rs.RelativeAge)
-				}
-
-				// give it an extra hours, first because the relative age always rounds down
-				// (3h50m ago is shown as 3 hours ago), and
-				// second because it it is better to assume an older submission time
-				// and thereby not give them the full boost they have earned, then to over
-				// estimate and give them too much of a boost. Add another couple of minutes
-				// because
-				s = time.Now().Unix() - int64(m*3600) - 3600
+				units = 3600
+			} else if strings.HasPrefix(fs[1], "day") {
+				units = 3600 * 24
+			} else if strings.HasPrefix(fs[1], "month") {
+				units = 3600 * 24 * 30
+			} else if strings.HasPrefix(fs[1], "year") {
+				units = 3600 * 24 * 364
 			}
 
-			if s != 0 {
-
-				// The relative submission time seems to be off by about a minute less
-				// than it should be (based on the current time and the submission time). This is
-				// partly because of latency in our crawl and maybe partly something internal to HN
-				s -= 60
-
-				// fmt.Println("Submission time vs implied submission time", story.ID, rs.RelativeAge, s, story.SubmissionTime, s-story.SubmissionTime)
-				// If there is more than an hour discrepancy, it indicates that this story has
-				// been resubmitted. So use the new estimated time
-				//				fmt.Println("Implied submission time", s-story.SubmissionTime)
-				if s-story.SubmissionTime > 3600 {
-					if underOneHour {
-						// Only update the submission time based on the relative time if it is less than 1 hour
-						// because then we have granularity of 1 minute, and
-						fmt.Println("Found resubmitted story less than one hour old. Submission time vs implied submission time", story.ID, rs.RelativeAge, s-story.SubmissionTime)
-						story.SubmissionTime = s
-						result.Resubmitted = true
-					}
-				}
-			}
+			story.AgeApprox = int64(n) * units
+		} else {
+			return story, fmt.Errorf("Parse age %s", rs.AgeApprox)
 		}
 
 		// parse rank. we know the rank because of the order it appears in.
@@ -138,22 +117,23 @@ func (rs rawStory) Clean() (ScrapedStory, error) {
 		{
 			tRank := strings.Trim(rs.Rank, ".")
 			var err error
-			result.Rank, err = strconv.Atoi(tRank)
-			if err != nil || result.Rank == 0 {
-				return result, errors.Wrapf(err, "parse rank %s", rs.Rank)
+			story.Rank, err = strconv.Atoi(tRank)
+			if err != nil || story.Rank == 0 {
+				return story, errors.Wrapf(err, "parse rank %s", rs.Rank)
 			}
 		}
 
 		// parse the number of comments
 		{
-			// if there are comments, this will be the last <a> tag
+			// if there are comments, this will be the last <a> tag. Unfortunately, it doesn't have an id or class.
 			commentString := rs.Links[len(rs.Links)-1]
 
 			// this string will be a single word like "comment" or "hide" if there are no comments.
+			// otherwise it will be something like "12 comments"
 			if fs := strings.Fields(commentString); len(fs) > 1 {
 				c, err := strconv.Atoi(fs[0])
 				if err != nil {
-					return result, errors.Wrapf(err, "parse comments %s", commentString)
+					return story, errors.Wrapf(err, "parse comments %s", commentString)
 				}
 				story.Comments = c
 			}
@@ -165,16 +145,15 @@ func (rs rawStory) Clean() (ScrapedStory, error) {
 				story.Flagged = true
 			}
 			if strings.Contains(rs.FullTitle, "[dupe]") {
-				story.Duplicate = true
+				story.Dupe = true
 			}
 		}
 
-		return result, nil
+		return story, nil
 	}
 }
 
 func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error) *colly.Collector {
-	// func (app app) newScraper() *colly.Collector {
 	c := colly.NewCollector()
 	c.SetClient(app.httpClient)
 

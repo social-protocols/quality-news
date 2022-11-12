@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"context"
 	"database/sql"
-	"embed"
 	"fmt"
 	"html/template"
 	"time"
@@ -78,10 +77,12 @@ const frontPageSQL = `
 		, title
 		, url
 		, submissionTime
-		, cast(unixepoch()-submissionTime as real)/3600 as ageHours
+		, timestamp as OriginalSubmissionTime
+		, ageApprox
 		, score
 		, descendants
 		, (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality 
+		, penalty
 		, topRank
 		, qnRank
   from stories
@@ -91,11 +92,6 @@ const frontPageSQL = `
   order by %s
   limit 90;
 `
-
-const qnRankFormulaSQL = "pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours + 2, gravity) desc"
-
-//go:embed templates/*
-var resources embed.FS
 
 var frontPageTemplate = template.Must(template.ParseFS(resources, "templates/*"))
 
@@ -172,7 +168,7 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 	for zeroBasedRank, s := range stories {
 		totalAgeSeconds += (sampleTime - s.SubmissionTime)
 		weightedAverageQuality += expectedUpvoteShare(0, zeroBasedRank+1) * s.Quality
-		totalUpvotes += s.Upvotes
+		totalUpvotes += s.Score - 1
 	}
 
 	d := frontPageData{
@@ -232,9 +228,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 
 		var s Story
 
-		var ageHours float64 // included in the query result so we have to read it
-
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &ageHours, &s.Upvotes, &s.Comments, &s.Quality, &s.TopRank, &s.QNRank)
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank)
 
 		if ranking == "quality" {
 			s.QNRank = sql.NullInt32{Int32: 0, Valid: false}

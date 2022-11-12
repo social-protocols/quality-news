@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -26,11 +28,14 @@ type dataPoint struct {
 	id                        int
 	score                     int
 	descendants               int
-	submissionTime            int64
 	sampleTime                int64
+	submissionTime            int64
+	ageApprox                 int64
 	ranks                     ranksArray
 	cumulativeExpectedUpvotes float64
 	cumulativeUpvotes         int
+	flagged                   bool
+	job                       bool
 }
 
 func (app app) crawlHN(ctx context.Context) (count int, err error) {
@@ -59,20 +64,23 @@ func (app app) crawlHN(ctx context.Context) (count int, err error) {
 		if err != nil {
 			// https://go.dev/doc/database/execute-transactions
 			// If the transaction succeeds, it will be committed before the function exits, making the deferred rollback call a no-op.
+			logger.Debug("Rolling back transaction")
 			e := tx.Rollback()
 			if e != nil {
 				logger.Err(errors.Wrap(e, "tx.Rollback"))
 			}
 			return
+		} else {
+			logger.Debug("Commit transaction")
+			err = tx.Commit()
 		}
-		err = tx.Commit()
 	}()
 
 	t := time.Now()
 	sampleTime := t.Unix()
 
 	storyRanks := map[int]ranksArray{}
-	stories := map[int]Story{}
+	stories := map[int]ScrapedStory{}
 
 	for pageType := 0; pageType < len(pageTypes); pageType++ {
 		pageTypeName := pageTypes[pageType]
@@ -104,9 +112,8 @@ func (app app) crawlHN(ctx context.Context) (count int, err error) {
 			}
 		}()
 
-		for result := range resultCh {
-			oneBasedRank := result.Rank
-			story := result.Story
+		for story := range resultCh {
+			oneBasedRank := story.Rank
 			id := story.ID
 
 			var ranks ranksArray
@@ -120,11 +127,6 @@ func (app app) crawlHN(ctx context.Context) (count int, err error) {
 			ranks[pageType] = oneBasedRank
 			storyRanks[id] = ranks
 			stories[id] = story
-
-			if result.Resubmitted {
-				logger.Info("Got resubmitted story", "id", id, "new submission time", story.SubmissionTime)
-				resubmissionsTotal.Inc()
-			}
 
 			nSuccess += 1
 		}
@@ -167,7 +169,7 @@ STORY:
 				return 0, errors.Wrap(err, "selectLastSeenScore")
 			}
 		} else {
-			deltaUpvotes[i] = story.Upvotes + 1 - lastSeenScore
+			deltaUpvotes[i] = story.Score - lastSeenScore
 			lastCumulativeUpvotes[i] = lastSeenUpvotes
 			lastCumulativeExpectedUpvotes[i] = lastSeenExpectedUpvotes
 		}
@@ -175,7 +177,7 @@ STORY:
 		sitewideUpvotes += deltaUpvotes[i]
 
 		// save story details in database
-		if _, err := ndb.insertOrReplaceStory(tx, story); err != nil {
+		if _, err := ndb.insertOrReplaceStory(tx, story.Story); err != nil {
 			return 0, errors.Wrap(err, "insertOrReplaceStory")
 		}
 	}
@@ -203,16 +205,18 @@ STORY:
 			totalExpectedUpvotesShare += expectedUpvotesShare
 		}
 
-		submissionTime := int64(story.SubmissionTime)
 		datapoint := dataPoint{
 			id:                        id,
-			score:                     story.Upvotes + 1,
+			score:                     story.Score,
 			descendants:               story.Comments,
-			submissionTime:            submissionTime,
 			sampleTime:                sampleTime,
+			submissionTime:            story.SubmissionTime,
 			ranks:                     ranks,
 			cumulativeExpectedUpvotes: lastCumulativeExpectedUpvotes[i] + expectedUpvotesAcrossPageTypes,
 			cumulativeUpvotes:         lastCumulativeUpvotes[i] + deltaUpvotes[i],
+			ageApprox:                 story.AgeApprox,
+			flagged:                   story.Flagged,
+			job:                       story.Job,
 		}
 
 		if err := ndb.insertDataPoint(tx, datapoint); err != nil {
@@ -236,41 +240,43 @@ STORY:
 		return 0, errors.Wrap(err, "storyCount")
 	}
 
+	err = app.updateResubmissions(ctx, tx)
+	if err != nil {
+		return 0, errors.Wrap(err, "updateResubmissions")
+	}
+
+	err = app.updatePenalties(ctx, tx)
+	if err != nil {
+		return 0, errors.Wrap(err, "estimatePenalties")
+	}
+
 	err = app.updateQNRanks(ctx, tx)
 	return finalStoryCount - initialStoryCount, errors.Wrap(err, "update QN Ranks")
 }
 
-const updateQNRanksSQL = `
-	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
-	, latestData as (
-		select	
-			id
-			, score
-			, sampleTime
-			, cast(sampleTime-submissionTime as real)/3600 as ageHours
-			, cumulativeUpvotes
-			, cumulativeExpectedUpvotes
-		from dataset 
-		where sampleTime = (select max(sampleTime) from dataset)
-	),
-	qnRanks as (
-		select 
-		id
-			, dense_rank() over(order by %s) as rank
-			, sampleTime
-		from latestData join parameters
-	)
-	update dataset as d set qnRank = qnRanks.rank
-	from qnRanks
-	where d.id = qnRanks.id and d.sampleTime = qnRanks.sampleTime;
-`
+const qnRankFormulaSQL = "pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours + 2, gravity) * (1 - penalty) desc"
+
+func readSQLSource(filename string) string {
+	f, err := resources.Open("sql/" + filename)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	buf := bytes.NewBuffer(nil)
+	_, err = io.Copy(buf, f)
+	if err != nil {
+		panic(err)
+	}
+
+	return buf.String()
+}
+
+var qnRanksSQL = readSQLSource("qnranks.sql")
 
 func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
-	gravity := defaultFrontPageParams.Gravity
-	overallPriorWeight := defaultFrontPageParams.OverallPriorWeight
-	priorWeight := defaultFrontPageParams.PriorWeight
+	d := defaultFrontPageParams
+	sql := fmt.Sprintf(qnRanksSQL, d.PriorWeight, d.OverallPriorWeight, d.Gravity, qnRankFormulaSQL)
 
-	sql := fmt.Sprintf(updateQNRanksSQL, priorWeight, overallPriorWeight, gravity, qnRankFormulaSQL)
 	stmt, err := tx.Prepare(sql)
 	if err != nil {
 		return errors.Wrap(err, "preparing updateQNRanksSQL")
@@ -279,4 +285,30 @@ func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
 	_, err = stmt.ExecContext(ctx)
 
 	return errors.Wrap(err, "executing updateQNRanksSQL")
+}
+
+var resubmissionsSQL = readSQLSource("resubmissions.sql")
+
+func (app app) updateResubmissions(ctx context.Context, tx *sql.Tx) error {
+	stmt, err := tx.Prepare(resubmissionsSQL)
+	if err != nil {
+		return errors.Wrap(err, "preparing resubmissions SQL")
+	}
+
+	_, err = stmt.ExecContext(ctx)
+
+	return errors.Wrap(err, "executing resubmissions SQL")
+}
+
+var penaltiesSQL = readSQLSource("penalties.sql")
+
+func (app app) updatePenalties(ctx context.Context, tx *sql.Tx) error {
+	stmt, err := tx.Prepare(penaltiesSQL)
+	if err != nil {
+		return errors.Wrap(err, "preparing penalties SQL")
+	}
+
+	_, err = stmt.ExecContext(ctx)
+
+	return errors.Wrap(err, "executing penalties SQL")
 }

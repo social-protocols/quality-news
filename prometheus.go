@@ -19,9 +19,8 @@ var (
 	requestErrorsTotal           = metrics.NewCounter(`errors_total{type="request"}`)
 	crawlDuration                = metrics.NewHistogram("crawl_duration_seconds")
 
-	upvotesTotal       = metrics.NewCounter(`upvotes_total`)
-	resubmissionsTotal = metrics.NewCounter(`resubmissions_total`)
-	submissionsTotal   = metrics.NewCounter(`submissions_total`)
+	upvotesTotal     = metrics.NewCounter(`upvotes_total`)
+	submissionsTotal = metrics.NewCounter(`submissions_total`)
 )
 
 var generateFrontpageMetrics map[string]*metrics.Histogram
