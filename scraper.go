@@ -159,7 +159,7 @@ func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error) *colly.C
 
 	var rs rawStory
 
-	c.OnHTML(".itemlist", func(e *colly.HTMLElement) {
+	c.OnHTML("tr table", func(e *colly.HTMLElement) {
 		n := 0
 		lastStoryRownum := 0
 		e.ForEach("tr", func(i int, e *colly.HTMLElement) {

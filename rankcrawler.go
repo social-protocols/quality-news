@@ -131,6 +131,9 @@ func (app app) crawlHN(ctx context.Context) (count int, err error) {
 			nSuccess += 1
 		}
 
+		if nSuccess == 0 {
+			return 0, fmt.Errorf("Didn't successfully parse any stories from %s page", pageTypeName)
+		}
 		logger.Debugf("Crawled %d stories on %s page", nSuccess, pageTypeName)
 
 		wg.Wait()
