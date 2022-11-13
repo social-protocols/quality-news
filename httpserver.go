@@ -80,6 +80,10 @@ func (app app) frontpageHandler(ranking string) func(http.ResponseWriter, *http.
 			if params.PriorWeight == 0 {
 				params.PriorWeight = defaultFrontPageParams.PriorWeight
 			}
+			if params.PenaltyWeight == 0 {
+				params.PenaltyWeight = defaultFrontPageParams.PenaltyWeight
+			}
+
 
 			logger.Info("Generating front page with custom parameters", "params", params)
 			b, _, err = app.generateFrontPage(r.Context(), ranking, params)

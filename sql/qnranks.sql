@@ -1,4 +1,4 @@
-with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
+with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %f as penaltyWeight)
 , latestData as (
 	select	
 		id

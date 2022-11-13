@@ -254,7 +254,7 @@ STORY:
 	return finalStoryCount - initialStoryCount, errors.Wrap(err, "update QN Ranks")
 }
 
-const qnRankFormulaSQL = "pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours + 2, gravity) * (1 - penalty) desc"
+const qnRankFormulaSQL = "pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours + 2, gravity) * (1 - penalty*penaltyWeight) desc"
 
 func readSQLSource(filename string) string {
 	f, err := resources.Open("sql/" + filename)
@@ -275,7 +275,7 @@ var qnRanksSQL = readSQLSource("qnranks.sql")
 
 func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
 	d := defaultFrontPageParams
-	sql := fmt.Sprintf(qnRanksSQL, d.PriorWeight, d.OverallPriorWeight, d.Gravity, qnRankFormulaSQL)
+	sql := fmt.Sprintf(qnRanksSQL, d.PriorWeight, d.OverallPriorWeight, d.Gravity, d.PenaltyWeight, qnRankFormulaSQL)
 
 	stmt, err := tx.Prepare(sql)
 	if err != nil {

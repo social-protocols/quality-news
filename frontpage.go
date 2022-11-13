@@ -54,10 +54,15 @@ func (d frontPageData) OverallPriorWeightString() string {
 	return fmt.Sprintf("%.2f", d.Params.OverallPriorWeight)
 }
 
+func (d frontPageData) PenaltyWeightString() string {
+	return fmt.Sprintf("%.2f", d.Params.PenaltyWeight)
+}
+
 type FrontPageParams struct {
 	PriorWeight        float64
 	OverallPriorWeight float64
 	Gravity            float64
+	PenaltyWeight      float64
 }
 
 func (p FrontPageParams) String() string {
@@ -65,12 +70,12 @@ func (p FrontPageParams) String() string {
 }
 
 var (
-	defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4}
+	defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4, 1}
 	noFrontPageParams      FrontPageParams
 )
 
 const frontPageSQL = `
-	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity)
+	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %f as penaltyWeight)
 	select
 		id
 		, by
@@ -85,6 +90,7 @@ const frontPageSQL = `
 		, penalty
 		, topRank
 		, qnRank
+		, cast((sampleTime-submissionTime)/3600 as real) as ageHours
   from stories
   join dataset using(id)
   join parameters
@@ -187,6 +193,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 	gravity := params.Gravity
 	overallPriorWeight := params.OverallPriorWeight
 	priorWeight := params.PriorWeight
+	penaltyWeight := params.PenaltyWeight
 
 	if statements == nil {
 		statements = make(map[string]*sql.Stmt)
@@ -204,7 +211,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		} else if params != defaultFrontPageParams {
 			orderBy = qnRankFormulaSQL
 		}
-		sql := fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity, orderBy)
+		sql := fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity, penaltyWeight, orderBy)
 
 		s, err = ndb.db.Prepare(sql)
 		if err != nil {
@@ -228,7 +235,8 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 
 		var s Story
 
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank)
+		var ageHours int;
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank, &ageHours)
 
 		if ranking == "quality" {
 			s.QNRank = sql.NullInt32{Int32: 0, Valid: false}
