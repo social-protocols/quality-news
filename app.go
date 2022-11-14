@@ -19,18 +19,18 @@ type app struct {
 	ndb            newsDatabase
 	httpClient     *http.Client
 	logger         leveledLogger
-	cacheSizeBytes int
+	cacheSize int
 }
 
 func initApp() app {
 	var err error
-	var cacheSizeBytes int
+	var cacheSize int
 	{
-		s := os.Getenv("CACHE_SIZE_BYTES")
+		s := os.Getenv("CACHE_SIZE")
 		if s != "" {
-			cacheSizeBytes, err = strconv.Atoi(s)
+			cacheSize, err = strconv.Atoi(s)
 			if err != nil {
-				panic("Couldn't parse CACHE_SIZE_BYTES")
+				panic("Couldn't parse CACHE_SIZE")
 			}
 		}
 	}
@@ -70,7 +70,7 @@ func initApp() app {
 		httpClient:     httpClient,
 		logger:         logger,
 		ndb:            db,
-		cacheSizeBytes: cacheSizeBytes,
+		cacheSize: cacheSize,
 	}
 }
 

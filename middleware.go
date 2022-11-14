@@ -108,12 +108,12 @@ func unmarshalRouterRequest(r *http.Request, ps httprouter.Params, params any) e
 // what we have here is simple and probably good enough.
 
 func (app app) cacheAndCompressMiddleware(handler http.Handler) http.Handler {
-	if app.cacheSizeBytes == 0 {
+	if app.cacheSize == 0 {
 		return handler
 	}
 	memorycached, err := memory.NewAdapter(
 		memory.AdapterWithAlgorithm(memory.LRU),
-		memory.AdapterWithCapacity(app.cacheSizeBytes),
+		memory.AdapterWithCapacity(app.cacheSize),
 	)
 	if err != nil {
 		app.logger.Fatal(err)
