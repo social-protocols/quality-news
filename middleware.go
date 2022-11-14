@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -14,6 +12,7 @@ import (
 
 	"github.com/gorilla/schema"
 
+	"github.com/NYTimes/gziphandler"
 	cache "github.com/victorspringer/http-cache"
 	"github.com/victorspringer/http-cache/adapter/memory"
 )
@@ -41,9 +40,6 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 	}
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		// since we update data only every minute, tell browsers to cache for one minute
-		w.Header().Set("Cache-Control", "public, max-age=60")
-
 		var params P
 		err := unmarshalRouterRequest(r, ps, &params)
 		if err != nil {
@@ -101,8 +97,17 @@ func unmarshalRouterRequest(r *http.Request, ps httprouter.Params, params any) e
 	return nil
 }
 
-// cache everything for one minute
-func (app app) cacheMiddleware(handler http.Handler) http.Handler {
+// We could improve this middleware. Currently we cache before we
+// compress, because the cache middleware we use here doesn't recognize the
+// accept-encoding header, and if we compressed before we cache, cache
+// entries would be randomly compressed or not, regardless of the
+// accept-encoding header. Unfortunately by caching before we compress,
+// requests are cached uncompressed. A compressed-cache middleware would be a
+// nice improvement. Also our cache-control headers should be synced with the
+// exact cache expiration time, which should be synced with the crawl. But
+// what we have here is simple and probably good enough.
+
+func (app app) cacheAndCompressMiddleware(handler http.Handler) http.Handler {
 	if app.cacheSizeBytes == 0 {
 		return handler
 	}
@@ -111,8 +116,7 @@ func (app app) cacheMiddleware(handler http.Handler) http.Handler {
 		memory.AdapterWithCapacity(app.cacheSizeBytes),
 	)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		app.logger.Fatal(err)
 	}
 
 	cacheClient, err := cache.NewClient(
@@ -121,9 +125,17 @@ func (app app) cacheMiddleware(handler http.Handler) http.Handler {
 		cache.ClientWithRefreshKey("opn"),
 	)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		app.logger.Fatal(err)
 	}
 
-	return cacheClient.Middleware(handler)
+	var h http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// since we update data only every minute, tell browsers to cache for one minute
+		w.Header().Set("Cache-Control", "public, max-age=60")
+
+		handler.ServeHTTP(w, r)
+	})
+
+	h = cacheClient.Middleware(h)
+
+	return gziphandler.GzipHandler(h)
 }

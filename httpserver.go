@@ -10,7 +10,6 @@ import (
 
 	// "github.com/dyninc/qstring"
 
-	"github.com/NYTimes/gziphandler"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 )
@@ -52,16 +51,7 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.GET("/plots/upvotes.json", middleware("upvotes-plotdata", l, onPanic, app.upvotesDataJSON()))
 	router.GET("/plots/upvoterate.json", middleware("upvoterate-plotdata", l, onPanic, app.upvoteRateDataJSON()))
 
-	// We could improve our cache+compress middleware setup. We cache before
-	// we compress, because the cache middleware we use here doesn't
-	// recognize the accept-encoding header, and if we compressed before we
-	// cache, cache entries would be randomly compressed or not, regardless
-	// of the accept-encoding header. The downside is that requests are
-	// cached uncompressed. A compressed-cache middleware would be nice. Also
-	// our cache-control headers should be synced with the exact cache
-	// expiration time, which should be synced with the crawl. But what we
-	// have here is simple and good enough.
-	server.Handler = gziphandler.GzipHandler(app.cacheMiddleware(router))
+	server.Handler = app.cacheAndCompressMiddleware(router)
 
 	return server
 }
