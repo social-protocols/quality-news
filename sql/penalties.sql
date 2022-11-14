@@ -84,11 +84,11 @@ lowestScores as (
    from lowestScores
 )
 , previous as (
-  select *
+  select 
+    id
+    , max(penalty) as penalty
   from dataset
-  where
-     -- This gives us rows with the second-to-latest sample time.
-    sampletime = (select max(sampleTime) from dataset where sampleTime != (select max(sampleTime) from dataset))
+  group by 1
 )
 -- And use the greater of the lower penalty time from the last crawl, and the one we just calculated.  
 update dataset as d 

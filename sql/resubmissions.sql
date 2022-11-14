@@ -106,10 +106,11 @@ with latest as (
 )
 -- now get the data from the last crawl
 , previous as (
-  select *
+  select 
+    id
+    , max(submissionTime) as submissionTime
   from dataset
-  where
-    sampletime = (select max(sampleTime) from dataset where sampleTime != (select max(sampleTime) from dataset))
+  group by 1
 )
 update dataset as d 
 -- And use the greater of the lower-bound submission time from the last crawl, and the one we just calculated.  
