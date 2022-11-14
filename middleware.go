@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -10,6 +13,9 @@ import (
 	"github.com/johnwarden/httperror"
 
 	"github.com/gorilla/schema"
+
+	cache "github.com/victorspringer/http-cache"
+	"github.com/victorspringer/http-cache/adapter/memory"
 )
 
 // middleware converts a handler of type httperror.XHandlerFunc[P] into an
@@ -35,6 +41,9 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 	}
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		// since we update data only every minute, tell browsers to cache for one minute
+		w.Header().Set("Cache-Control", "public, max-age=60")
+
 		var params P
 		err := unmarshalRouterRequest(r, ps, &params)
 		if err != nil {
@@ -90,4 +99,31 @@ func unmarshalRouterRequest(r *http.Request, ps httprouter.Params, params any) e
 	}
 
 	return nil
+}
+
+// cache everything for one minute
+func (app app) cacheMiddleware(handler http.Handler) http.Handler {
+	if app.cacheSizeBytes == 0 {
+		return handler
+	}
+	memorycached, err := memory.NewAdapter(
+		memory.AdapterWithAlgorithm(memory.LRU),
+		memory.AdapterWithCapacity(app.cacheSizeBytes),
+	)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	cacheClient, err := cache.NewClient(
+		cache.ClientWithAdapter(memorycached),
+		cache.ClientWithTTL(1*time.Minute),
+		cache.ClientWithRefreshKey("opn"),
+	)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	return cacheClient.Middleware(handler)
 }

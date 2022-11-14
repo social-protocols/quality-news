@@ -70,11 +70,6 @@ func main() {
 		os.Exit(0)
 	}()
 
-	err := app.generateAndCacheFrontPages(ctx)
-	if err != nil {
-		logger.Fatal(err)
-	}
-
 	httpServer = app.httpServer(
 		func(error) {
 			logger.Info("Panic in HTTP handler. Shutting down")
@@ -85,7 +80,7 @@ func main() {
 
 	go func() {
 		logger.Info("HTTP server listening", "address", httpServer.Addr)
-		err = httpServer.ListenAndServe()
+		err := httpServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			logger.Err(errors.Wrap(err, "server.ListenAndServe"))
 		}
@@ -168,12 +163,6 @@ func (app app) crawlAndGenerate(ctx context.Context) (err error) {
 		return
 	}
 	submissionsTotal.Add(c)
-
-	if err = app.generateAndCacheFrontPages(ctx); err != nil {
-		generateFrontpageErrorsTotal.Inc()
-		err = errors.Wrap(err, "renderFrontPages")
-		return
-	}
 
 	return
 }

@@ -3,6 +3,7 @@ module github.com/social-protocols/news
 go 1.18
 
 require (
+	github.com/NYTimes/gziphandler v1.1.1
 	github.com/VictoriaMetrics/metrics v1.23.0
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-kit/log v0.2.1
@@ -14,6 +15,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/multiprocessio/go-sqlite3-stdlib v0.0.0-20220822170115-9f6825a1cd25
 	github.com/pkg/errors v0.9.1
+	github.com/victorspringer/http-cache v0.0.0-20221006212759-e323d9f0f0c4
 )
 
 //replace github.com/johnwarden/httperror v1.6.0 => ../httperror

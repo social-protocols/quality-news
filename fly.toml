@@ -13,6 +13,7 @@ processes = []
   PORT = "8080"
   SQLITE_DATA_DIR="/data"
   LOG_LEVEL="INFO"
+  CACHE_SIZE_BYTES=50000000
 
 [experimental]
   allowed_public_ports = []

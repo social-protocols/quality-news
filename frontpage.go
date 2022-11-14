@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"database/sql"
 	"fmt"
 	"html/template"
+	"net/http"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -103,54 +102,21 @@ var frontPageTemplate = template.Must(template.ParseFS(resources, "templates/*")
 
 var statements map[string]*sql.Stmt
 
-func (app app) generateAndCacheFrontPages(ctx context.Context) error {
-	for _, ranking := range []string{"quality", "hntop"} {
-		b, _, err := app.generateFrontPage(ctx, ranking, defaultFrontPageParams)
-		if err != nil {
-			return errors.Wrapf(err, "generateFrontPage for ranking '%s'", ranking)
-		}
-
-		app.generatedPagesMU.Lock()
-		app.generatedPages[ranking] = b
-		app.generatedPagesMU.Unlock()
-	}
-
-	return nil
-}
-
-func (app app) generateFrontPage(ctx context.Context, ranking string, params FrontPageParams) ([]byte, frontPageData, error) {
+func (app app) serveFrontPage(r *http.Request, w http.ResponseWriter, ranking string, p FrontPageParams) error {
 	t := time.Now()
 
-	d, err := app.getFrontPageData(ctx, ranking, params)
+	d, err := app.getFrontPageData(r.Context(), ranking, p)
 	if err != nil {
-		return nil, d, errors.Wrap(err, "getFrontPageData")
+		return errors.Wrap(err, "getFrontPageData")
 	}
 
-	b, err := app.renderFrontPage(d)
-	if err != nil {
-		return nil, d, errors.Wrap(err, "generateFrontPageHTML")
+	if err = frontPageTemplate.ExecuteTemplate(w, "index.html.tmpl", d); err != nil {
+		return errors.Wrap(err, "executing front page template")
 	}
-
-	app.logger.Info("Generated front page", "elapsed", time.Since(t), "ranking", ranking, "stories", len(d.Stories))
 
 	generateFrontpageMetrics[ranking].UpdateDuration(t)
 
-	return b, d, nil
-}
-
-func (app app) renderFrontPage(d frontPageData) ([]byte, error) {
-	var b bytes.Buffer
-
-	zw := gzip.NewWriter(&b)
-	defer zw.Close()
-
-	if err := frontPageTemplate.ExecuteTemplate(zw, "index.html.tmpl", d); err != nil {
-		return nil, errors.Wrap(err, "executing front page template")
-	}
-
-	zw.Close()
-
-	return b.Bytes(), nil
+	return nil
 }
 
 func (app app) getFrontPageData(ctx context.Context, ranking string, params FrontPageParams) (frontPageData, error) {

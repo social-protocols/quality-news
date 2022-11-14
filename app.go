@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
+	"strconv"
 	"time"
 
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
@@ -16,14 +16,25 @@ import (
 var resources embed.FS
 
 type app struct {
-	ndb              newsDatabase
-	httpClient       *http.Client
-	logger           leveledLogger
-	generatedPages   map[string][]byte
-	generatedPagesMU *sync.Mutex
+	ndb            newsDatabase
+	httpClient     *http.Client
+	logger         leveledLogger
+	cacheSizeBytes int
 }
 
 func initApp() app {
+	var err error
+	var cacheSizeBytes int
+	{
+		s := os.Getenv("CACHE_SIZE_BYTES")
+		if s != "" {
+			cacheSizeBytes, err = strconv.Atoi(s)
+			if err != nil {
+				panic("Couldn't parse CACHE_SIZE_BYTES")
+			}
+		}
+	}
+
 	logLevelString := os.Getenv("LOG_LEVEL")
 
 	if logLevelString == "" {
@@ -55,13 +66,11 @@ func initApp() app {
 
 	httpClient := retryClient.StandardClient()
 
-	var generatedPagesMU sync.Mutex
 	return app{
-		httpClient:       httpClient,
-		logger:           logger,
-		ndb:              db,
-		generatedPages:   make(map[string][]byte),
-		generatedPagesMU: &generatedPagesMU,
+		httpClient:     httpClient,
+		logger:         logger,
+		ndb:            db,
+		cacheSizeBytes: cacheSizeBytes,
 	}
 }
 
