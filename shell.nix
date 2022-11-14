@@ -6,7 +6,7 @@
       git
       gcc
       go_1_18
-      sqlite
+      sqlite-interactive
     ];
 
   shellHook = ''
