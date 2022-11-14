@@ -250,18 +250,48 @@ The frontpage generator queries the database and calculates the Bayesian average
 
 ## Running it locally
 
-Make sure, you have
-- go 1.18+
+Make sure, you have:
+
+- go 1.19+
 - [direnv](https://direnv.net/) - to set environment variables automatically
+- entr - to automatically rerun server when files change
+- sqlite3
+
+Run:
+
+```sh
+git clone github.com/social-protocols/news
+cd news
+
+source .envrc # if you don't have direnv installed
+
+go get
+```
+
+Then:
+
+```sh
+go run *.go
+```
+
+Or, to automatically watch for source file changes:
+
+```sh
+./watch.sh 
+```
+
+### Using NIX
 
 There is also a [shell.nix](shell.nix) available, which provides all required dependencies.
 
+Install nix on your system, enter the news directory, and run:      
 
-```sh
-# if you don't have direnv installed:
-source .envrc
-
-go run *.go
+```sh 
+    git clone github.com/social-protocols/news
+    cd news
+    nix-channel --update
+    nix-shell
+    ./watch.sh
 ```
 
 # Contributions
