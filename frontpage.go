@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"html/template"
 	"net/http"
 	"time"
 
@@ -95,8 +94,6 @@ const frontPageSQL = `
   limit 90;
 `
 
-var frontPageTemplate = template.Must(template.ParseFS(resources, "templates/*"))
-
 var statements map[string]*sql.Stmt
 
 func (app app) serveFrontPage(r *http.Request, w http.ResponseWriter, ranking string, p FrontPageParams) error {
@@ -107,7 +104,7 @@ func (app app) serveFrontPage(r *http.Request, w http.ResponseWriter, ranking st
 		return errors.Wrap(err, "getFrontPageData")
 	}
 
-	if err = frontPageTemplate.ExecuteTemplate(w, "index.html.tmpl", d); err != nil {
+	if err = templates.ExecuteTemplate(w, "index", d); err != nil {
 		return errors.Wrap(err, "executing front page template")
 	}
 
