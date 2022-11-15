@@ -9,9 +9,19 @@ import (
 )
 
 func newLogger(levelString string) leveledLogger {
-	// logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stderr))
+	var logger kitlog.Logger
 
-	logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
+	{
+		s := os.Getenv("LOG_FORMAT")
+		if s == "JSON" {
+			logger = kitlog.NewJSONLogger(kitlog.NewSyncWriter(os.Stdout))
+		} else {
+			logger = kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
+		}
+	}
+
+	// logger := kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
+	// logger := kitlog.NewJSONLogger(kitlog.NewSyncWriter(os.Stdout))
 	log.SetOutput(kitlog.NewStdlibAdapter(logger))
 
 	logLevels := map[string]logLevel{
@@ -55,7 +65,7 @@ func (l leveledLogger) Err(err error, keysAndValues ...interface{}) {
 	if l.level > logLevelError {
 		return
 	}
-	k := append(keysAndValues, "message", err.Error(), "level", "ERROR")
+	k := append(keysAndValues, "message", err.Error(), "level", "error")
 	_ = l.logger.Log(k...)
 }
 
@@ -63,7 +73,7 @@ func (l leveledLogger) Error(msg string, keysAndValues ...interface{}) {
 	if l.level > logLevelError {
 		return
 	}
-	k := append(keysAndValues, "message", msg, "level", "ERROR")
+	k := append(keysAndValues, "message", msg, "level", "error")
 	_ = l.logger.Log(k...)
 }
 
@@ -71,7 +81,7 @@ func (l leveledLogger) Warn(msg string, keysAndValues ...interface{}) {
 	if l.level > logLevelWarn {
 		return
 	}
-	k := append(keysAndValues, "message", msg, "level", "WARN")
+	k := append(keysAndValues, "message", msg, "level", "warn")
 	_ = l.logger.Log(k...)
 }
 
@@ -79,7 +89,7 @@ func (l leveledLogger) Info(msg string, keysAndValues ...interface{}) {
 	if l.level > logLevelInfo {
 		return
 	}
-	k := append(keysAndValues, "message", msg, "level", "INFO")
+	k := append(keysAndValues, "message", msg, "level", "info")
 	_ = l.logger.Log(k...)
 }
 
@@ -87,7 +97,7 @@ func (l leveledLogger) Debug(msg string, keysAndValues ...interface{}) {
 	if l.level > logLevelDebug {
 		return
 	}
-	k := append(keysAndValues, "message", msg, "level", "DEBUG")
+	k := append(keysAndValues, "message", msg, "level", "debug")
 	_ = l.logger.Log(k...)
 }
 
@@ -95,5 +105,5 @@ func (l leveledLogger) Debugf(msg string, args ...interface{}) {
 	if l.level > logLevelDebug {
 		return
 	}
-	_ = l.logger.Log("message", fmt.Sprintf(msg, args...))
+	_ = l.logger.Log("message", fmt.Sprintf(msg, args...), "level", "debug")
 }
