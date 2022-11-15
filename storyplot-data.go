@@ -56,7 +56,7 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([]int64, [][nRanks]int32, er
 	}
 
 	var submissionTime int64
-	if err := ndb.db.QueryRow("select submissionTime from dataset where id = ? limit 1", storyID).Scan(&submissionTime); err != nil {
+	if err := ndb.db.QueryRow("select timestamp from stories where id = ?", storyID).Scan(&submissionTime); err != nil {
 		return nil, nil, errors.Wrap(err, "QueryRow: select submissionTime")
 	}
 
@@ -137,7 +137,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([]int64, []int32, []float
 	}
 
 	var submissionTime int64
-	if err := ndb.db.QueryRow("select submissionTime from dataset where id = ? limit 1", storyID).Scan(&submissionTime); err != nil {
+	if err := ndb.db.QueryRow("select timestamp from stories where id = ?", storyID).Scan(&submissionTime); err != nil {
 		return nil, nil, nil, nil, errors.Wrap(err, "QueryRow: select submissionTime")
 	}
 

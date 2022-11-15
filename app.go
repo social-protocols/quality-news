@@ -16,10 +16,10 @@ import (
 var resources embed.FS
 
 type app struct {
-	ndb            newsDatabase
-	httpClient     *http.Client
-	logger         leveledLogger
-	cacheSize int
+	ndb        newsDatabase
+	httpClient *http.Client
+	logger     leveledLogger
+	cacheSize  int
 }
 
 func initApp() app {
@@ -67,10 +67,10 @@ func initApp() app {
 	httpClient := retryClient.StandardClient()
 
 	return app{
-		httpClient:     httpClient,
-		logger:         logger,
-		ndb:            db,
-		cacheSize: cacheSize,
+		httpClient: httpClient,
+		logger:     logger,
+		ndb:        db,
+		cacheSize:  cacheSize,
 	}
 }
 

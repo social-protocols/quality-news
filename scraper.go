@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gocolly/colly/v2"
@@ -153,11 +152,15 @@ func (rs rawStory) Clean() (ScrapedStory, error) {
 	}
 }
 
-func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error) *colly.Collector {
+func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error, moreLinkCh chan string) *colly.Collector {
 	c := colly.NewCollector()
 	c.SetClient(app.httpClient)
 
 	var rs rawStory
+
+	c.OnHTML("a.morelink", func(e *colly.HTMLElement) {
+		moreLinkCh <- e.Attr("href")
+	})
 
 	c.OnHTML("tr table", func(e *colly.HTMLElement) {
 		n := 0
@@ -213,7 +216,7 @@ func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error) *colly.C
 	})
 
 	c.OnError(func(r *colly.Response, err error) {
-		err = errors.Wrapf(err, "Failed to parse URL %s", r.Request.URL)
+		err = errors.Wrapf(err, "Failed to parse page %s", r.Request.URL)
 		errCh <- err
 	})
 
@@ -255,33 +258,28 @@ func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error) *colly.C
 // }
 
 func (app app) scrapeHN(pageType string, resultCh chan ScrapedStory, errCh chan error) {
-	url := "https://news.ycombinator.com/"
+	baseUrl := "https://news.ycombinator.com/"
+	url := baseUrl
 	if pageType == "new" {
 		url = url + "newest"
 	} else if pageType != "top" {
 		url = url + pageType
 	}
-	var wg sync.WaitGroup
 	for p := 1; p <= 3; p++ {
-		wg.Add(1)
-		go func(page int) {
-			defer wg.Done()
-			c := app.newScraper(resultCh, errCh)
-			u := url
-			if page > 1 {
-				if pageType == "new" {
-					u = url + "?n=" + strconv.Itoa((page-1)*30+1)
-				} else {
-					u = url + "?p=" + strconv.Itoa(page)
-				}
-			}
-			err := c.Visit(u)
-			if err != nil {
-				errCh <- err
-			}
-		}(p)
+		moreLinkCh := make(chan string, 1)
+		c := app.newScraper(resultCh, errCh, moreLinkCh)
+		err := c.Visit(url)
+		if err != nil {
+			errCh <- err
+		}
+		select {
+		case relativeURL := <-moreLinkCh:
+			url = baseUrl + relativeURL
+		default:
+			// there won't always be a next link, in particular the show page could have less than 3 pages worth of stories
+		}
+
 	}
-	wg.Wait()
 	close(resultCh)
 	close(errCh)
 }
