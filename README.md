@@ -1,6 +1,6 @@
 <h1 align="center" style="border-bottom: none">
     <div>
-        <a href="https://social-protocols-news.fly.dev/">
+        <a href="https://news.social-protocols.org">
             <img src="static/logo.svg" width="80" />
             <br>
             Quality News
@@ -19,7 +19,7 @@
 
 ## About
 
-[Quality News](https://social-protocols-news.fly.dev/) implements a new ranking formula for Hacker News, designed to give stories the attention they deserve.
+[Quality News](https://news.social-protocols.org) implements a new ranking formula for Hacker News, designed to give stories the attention they deserve.
 
 The formula uses minute-by-minute rank and upvote data collected for every story on HN to adjust score based on the ranks and times at which upvotes occurred.
 
