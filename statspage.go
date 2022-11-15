@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -46,9 +45,7 @@ func statsPage(ndb newsDatabase, w io.Writer, r *http.Request, params StatsPageP
 		Story:               s,
 	}
 
-	fmt.Println("Executing stats template")
 	err = templates.ExecuteTemplate(w, "stats", d)
-	fmt.Println("Result", err)
 
 	return errors.Wrap(err, "executing stats page template")
 }
