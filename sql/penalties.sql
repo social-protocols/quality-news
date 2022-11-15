@@ -92,7 +92,8 @@ lowestScores as (
 )
 -- And use the greater of the lower penalty time from the last crawl, and the one we just calculated.  
 update dataset as d 
-set penalty = case when latest.newPenalty > ifnull(previous.penalty,0) then latest.newPenalty else ifnull(previous.penalty,0) end
+set currentPenalty = newPenalty
+    , penalty = max(ifnull(previous.penalty,0), newPenalty)
 from latest
 left join previous using (id)
 where d.id = latest.id and d.sampleTime = latest.sampleTime;

@@ -69,6 +69,7 @@ func (ndb newsDatabase) init() {
 			, job boolean
 			, ageApprox int not null
 			, penalty real not null default 0
+			, currentPenalty real
 		);
 		`,
 		`
