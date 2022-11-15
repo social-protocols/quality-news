@@ -130,8 +130,6 @@ func (app app) cacheAndCompressMiddleware(handler http.Handler) http.Handler {
 
 	var h http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// since we update data only every minute, tell browsers to cache for one minute
-		w.Header().Set("Cache-Control", "public, max-age=60")
-
 		handler.ServeHTTP(w, r)
 	})
 
