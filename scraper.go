@@ -269,7 +269,11 @@ func (app app) scrapeHN(pageType string, resultCh chan ScrapedStory, errCh chan 
 			c := app.newScraper(resultCh, errCh)
 			u := url
 			if page > 1 {
-				u = url + "?p=" + strconv.Itoa(page)
+				if pageType == "new" {
+					u = url + "?n=" + strconv.Itoa((page-1)*30+1)
+				} else {
+					u = url + "?p=" + strconv.Itoa(page)
+				}
 			}
 			err := c.Visit(u)
 			if err != nil {
