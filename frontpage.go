@@ -104,7 +104,7 @@ func (app app) serveFrontPage(r *http.Request, w http.ResponseWriter, ranking st
 		return errors.Wrap(err, "getFrontPageData")
 	}
 
-	if err = templates.ExecuteTemplate(w, "index", d); err != nil {
+	if err = templates.ExecuteTemplate(w, "index.html.tmpl", d); err != nil {
 		return errors.Wrap(err, "executing front page template")
 	}
 

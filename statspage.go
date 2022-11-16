@@ -45,7 +45,7 @@ func statsPage(ndb newsDatabase, w io.Writer, r *http.Request, params StatsPageP
 		Story:               s,
 	}
 
-	err = templates.ExecuteTemplate(w, "stats", d)
+	err = templates.ExecuteTemplate(w, "stats.html.tmpl", d)
 
 	return errors.Wrap(err, "executing stats page template")
 }

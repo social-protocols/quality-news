@@ -16,21 +16,21 @@
 
 <style type="text/css">
 
-{{template "normalize"}}
+{{template "normalize.css.tmpl"}}
 
-{{template "styles"}}
+{{template "styles.css.tmpl"}}
 
 </style>
 <title>Quality News</title>
 </head>
 <body>
 
-{{template "header"  .}}
+{{template "header.html.tmpl"  .}}
 
 <ol class="stories">
 {{range .Stories}}
 <li id="{{.ID}}">
-{{template "storyDetails" .}}
+{{template "storyDetails.html.tmpl" .}}
 </li>
 {{end}}
 </ol>

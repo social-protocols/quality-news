@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
-	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -27,7 +26,7 @@ func ParseFSStrict(resources fs.FS, dirs ...string) (*template.Template, error) 
 
 		templateFiles, err := fs.ReadDir(resources, dir)
 		if err != nil {
-			return ts, errors.Wrap(err, "fs.ReadDir("+dir+")")
+			return ts, errors.Wrapf(err, "fs.ReadDir(%s)", dir)
 		}
 
 		for _, dirEntry := range templateFiles {
@@ -35,29 +34,26 @@ func ParseFSStrict(resources fs.FS, dirs ...string) (*template.Template, error) 
 				continue
 			}
 			fileName := dirEntry.Name()
-			f := strings.Split(fileName, ".")
-			if len(f) > 0 {
-				if f[len(f)-1] != "tmpl" {
-					continue
-				}
-				templateName := f[0]
-				t := template.Must(template.ParseFS(resources, dir+"/"+fileName))
 
-				for _, subTemplate := range t.Templates() {
-					if subTemplate.Name() != fileName {
-						return ts, fmt.Errorf(`{{define "%v"}} in file %v not allowed when using ParseFSStrict. Each template file must contain one template whose name matches the filename.`, subTemplate.Name(), fileName)
-					}
-				}
+			t, err := template.ParseFS(resources, dir+"/"+fileName)
+			if err != nil {
+				return ts, errors.Wrapf(err, "parsing template %s", dir+"/"+fileName)
+			}
 
-				// The returned template's name will have the base name and parsed contents of the first file
-				if ts == nil {
-					ts = t
+			for _, subTemplate := range t.Templates() {
+				if subTemplate.Name() != fileName {
+					return ts, fmt.Errorf(`{{define "%v"}} in file %v not allowed when using ParseFSStrict. Each template file must contain one template whose name matches the filename.`, subTemplate.Name(), fileName)
 				}
+			}
 
-				_, err := ts.AddParseTree(templateName, t.Tree)
-				if err != nil {
-					return ts, errors.Wrap(err, "ts.AddParseTree("+templateName+")")
-				}
+			// The returned template's name will have the base name and parsed contents of the first file
+			if ts == nil {
+				ts = t
+			}
+
+			_, err = ts.AddParseTree(fileName, t.Tree)
+			if err != nil {
+				return ts, errors.Wrapf(err, "ts.AddParseTree(%s)", fileName)
 			}
 		}
 	}
