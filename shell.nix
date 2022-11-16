@@ -2,11 +2,18 @@
 
   pkgs.mkShell {
     nativeBuildInputs = with pkgs; [
+      entr
       git
       gcc
       go_1_18
+      gotools
+      sqlite-interactive
     ];
 
+  shellHook = ''
+    export SQLITE_DATA_DIR=data
+    export CACHE_SIZE=100
+  '';
 
     installPhase= ''
     '';

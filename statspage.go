@@ -2,13 +2,12 @@ package main
 
 import (
 	"database/sql"
-	"html/template"
 	"io"
 	"net/http"
 
 	"github.com/pkg/errors"
 
-	"github.com/johnwarden/httperror/v2"
+	"github.com/johnwarden/httperror"
 )
 
 type StatsPageParams struct {
@@ -29,8 +28,6 @@ func (d StatsPageData) IsHNTopPage() bool {
 	return false
 }
 
-var statsPageTemplate = template.Must(template.ParseFS(resources, "templates/*"))
-
 var ErrStoryIDNotFound = httperror.New(404, "Story ID not found")
 
 func statsPage(ndb newsDatabase, w io.Writer, r *http.Request, params StatsPageParams) error {
@@ -48,7 +45,7 @@ func statsPage(ndb newsDatabase, w io.Writer, r *http.Request, params StatsPageP
 		Story:               s,
 	}
 
-	err = statsPageTemplate.ExecuteTemplate(w, "stats.html.tmpl", d)
+	err = templates.ExecuteTemplate(w, "stats", d)
 
 	return errors.Wrap(err, "executing stats page template")
 }

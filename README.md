@@ -1,6 +1,6 @@
 <h1 align="center" style="border-bottom: none">
     <div>
-        <a href="https://social-protocols-news.fly.dev/">
+        <a href="https://news.social-protocols.org">
             <img src="static/logo.svg" width="80" />
             <br>
             Quality News
@@ -19,7 +19,7 @@
 
 ## About
 
-[Quality News](https://social-protocols-news.fly.dev/) implements a new ranking formula for Hacker News, designed to give stories the attention they deserve.
+[Quality News](https://news.social-protocols.org) implements a new ranking formula for Hacker News, designed to give stories the attention they deserve.
 
 The formula uses minute-by-minute rank and upvote data collected for every story on HN to adjust score based on the ranks and times at which upvotes occurred.
 
@@ -253,18 +253,48 @@ The frontpage generator queries the database and calculates the Bayesian average
 
 ## Running it locally
 
-Make sure, you have
-- go 1.18+
+Make sure, you have:
+
+- go 1.19+
 - [direnv](https://direnv.net/) - to set environment variables automatically
+- entr - to automatically rerun server when files change
+- sqlite3
+
+Run:
+
+```sh
+git clone github.com/social-protocols/news
+cd news
+
+source .envrc # if you don't have direnv installed
+
+go get
+```
+
+Then:
+
+```sh
+go run *.go
+```
+
+Or, to automatically watch for source file changes:
+
+```sh
+./watch.sh 
+```
+
+### Using NIX
 
 There is also a [shell.nix](shell.nix) available, which provides all required dependencies.
 
+Install nix on your system, enter the news directory, and run:      
 
-```sh
-# if you don't have direnv installed:
-source .envrc
-
-go run *.go
+```sh 
+    git clone github.com/social-protocols/news
+    cd news
+    nix-channel --update
+    nix-shell
+    ./watch.sh
 ```
 
 # Contributions

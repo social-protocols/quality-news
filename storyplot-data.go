@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/johnwarden/httperror/v2"
+	"github.com/johnwarden/httperror"
 	"github.com/pkg/errors"
 )
 
@@ -56,14 +56,14 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([]int64, [][nRanks]int32, er
 	}
 
 	var submissionTime int64
-	if err := ndb.db.QueryRow("select submissionTime from dataset where id = ? limit 1", storyID).Scan(&submissionTime); err != nil {
+	if err := ndb.db.QueryRow("select timestamp from stories where id = ?", storyID).Scan(&submissionTime); err != nil {
 		return nil, nil, errors.Wrap(err, "QueryRow: select submissionTime")
 	}
 
 	xAxis := make([]int64, n)
 	ranks := make([][nRanks]int32, n)
 
-	rows, err := ndb.db.Query("select sampleTime, qnRank, topRank, newRank, bestRank, askRank, showRank from dataset where id = ?", storyID)
+	rows, err := ndb.db.Query("select sampleTime, (case when qnRank > 90 then 91 else qnRank end) as qnRank, topRank, newRank, bestRank, askRank, showRank from dataset where id = ?", storyID)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Query: select ranks")
 	}
@@ -137,7 +137,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([]int64, []int32, []float
 	}
 
 	var submissionTime int64
-	if err := ndb.db.QueryRow("select submissionTime from dataset where id = ? limit 1", storyID).Scan(&submissionTime); err != nil {
+	if err := ndb.db.QueryRow("select timestamp from stories where id = ?", storyID).Scan(&submissionTime); err != nil {
 		return nil, nil, nil, nil, errors.Wrap(err, "QueryRow: select submissionTime")
 	}
 

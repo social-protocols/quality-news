@@ -2,14 +2,19 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/pkg/errors"
 
 	"github.com/julienschmidt/httprouter"
 
-	"github.com/johnwarden/httperror/v2"
+	"github.com/johnwarden/httperror"
 
 	"github.com/gorilla/schema"
+
+	"github.com/NYTimes/gziphandler"
+	cache "github.com/victorspringer/http-cache"
+	"github.com/victorspringer/http-cache/adapter/memory"
 )
 
 // middleware converts a handler of type httperror.XHandlerFunc[P] into an
@@ -20,9 +25,19 @@ import (
 // produce the parameter struct, passing it to the inner handler, then
 // handling any errors that are returned.
 func middleware[P any](routeName string, logger leveledLogger, onPanic func(error), h httperror.XHandlerFunc[P]) httprouter.Handle {
-	h = httperror.XPanicMiddleware[P](h, onPanic)
+	h = httperror.XPanicMiddleware[P](h)
 
 	h = prometheusMiddleware[P](routeName, h)
+
+	handleError := func(w http.ResponseWriter, err error) {
+		if errors.Is(err, httperror.Panic) {
+			// do this in a goroutine otherwise we get deadline if onPanic shutdowns the HTTP server
+			// because the http server shutdown function will wait for all requests to terminate,
+			// including this one!
+			go onPanic(err)
+		}
+		httperror.DefaultErrorHandler(w, err)
+	}
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		var params P
@@ -30,7 +45,7 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 		if err != nil {
 			err = httperror.Wrap(err, http.StatusBadRequest)
 			logger.Err(err, "url", r.URL)
-			httperror.DefaultErrorHandler(w, err)
+			handleError(w, err)
 			return
 		}
 
@@ -40,7 +55,7 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 				logger.Err(err, "url", r.URL)
 				requestErrorsTotal.Inc()
 			}
-			httperror.DefaultErrorHandler(w, err)
+			handleError(w, err)
 		}
 	}
 }
@@ -80,4 +95,45 @@ func unmarshalRouterRequest(r *http.Request, ps httprouter.Params, params any) e
 	}
 
 	return nil
+}
+
+// We could improve this middleware. Currently we cache before we
+// compress, because the cache middleware we use here doesn't recognize the
+// accept-encoding header, and if we compressed before we cache, cache
+// entries would be randomly compressed or not, regardless of the
+// accept-encoding header. Unfortunately by caching before we compress,
+// requests are cached uncompressed. A compressed-cache middleware would be a
+// nice improvement. Also our cache-control headers should be synced with the
+// exact cache expiration time, which should be synced with the crawl. But
+// what we have here is simple and probably good enough.
+
+func (app app) cacheAndCompressMiddleware(handler http.Handler) http.Handler {
+	if app.cacheSize == 0 {
+		return handler
+	}
+	memorycached, err := memory.NewAdapter(
+		memory.AdapterWithAlgorithm(memory.LRU),
+		memory.AdapterWithCapacity(app.cacheSize),
+	)
+	if err != nil {
+		app.logger.Fatal(err)
+	}
+
+	cacheClient, err := cache.NewClient(
+		cache.ClientWithAdapter(memorycached),
+		cache.ClientWithTTL(1*time.Minute),
+		cache.ClientWithRefreshKey("opn"),
+	)
+	if err != nil {
+		app.logger.Fatal(err)
+	}
+
+	var h http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// since we update data only every minute, tell browsers to cache for one minute
+		handler.ServeHTTP(w, r)
+	})
+
+	h = cacheClient.Middleware(h)
+
+	return gziphandler.GzipHandler(h)
 }

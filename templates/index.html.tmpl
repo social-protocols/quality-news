@@ -16,7 +16,7 @@
 
 <style type="text/css">
 
-{{template "normalize-css"}}
+{{template "normalize"}}
 
 {{template "styles"}}
 
@@ -30,7 +30,7 @@
 <ol class="stories">
 {{range .Stories}}
 <li id="{{.ID}}">
-{{template "story-details" .}}
+{{template "storyDetails" .}}
 </li>
 {{end}}
 </ol>
@@ -51,6 +51,7 @@
 <li>Gravity: {{.GravityString}}</li>
 <li>Prior Weight: {{.PriorWeightString}}</li>
 <li>Overall Prior Weight: {{.OverallPriorWeightString}}</li>
+<li>Penalty Weight: {{.PenaltyWeightString}}</li>
 </ul>
 </div>
 

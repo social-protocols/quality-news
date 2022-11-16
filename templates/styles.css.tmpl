@@ -1,5 +1,3 @@
-{{define "styles"}}
-
 html {
   scroll-padding-top: 80%;
 }
@@ -26,6 +24,14 @@ body {
   margin-left:  5px;
   margin-right:  7px;
 }
+
+#storyplots {
+  height:  auto;
+  min-width: 400px; 
+  max-width: 650px; 
+  border: background-color: red;
+}
+
 
 a:link.upvote-button,
 a:visited.upvote-button {
@@ -91,6 +97,15 @@ a:visited.upvote-button {
   background-color:  #d0e0f0;
 }
 
+.penalty {
+  color: red;
+}
+
+.original-age {
+  text-decoration: line-through;
+}
+
+
 a:link    { color:#000000; text-decoration:none; }
 a:visited { color:#828282; text-decoration:none; }
 
@@ -152,4 +167,3 @@ a:visited.nav-link.active {
     animation: highlight 2s;
 }
 
-{{end}}

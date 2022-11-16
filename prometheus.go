@@ -1,25 +1,25 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/johnwarden/httperror/v2"
+	"github.com/johnwarden/httperror"
 )
 
 // Register various metrics.
 // Metric name may contain labels in Prometheus format - see below.
 
 var (
-	generateFrontpageErrorsTotal = metrics.NewCounter(`errors_total{type="generateFrontpage"}`)
-	updateQNRanksErrorsTotal     = metrics.NewCounter(`errors_total{type="updateQNRanks"}`)
-	crawlErrorsTotal             = metrics.NewCounter(`errors_total{type="crawl"}`)
-	requestErrorsTotal           = metrics.NewCounter(`errors_total{type="request"}`)
-	crawlDuration                = metrics.NewHistogram("crawl_duration_seconds")
+	crawlErrorsTotal   = metrics.NewCounter(`errors_total{type="crawl"}`)
+	requestErrorsTotal = metrics.NewCounter(`errors_total{type="request"}`)
+	crawlDuration      = metrics.NewHistogram("crawl_duration_seconds")
 
-	upvotesTotal = metrics.NewCounter(`upvotes_total`)
+	upvotesTotal     = metrics.NewCounter(`upvotes_total`)
+	submissionsTotal = metrics.NewCounter(`submissions_total`)
 )
 
 var generateFrontpageMetrics map[string]*metrics.Histogram
@@ -31,7 +31,7 @@ func init() {
 	}
 }
 
-func servePrometheusMetrics() {
+func servePrometheusMetrics() func(ctx context.Context) error {
 	mux := http.NewServeMux()
 
 	// Export all the registered metrics in Prometheus format at `/metrics` http path.
@@ -39,7 +39,16 @@ func servePrometheusMetrics() {
 		metrics.WritePrometheus(w, true)
 	})
 
-	log.Fatal(http.ListenAndServe(":9091", mux))
+	s := &http.Server{
+		Addr:    ":9091",
+		Handler: mux,
+	}
+
+	go func() {
+		log.Fatal(s.ListenAndServe())
+	}()
+
+	return s.Shutdown
 }
 
 func prometheusMiddleware[P any](routeName string, h httperror.XHandler[P]) httperror.XHandlerFunc[P] {

@@ -1,35 +1,20 @@
-{{define "upvotes-plot"}}
-
-
-
-google.charts.load('current', {packages: ['corechart', 'line']});
-
-var getJSON = function(url, callback) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.responseType = 'json';
-    xhr.onload = function() {
-      var status = xhr.status;
-      if (status === 200) {
-        callback(null, xhr.response);
-      } else {
-        callback(status, xhr.response);
-      }
-    };
-    xhr.send();
-};
-
+var upvotesData
 
 function drawUpvotesPlot() {
 
   var plotDiv = document.getElementById('upvotes_plot_div')
 
+  if (upvotesData !== undefined) {
+    return upvotesPlot()
+  }
+
   getJSON('/plots/upvotes.json?id={{.ID}}',
-  function(err, dataPoints) {
-    if (err !== null) {
-      plotDiv.innerHTML = "error fetching chart data"
-        plotDiv.classList.remove("spinner")
-    } else {
+    function(err, dataPoints) {
+      plotDiv.classList.remove("spinner")
+      if (err !== null) {
+        plotDiv.innerHTML = "error fetching chart data"
+      } else {
+
 
         // Modify our dataset so that we only plot points immediately
         // before or after a change. This way the plot looks more like a staircase
@@ -45,49 +30,56 @@ function drawUpvotesPlot() {
           }
         }
 
-        var data = new google.visualization.DataTable();
-        data.addColumn('number', 'Age');
-        data.addColumn('number', 'Upvotes');
-        data.addColumn('number', 'Expected Upvotes');
-
-        data.addRows(dataPoints);
-
-        var ageFormatter = new ageFormat()
-        ageFormatter.format(data, 0);
-
-        // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
-        var options = {
-          backgroundColor: {fill: 'transparent'},
-          hAxis: {
-            title: 'Age [hours]',
-            logScale: false
-          },
-          vAxis: {
-            title: 'Upvotes',
-            viewWindow: 'pretty',
-          },
-          series: {
-            0: {lineWidth: 2, lineDashStyle: [4,4], pointSize: 5},
-            1: {lineWidth: 3, curveType: 'function'},
-          },
-
-          // we want a line to be drawn over intervals where the upvotes is null
-          // since we set the upvotes to null above if there wasn't an increase in upvotes
-          interpolateNulls: true, 
-
-          colors: ['#55cccc', 'black'],
-          chartArea:{left:80,top:50, bottom: 80, right: 20},
-          legend: { position: 'bottom' },
-          height: 500,
-          crosshair: { trigger: 'focus' },
-        };
-
-        var chart = new google.visualization.LineChart(plotDiv);
-        plotDiv.classList.remove("spinner")
-        chart.draw(data, options);
+        upvotesData = dataPoints
+        upvotesPlot()
+      }
     }
-  })
+  )
 }
 
-{{end}}
+function upvotesPlot() {
+
+  var plotDiv = document.getElementById('upvotes_plot_div')
+
+  var data = new google.visualization.DataTable();
+  data.addColumn('number', 'Age');
+  data.addColumn('number', 'Upvotes');
+  data.addColumn('number', 'Expected Upvotes');
+
+  data.addRows(upvotesData);
+
+  var ageFormatter = new ageFormat()
+  ageFormatter.format(data, 0);
+
+  // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
+  var options = {
+    backgroundColor: {fill: 'transparent'},
+    hAxis: {
+      title: 'Age [hours]',
+      logScale: false
+    },
+    vAxis: {
+      title: 'Upvotes',
+      viewWindow: 'pretty',
+    },
+    series: {
+      0: {lineWidth: 2, lineDashStyle: [4,4], pointSize: 5},
+      1: {lineWidth: 3, curveType: 'function'},
+    },
+
+    // we want a line to be drawn over intervals where the upvotes is null
+    // since we set the upvotes to null above if there wasn't an increase in upvotes
+    interpolateNulls: true, 
+
+    colors: ['#55cccc', 'black'],
+    chartArea:{left:80,top:50, bottom: 80, right: 20},
+    legend: { position: 'bottom' },
+    height: 400,
+    crosshair: { trigger: 'both' },
+  };
+
+  var chart = new google.visualization.LineChart(plotDiv);
+  chart.draw(data, options);
+}
+
 

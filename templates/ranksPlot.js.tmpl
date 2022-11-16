@@ -1,33 +1,18 @@
-{{define "ranks-plot"}}
-
-
-var getJSON = function(url, callback) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.responseType = 'json';
-    xhr.onload = function() {
-      var status = xhr.status;
-      if (status === 200) {
-        callback(null, xhr.response);
-      } else {
-        callback(status, xhr.response);
-      }
-    };
-    xhr.send();
-};
-
-
+var ranksData
 
 function drawRanksPlot() {
+  if (ranksData !== undefined) {
+    return ranksPlot()
+  }
 
   var plotDiv = document.getElementById('ranks_plot_div')
 
   getJSON('/plots/ranks.json?id={{.ID}}',
-  function(err, dataPoints) {
-    if (err !== null) {
-      plotDiv.innerHTML = "error fetching chart data"
+    function(err, dataPoints) {
       plotDiv.classList.remove("spinner")
-    } else {
+      if (err !== null) {
+        plotDiv.innerHTML = "error fetching chart data"
+      } else {
 
 
         // plot only age, qntop, hntop, new, and best
@@ -51,80 +36,81 @@ function drawRanksPlot() {
           }
           dataPoints[i] = p
         }
-
-        var data = new google.visualization.DataTable();
-        data.addColumn('number', 'Age');
-        data.addColumn('number', 'QN Rank');
-        data.addColumn('number', 'HN Rank');
-        data.addColumn('number', 'New Rank');
-        data.addColumn('number', 'Best Rank');
-
-        // these lines add too much noise to the plot and they
-        // have little influence on upvotes and thus on understanding
-        // story performance
-        // data.addColumn('number', 'Ask HN');
-        // data.addColumn('number', 'Show HN');
-
-        data.addRows(dataPoints);
-
-        //var ageFormatter = new google.visualization.NumberFormat({suffix: ' hours old'});
-        var ageFormatter = new ageFormat();
-        
-        ageFormatter.format(data, 0);
-
-        var rankFormatter = new rankFormat()
-        rankFormatter.format(data, 1);
-        rankFormatter.format(data, 2);
-        rankFormatter.format(data, 3);
-        rankFormatter.format(data, 4);
-
-
-        // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
-        var options = {
-          backgroundColor: {fill: 'transparent'},
-          dataOpacity: 0.85,
-          hAxis: {
-            title: 'Age [hours]',
-            logScale: false
-          },
-          vAxis: {
-            title: 'Rank',
-            logScale: true,
-            direction: -1,
-            viewWindow: {
-              max: 1,
-              min: 91
-            },
-            ticks: [1,2,4,8,16,32,64,{v: 91, f: "> 90"}],
-          },
-          interpolateNulls: false, 
-          series: {
-            0: {pointShape: 'diamond', pointSize: 8, interpolateNulls: false},
-            1: {pointShape: 'circle', pointSize: 5, interpolateNulls: false},
-            2: {pointShape: 'square', pointSize: 5, interpolateNulls: false},
-            3: {pointShape: 'square', pointSize: 5, interpolateNulls: false},
-//            4: {pointShape: 'square', pointSize: 0},
-//            5: {pointShape: 'square', pointSize: 0}
-          },
-
-          lineDashStyle: [4,4],
-          lineWidth: 2,
-          colors: ['#0089F4', '#FF6600', "#CF9FFF", "cyan", "green","pink"],
-          chartArea:{left:80,top:50, bottom: 80, right: 20},
-          legend: { position: 'bottom' },
-          height: 500,
-          crosshair: { trigger: 'focus' },
-        };
-
-        var chart = new google.visualization.LineChart(plotDiv);
-
-        plotDiv.classList.remove("spinner")
-        chart.draw(data, options);
+        ranksData = dataPoints
+        ranksPlot()
+      }
     }
-
-
-  })
+  )
 }
 
-{{end}}
+function ranksPlot() {
+  var plotDiv = document.getElementById('ranks_plot_div')
 
+  var data = new google.visualization.DataTable();
+  data.addColumn('number', 'Age');
+  data.addColumn('number', 'QN Rank');
+  data.addColumn('number', 'HN Rank');
+  data.addColumn('number', 'New Rank');
+  data.addColumn('number', 'Best Rank');
+
+  // these lines add too much noise to the plot and they
+  // have little influence on upvotes and thus on understanding
+  // story performance
+  // data.addColumn('number', 'Ask HN');
+  // data.addColumn('number', 'Show HN');
+
+  data.addRows(ranksData);
+
+  //var ageFormatter = new google.visualization.NumberFormat({suffix: ' hours old'});
+  var ageFormatter = new ageFormat();
+  
+  ageFormatter.format(data, 0);
+
+  var rankFormatter = new rankFormat()
+  rankFormatter.format(data, 1);
+  rankFormatter.format(data, 2);
+  rankFormatter.format(data, 3);
+  rankFormatter.format(data, 4);
+
+
+  // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
+  var options = {
+    backgroundColor: {fill: 'transparent'},
+    dataOpacity: 0.85,
+    hAxis: {
+      title: 'Age [hours]',
+      logScale: false
+    },
+    vAxis: {
+      title: 'Rank',
+      logScale: true,
+      direction: -1,
+      viewWindow: {
+        max: 1,
+        min: 91
+      },
+      ticks: [1,2,4,8,16,32,64,{v: 91, f: "> 90"}],
+    },
+    interpolateNulls: false, 
+    series: {
+      0: {pointShape: 'diamond', pointSize: 8, interpolateNulls: false},
+      1: {pointShape: 'circle', pointSize: 5, interpolateNulls: false},
+      2: {pointShape: 'square', pointSize: 5, interpolateNulls: false},
+      3: {pointShape: 'square', pointSize: 5, interpolateNulls: false},
+//            4: {pointShape: 'square', pointSize: 0},
+//            5: {pointShape: 'square', pointSize: 0}
+    },
+
+    lineDashStyle: [4,4],
+    lineWidth: 2,
+    colors: ['#0089F4', '#FF6600', "#CF9FFF", "cyan", "green","pink"],
+    chartArea:{left:80,top:50, bottom: 80, right: 20},
+    legend: { position: 'bottom' },
+    height: 400,
+    crosshair: { trigger: 'both' },
+  };
+
+  var chart = new google.visualization.LineChart(plotDiv);
+
+  chart.draw(data, options);
+}
