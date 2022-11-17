@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -46,4 +48,28 @@ func (s Story) PenaltyString() string {
 
 func (s Story) HasPenalty() bool {
 	return s.Penalty > 0.0
+}
+
+func (s Story) Domain() string {
+	// extract top-level domain from s.URL
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		return ""
+	}
+
+	host := u.Host
+
+	if host == "news.ycombinator.com" {
+		return ""
+	}
+
+	// strip subdomains
+	if strings.Contains(host, ".") {
+		secondToLastDot := strings.LastIndex(host[:strings.LastIndex(host, ".")], ".")
+		if secondToLastDot != -1 {
+			host = host[secondToLastDot+1:]
+		}
+	}
+
+	return host
 }
