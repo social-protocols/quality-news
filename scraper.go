@@ -58,6 +58,11 @@ func (rs rawStory) Clean() (ScrapedStory, error) {
 		story.ID = id
 	}
 
+	// fix url
+	if strings.HasPrefix(story.Story.URL, "item?id=") {
+		story.Story.URL = "https://news.ycombinator.com/" + story.Story.URL
+	}
+
 	// parse score. This field will look like "4 points"
 	{
 		if fs := strings.Fields(rs.Score); len(fs) > 0 {
