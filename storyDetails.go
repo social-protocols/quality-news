@@ -73,3 +73,11 @@ func (s Story) Domain() string {
 
 	return host
 }
+
+func (s Story) ISOTimestamp() string {
+	return time.Unix(s.SubmissionTime, 0).UTC().Format("2006-01-02T15:04:05")
+}
+
+func (s Story) OriginalISOTimestamp() string {
+	return time.Unix(s.OriginalSubmissionTime, 0).UTC().Format("2006-01-02T15:04:05")
+}
