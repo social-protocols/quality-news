@@ -137,6 +137,9 @@ func (app app) crawlHN(ctx context.Context) (count int, err error) {
 		logger.Debugf("Crawled %d stories on %s page", nSuccess, pageTypeName)
 
 		wg.Wait()
+
+		// Sleep a bit to avoid rate limiting
+		time.Sleep(time.Millisecond * 300)
 	}
 
 	uniqueStoryIds := getKeys(storyRanks)
