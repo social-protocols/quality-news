@@ -274,8 +274,6 @@ func (app app) scrapeHN(pageType string, resultCh chan ScrapedStory, errCh chan 
 		moreLinkCh := make(chan string, 1)
 		c := app.newScraper(resultCh, errCh, moreLinkCh)
 		err := c.Visit(url)
-		// Sleep a bit to avoid rate limiting
-		time.Sleep(300 * time.Millisecond)
 		if err != nil {
 			errCh <- err
 		}
