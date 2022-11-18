@@ -43,6 +43,7 @@ require (
 	github.com/temoto/robotstxt v1.1.1 // indirect
 	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
+	github.com/weppos/publicsuffix-go v0.20.0 // indirect
 	golang.org/x/crypto v0.0.0-20220926161630-eccd6366d1be // indirect
 	golang.org/x/exp v0.0.0-20220827204233-334a2380cb91 // indirect
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect

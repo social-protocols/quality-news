@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"github.com/weppos/publicsuffix-go/publicsuffix"
 	"net/url"
 	"strings"
 	"time"
@@ -51,27 +52,39 @@ func (s Story) HasPenalty() bool {
 }
 
 func (s Story) Domain() string {
-	// extract top-level domain from s.URL
 	u, err := url.Parse(s.URL)
 	if err != nil {
 		return ""
 	}
 
-	host := u.Host
-
-	if host == "news.ycombinator.com" {
+	domain, err := publicsuffix.Domain(u.Host)
+	if err != nil {
 		return ""
 	}
 
-	// strip subdomains
-	if strings.Contains(host, ".") {
-		secondToLastDot := strings.LastIndex(host[:strings.LastIndex(host, ".")], ".")
-		if secondToLastDot != -1 {
-			host = host[secondToLastDot+1:]
-		}
+	// some domains are treated specially:
+
+	// twitter.com/x
+	// github.com/x
+	// x.substack.com
+	// x.notion.site
+	// x.dreamhosters.com
+
+	if u.Host == "news.ycombinator.com" {
+		return ""
 	}
 
-	return host
+	if domain == "twitter.com" || domain == "github.com" {
+		// keep first part of path
+		return domain + "/" + strings.Split(u.Path, "/")[1]
+	}
+
+	if domain == "substack.com" || domain == "notion.site" || domain == "dreamhosters.com" {
+		// keep subdomain
+		return strings.Split(u.Host, ".")[0] + "." + domain
+	}
+
+	return domain
 }
 
 func (s Story) ISOTimestamp() string {
