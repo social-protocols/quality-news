@@ -306,12 +306,17 @@ func (app app) updateResubmissions(ctx context.Context, tx *sql.Tx) error {
 var penaltiesSQL = readSQLSource("penalties.sql")
 
 func (app app) updatePenalties(ctx context.Context, tx *sql.Tx) error {
+
+	t := time.Now()
+
 	stmt, err := tx.Prepare(penaltiesSQL)
 	if err != nil {
 		return errors.Wrap(err, "preparing penalties SQL")
 	}
 
 	_, err = stmt.ExecContext(ctx)
+
+	app.logger.Info("Finished executing penalties", "elapsed seconds", time.Since(t))
 
 	return errors.Wrap(err, "executing penalties SQL")
 }
