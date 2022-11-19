@@ -79,7 +79,10 @@ with latest as (
   select 
   *
   , timestamp as originalSubmissionTime
-  , sampleTime - ageApprox - timestamp > 7200 and ageApprox < 3600*24 as resubmitted
+  , (
+      (sampleTime - ageApprox - timestamp > 3600*2 and ageApprox < 3600*24)
+      or (sampleTime - ageApprox - timestamp > 3600*25 and ageApprox < 3600*24*30)
+    ) as resubmitted
   , cast(
     case 
       when 
@@ -91,7 +94,10 @@ with latest as (
         -- we should filter out stories more than a day old: if we just saw
         -- these stories for the first time, we don't know if they have been
         -- resubmitted or not (and thus don't know how old they really are)
-        sampleTime - ageApprox - timestamp > 3600*2 and ageApprox < 3600*24
+        (
+          (sampleTime - ageApprox - timestamp > 3600*2 and ageApprox < 3600*24)
+          or (sampleTime - ageApprox - timestamp > 3600*25 and ageApprox < 3600*24*30) -- or less than a month 
+        )
         and not job then
           -- calculate an upper bound on age
           case 
