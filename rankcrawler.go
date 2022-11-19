@@ -277,6 +277,9 @@ func readSQLSource(filename string) string {
 var qnRanksSQL = readSQLSource("qnranks.sql")
 
 func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
+
+	t := time.Now()
+
 	d := defaultFrontPageParams
 	sql := fmt.Sprintf(qnRanksSQL, d.PriorWeight, d.OverallPriorWeight, d.Gravity, d.PenaltyWeight, qnRankFormulaSQL)
 
@@ -287,18 +290,25 @@ func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
 
 	_, err = stmt.ExecContext(ctx)
 
+	app.logger.Info("Finished executing updateQNRanks", "elapsed ", time.Since(t))
+
 	return errors.Wrap(err, "executing updateQNRanksSQL")
 }
 
 var resubmissionsSQL = readSQLSource("resubmissions.sql")
 
 func (app app) updateResubmissions(ctx context.Context, tx *sql.Tx) error {
+
+	t := time.Now()
+
 	stmt, err := tx.Prepare(resubmissionsSQL)
 	if err != nil {
 		return errors.Wrap(err, "preparing resubmissions SQL")
 	}
 
 	_, err = stmt.ExecContext(ctx)
+
+	app.logger.Info("Finished executing resubmissions", "elapsed ", time.Since(t))
 
 	return errors.Wrap(err, "executing resubmissions SQL")
 }
@@ -316,7 +326,7 @@ func (app app) updatePenalties(ctx context.Context, tx *sql.Tx) error {
 
 	_, err = stmt.ExecContext(ctx)
 
-	app.logger.Info("Finished executing penalties", "elapsed seconds", time.Since(t))
+	app.logger.Info("Finished executing penalties", "elapsed ", time.Since(t))
 
 	return errors.Wrap(err, "executing penalties SQL")
 }
