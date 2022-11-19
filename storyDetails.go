@@ -3,10 +3,11 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/weppos/publicsuffix-go/publicsuffix"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/weppos/publicsuffix-go/publicsuffix"
 
 	humanize "github.com/dustin/go-humanize"
 )
