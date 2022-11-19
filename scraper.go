@@ -210,7 +210,7 @@ func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error, moreLink
 					}
 
 					if err != nil {
-						app.logger.Debugf("Failed to parse story %d. Raw story %#v", n, rs)
+						Debugf(app.logger, "Failed to parse story %d. Raw story %#v", n, rs)
 						errCh <- err
 					} else {
 						resultCh <- st

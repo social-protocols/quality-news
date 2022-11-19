@@ -44,7 +44,7 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 		err := unmarshalRouterRequest(r, ps, &params)
 		if err != nil {
 			err = httperror.Wrap(err, http.StatusBadRequest)
-			logger.Err(err, "url", r.URL)
+			logger.Error("unmarshalRouterRequest", err, "url", r.URL)
 			handleError(w, err)
 			return
 		}
@@ -52,7 +52,7 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 		err = h(w, r, params)
 		if err != nil {
 			if httperror.StatusCode(err) >= 500 {
-				logger.Err(err, "url", r.URL)
+				logger.Error("executing handler", err, "url", r.URL)
 				requestErrorsTotal.Inc()
 			}
 			handleError(w, err)
@@ -116,7 +116,7 @@ func (app app) cacheAndCompressMiddleware(handler http.Handler) http.Handler {
 		memory.AdapterWithCapacity(app.cacheSize),
 	)
 	if err != nil {
-		app.logger.Fatal(err)
+		LogFatal(app.logger, "memory.NewAdapater", err)
 	}
 
 	cacheClient, err := cache.NewClient(
@@ -125,7 +125,7 @@ func (app app) cacheAndCompressMiddleware(handler http.Handler) http.Handler {
 		cache.ClientWithRefreshKey("opn"),
 	)
 	if err != nil {
-		app.logger.Fatal(err)
+		LogFatal(app.logger, "cache.NewClient", err)
 	}
 
 	var h http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

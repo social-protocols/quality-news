@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slog"
 )
 
 var pageTypes = map[int]string{
@@ -67,7 +68,7 @@ func (app app) crawlHN(ctx context.Context) (count int, err error) {
 			logger.Debug("Rolling back transaction")
 			e := tx.Rollback()
 			if e != nil {
-				logger.Err(errors.Wrap(e, "tx.Rollback"))
+				logger.Error("tx.Rollback", e)
 			}
 			return
 		} else {
@@ -107,7 +108,7 @@ func (app app) crawlHN(ctx context.Context) (count int, err error) {
 		go func() {
 			defer wg.Done()
 			for err := range errCh {
-				app.logger.Err(errors.Wrap(err, "Error parsing story"))
+				app.logger.Error("Error parsing story", err)
 				crawlErrorsTotal.Inc()
 			}
 		}()
@@ -134,7 +135,7 @@ func (app app) crawlHN(ctx context.Context) (count int, err error) {
 		if nSuccess == 0 {
 			return 0, fmt.Errorf("Didn't successfully parse any stories from %s page", pageTypeName)
 		}
-		logger.Debugf("Crawled %d stories on %s page", nSuccess, pageTypeName)
+		Debugf(logger, "Crawled %d stories on %s page", nSuccess, pageTypeName)
 
 		wg.Wait()
 
@@ -159,7 +160,7 @@ STORY:
 
 		// Skip any stories that were not fetched successfully.
 		if story.ID == 0 {
-			logger.Error("Missing story id in story")
+			logger.Error("Missing story id in story", nil)
 			crawlErrorsTotal.Inc()
 			continue STORY
 		}
@@ -228,7 +229,7 @@ STORY:
 	}
 
 	crawlDuration.UpdateDuration(t)
-	logger.Info("Completed crawl", "nitems", len(stories), "elapsed", time.Since(t))
+	logger.Info("Completed crawl", "nitems", len(stories), slog.Duration("elapsed", time.Since(t)))
 
 	upvotesTotal.Add(sitewideUpvotes)
 
@@ -277,7 +278,6 @@ func readSQLSource(filename string) string {
 var qnRanksSQL = readSQLSource("qnranks.sql")
 
 func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
-
 	t := time.Now()
 
 	d := defaultFrontPageParams
@@ -290,7 +290,7 @@ func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
 
 	_, err = stmt.ExecContext(ctx)
 
-	app.logger.Info("Finished executing updateQNRanks", "elapsed ", time.Since(t))
+	app.logger.Info("Finished executing updateQNRanks", slog.Duration("elapsed", time.Since(t)))
 
 	return errors.Wrap(err, "executing updateQNRanksSQL")
 }
@@ -298,7 +298,6 @@ func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
 var resubmissionsSQL = readSQLSource("resubmissions.sql")
 
 func (app app) updateResubmissions(ctx context.Context, tx *sql.Tx) error {
-
 	t := time.Now()
 
 	stmt, err := tx.Prepare(resubmissionsSQL)
@@ -308,7 +307,7 @@ func (app app) updateResubmissions(ctx context.Context, tx *sql.Tx) error {
 
 	_, err = stmt.ExecContext(ctx)
 
-	app.logger.Info("Finished executing resubmissions", "elapsed ", time.Since(t))
+	app.logger.Info("Finished executing resubmissions", slog.Duration("elapsed", time.Since(t)))
 
 	return errors.Wrap(err, "executing resubmissions SQL")
 }
@@ -316,7 +315,6 @@ func (app app) updateResubmissions(ctx context.Context, tx *sql.Tx) error {
 var penaltiesSQL = readSQLSource("penalties.sql")
 
 func (app app) updatePenalties(ctx context.Context, tx *sql.Tx) error {
-
 	t := time.Now()
 
 	stmt, err := tx.Prepare(penaltiesSQL)
@@ -326,7 +324,7 @@ func (app app) updatePenalties(ctx context.Context, tx *sql.Tx) error {
 
 	_, err = stmt.ExecContext(ctx)
 
-	app.logger.Info("Finished executing penalties", "elapsed ", time.Since(t))
+	app.logger.Info("Finished executing penalties", slog.Duration("elapsed", time.Since(t)))
 
 	return errors.Wrap(err, "executing penalties SQL")
 }

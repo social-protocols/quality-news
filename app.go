@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -36,10 +35,8 @@ func initApp() app {
 	}
 
 	logLevelString := os.Getenv("LOG_LEVEL")
-
-	if logLevelString == "" {
-		logLevelString = "DEBUG"
-	}
+	logFormatString := os.Getenv("LOG_FORMAT")
+	logger := newLogger(logLevelString, logFormatString)
 
 	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
 	if sqliteDataDir == "" {
@@ -48,21 +45,15 @@ func initApp() app {
 
 	db, err := openNewsDatabase(sqliteDataDir)
 	if err != nil {
-		log.Fatal(err)
+		LogFatal(logger, "openNewsDatabase", err)
 	}
-
-	logger := newLogger(logLevelString)
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.RetryMax = 3
 	retryClient.RetryWaitMin = 1 * time.Second
 	retryClient.RetryWaitMax = 5 * time.Second
 
-	{
-		l := logger
-		l.level = logLevelInfo
-		retryClient.Logger = l // ignore debug messages from this retry client.
-	}
+	retryClient.Logger = wrapLoggerForRetryableHTTPClient(logger)
 
 	httpClient := retryClient.StandardClient()
 

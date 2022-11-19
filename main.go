@@ -37,7 +37,7 @@ func main() {
 
 		err := shutdownPrometheusServer(ctx)
 		if err != nil {
-			logger.Err(errors.Wrap(err, "shutdownPrometheusServer"))
+			logger.Error("shutdownPrometheusServer", err)
 		}
 
 		if httpServer != nil {
@@ -48,7 +48,7 @@ func main() {
 			defer cancel()
 			err := httpServer.Shutdown(ctxWithTimeout)
 			if err != nil {
-				logger.Err(errors.Wrap(err, "httpServer.Shutdown"))
+				logger.Error("httpServer.Shutdown", err)
 				// if server doesn't respond to shutdown signal, nothing remains but to panic.
 				panic("HTTP server shutdown failed")
 			}
@@ -82,7 +82,7 @@ func main() {
 		logger.Info("HTTP server listening", "address", httpServer.Addr)
 		err := httpServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
-			logger.Err(errors.Wrap(err, "server.ListenAndServe"))
+			logger.Error("server.ListenAndServe", err)
 		}
 		logger.Info("Server shut down")
 	}()
@@ -95,8 +95,7 @@ func (app app) mainLoop(ctx context.Context) {
 
 	lastCrawlTime, err := app.ndb.selectLastCrawlTime()
 	if err != nil {
-		logger.Err(errors.Wrap(err, "selectLastCrawlTime"))
-		os.Exit(2)
+		LogFatal(logger, "selectLastCrawlTime", err)
 	}
 
 	t := time.Now().Unix()
@@ -108,7 +107,7 @@ func (app app) mainLoop(ctx context.Context) {
 	if elapsed > 60 {
 		logger.Info("More than 60 seconds since last crawl. Crawling now.")
 		if err = app.crawlAndGenerate(ctx); err != nil {
-			logger.Err(err)
+			logger.Error("crawlAndGenerate", err)
 
 			if errors.Is(err, context.Canceled) {
 				return
@@ -125,7 +124,7 @@ func (app app) mainLoop(ctx context.Context) {
 	// Minute mark.
 	go func() {
 		t = time.Now().Unix()
-		logger.Debug("Waiting for next minute mark", "seconds", 60-t%60, "now", time.Now())
+		logger.Debug("Waiting for next minute mark", "seconds", 60-t%60)
 		<-time.After(time.Duration(60-t%60) * time.Second)
 		ticker <- struct{}{}
 	}()
@@ -144,7 +143,7 @@ func (app app) mainLoop(ctx context.Context) {
 			}()
 			logger.Info("Beginning crawl")
 			if err = app.crawlAndGenerate(ctx); err != nil {
-				logger.Err(err)
+				logger.Error("crawlAndGenerate", err)
 			}
 			logger.Debug("Waiting for next minute mark", "seconds", 60-t%60)
 

@@ -2,14 +2,14 @@ package main
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
-	"log"
 	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 
 	stdlib "github.com/multiprocessio/go-sqlite3-stdlib"
+	"github.com/pkg/errors"
+	"golang.org/x/exp/slog"
 )
 
 type newsDatabase struct {
@@ -34,12 +34,12 @@ func createDataDirIfNotExists(sqliteDataDir string) {
 	if _, err := os.Stat(sqliteDataDir); errors.Is(err, os.ErrNotExist) {
 		err := os.Mkdir(sqliteDataDir, os.ModePerm)
 		if err != nil {
-			log.Fatal(err)
+			LogFatal(slog.Default(), "create sqlite data dir", err)
 		}
 	}
 }
 
-func (ndb newsDatabase) init() {
+func (ndb newsDatabase) init() error {
 	seedStatements := []string{
 		`
 		CREATE TABLE IF NOT EXISTS stories(
@@ -85,9 +85,10 @@ func (ndb newsDatabase) init() {
 	for _, s := range seedStatements {
 		_, err := ndb.db.Exec(s)
 		if err != nil {
-			log.Fatal(err)
+			return errors.Wrap(err, "seeding database")
 		}
 	}
+	return nil
 }
 
 func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
@@ -107,7 +108,10 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		return ndb, err
 	}
 
-	ndb.init()
+	err = ndb.init()
+	if err != nil {
+		return ndb, err
+	}
 
 	// the newsDatabase type has a few prepared statements that are defined here
 	{

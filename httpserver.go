@@ -3,7 +3,6 @@ package main
 import (
 	"embed"
 	"io/fs"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -32,7 +31,7 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 
 	staticRoot, err := fs.Sub(staticFS, "static")
 	if err != nil {
-		log.Fatal(err)
+		LogFatal(l, "fs.Sub", err)
 	}
 
 	server := &http.Server{

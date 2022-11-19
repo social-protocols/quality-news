@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/johnwarden/httperror"
+	"golang.org/x/exp/slog"
 )
 
 // Register various metrics.
@@ -45,7 +45,7 @@ func servePrometheusMetrics() func(ctx context.Context) error {
 	}
 
 	go func() {
-		log.Fatal(s.ListenAndServe())
+		LogFatal(slog.Default(), "Listen and serve prometheus", s.ListenAndServe())
 	}()
 
 	return s.Shutdown
