@@ -31,11 +31,12 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+          cache: true
       - run: go build *.go
       - name: Check if working directory is clean
         run: git diff --quiet --exit-code || (git status && false)
-  golangci:
-    name: "golangci"
+  lint:
+    name: "Lint"
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
@@ -47,6 +48,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+          cache: true
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
