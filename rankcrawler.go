@@ -231,6 +231,9 @@ STORY:
 	crawlDuration.UpdateDuration(t)
 	logger.Info("Completed crawl", "nitems", len(stories), slog.Duration("elapsed", time.Since(t)))
 
+
+	t = time.Now()
+
 	upvotesTotal.Add(sitewideUpvotes)
 
 	logger.Debug("Totals",
@@ -255,6 +258,9 @@ STORY:
 	}
 
 	err = app.updateQNRanks(ctx, tx)
+
+	crawlPostprocessingDuration.UpdateDuration(t)
+
 	return finalStoryCount - initialStoryCount, errors.Wrap(err, "update QN Ranks")
 }
 
