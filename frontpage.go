@@ -211,6 +211,11 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 			s.TopRank = sql.NullInt32{Int32: 0, Valid: false}
 		}
 
+		// Don't show QN rank if it is greater than 90
+		if s.QNRank.Valid && s.QNRank.Int32 > 90 {
+			s.QNRank = sql.NullInt32{Int32: 0, Valid: false}
+		}
+
 		if err != nil {
 			return stories, errors.Wrap(err, "Scanning row")
 		}
