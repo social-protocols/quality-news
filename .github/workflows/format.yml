@@ -30,11 +30,11 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+          cache: true
 
       - name: Format Go Code
         if: steps.check.outputs.triggered == 'true'
-        run: |
-          go fmt .
+        run: go fmt .
 
       - name: Commit changes
         if: steps.check.outputs.triggered == 'true'
