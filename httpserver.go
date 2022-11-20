@@ -41,7 +41,8 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	}
 
 	router := httprouter.New()
-	router.ServeFiles("/static/*filepath", http.FS(staticRoot))
+	router.GET("/static/*filepath", app.serveFiles(http.FS(staticRoot)))
+
 	router.GET("/", middleware("qntop", l, onPanic, app.frontpageHandler("quality")))
 	router.GET("/hntop", middleware("hntop", l, onPanic, app.frontpageHandler("hntop")))
 	router.GET("/stats", middleware("stats", l, onPanic, app.statsHandler()))
@@ -87,5 +88,15 @@ func (app app) statsHandler() func(http.ResponseWriter, *http.Request, StatsPage
 		}
 
 		return err
+	}
+}
+
+func (app app) serveFiles(root http.FileSystem) func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	fileServer := http.FileServer(root)
+
+	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		w.Header().Set("Cache-Control", "public, max-age=86400") // 1 hours
+		r.URL.Path = p.ByName("filepath")
+		fileServer.ServeHTTP(w, r)
 	}
 }
