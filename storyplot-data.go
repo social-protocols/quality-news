@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+        "encoding/json"
 	"fmt"
 	"net/http"
 
@@ -13,31 +14,38 @@ func (app app) ranksDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-		xAxis, ranks, err := rankDatapoints(app.ndb, p.StoryID)
+		_, ranks, err := rankDatapoints(app.ndb, p.StoryID)
 		if err != nil {
 			return errors.Wrap(err, "rankDataPoints")
 		}
 
-		_, _ = w.Write([]byte("[\n"))
-		for i, age := range xAxis {
-			if i%5 == 0 {
-				_, _ = w.Write([]byte("\n\t"))
-			}
-
-			ageHours := float64(age) / 3600
-
-			_, _ = w.Write([]byte(fmt.Sprintf("[%.4f", ageHours)))
-
-			for _, rank := range ranks[i] {
-				_, _ = w.Write([]byte(fmt.Sprintf(",%d", rank)))
-			}
-			_, _ = w.Write([]byte("]"))
-
-			if i < len(xAxis)-1 {
-				_, _ = w.Write([]byte(", "))
-			}
+		//b, err := json.MarshalIndent(ranks,"","  ")
+		b, err := json.Marshal(ranks)
+		if err != nil {
+			return errors.Wrap(err, "rankDataPoints: json.Marshal")
 		}
-		_, _ = w.Write([]byte("\n]"))
+		w.Write([]byte(string(b)))
+
+// 		ranksZipped = make([][]any,len(xAxis))
+// 
+//  		for i, age := range xAxis {
+//  			ageHours := float64(age) / 3600
+// 			ranksZipped = {ageHours,ranks[i]}
+// 		}
+
+
+// 			_, _ = w.Write([]byte(fmt.Sprintf("[%.4f", ageHours)))
+// 
+// 			for _, rank := range ranks[i] {
+// 				_, _ = w.Write([]byte(fmt.Sprintf(",%d", rank)))
+// 			}
+// 			_, _ = w.Write([]byte("]"))
+// 
+// 			if i < len(xAxis)-1 {
+// 				_, _ = w.Write([]byte(", "))
+// 			}
+// 		}
+// 		_, _ = w.Write([]byte("\n]"))
 
 		return nil
 	}
