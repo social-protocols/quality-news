@@ -54,8 +54,15 @@ func initApp() app {
 	retryClient.RetryMax = 3
 	retryClient.RetryWaitMin = 1 * time.Second
 	retryClient.RetryWaitMax = 5 * time.Second
+	proxyURL, err := url.Parse("http://localhost:8081")
+	if err != nil {
+		panic(err)
+	}
 	retryClient.CheckRetry = func(ctx context.Context, resp *http.Response, err error) (bool, error) {
-		log.Printf("proxy: %s\n", retryClient.HTTPClient.Transport)
+		retryClient.HTTPClient.Transport = &http.Transport{
+			Proxy: http.ProxyURL(proxyURL),
+		}
+		// log.Printf("proxy: %s\n", retryClient.HTTPClient.Transport)
 		if err != nil {
 			return true, err
 		}
@@ -67,13 +74,6 @@ func initApp() app {
 	}
 
 	// add proxy support
-	proxyURL, err := url.Parse("http://localhost:8081")
-	if err != nil {
-		panic(err)
-	}
-	retryClient.HTTPClient.Transport = &http.Transport{
-		Proxy: http.ProxyURL(proxyURL),
-	}
 
 	retryClient.Logger = wrapLoggerForRetryableHTTPClient(logger)
 
