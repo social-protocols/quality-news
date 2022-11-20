@@ -27,11 +27,21 @@ ranks as (
     , avg(log(rankFiltered) - log(expectedRankFiltered)) filter(where rank > 3) over (partition by id order by sampleTime rows between 59 preceding and current row) as movingAverageFilteredLogRankPenalty
   from ranks
 )
+, previous as (
+  select
+    id
+    , max(penalty) as penalty
+  from dataset
+  group by 1
+)
 update dataset as d
-	set penalty = case
+	set penalty = max(previous.penalty, case
 		when movingAverageFilteredLogRankPenalty > 0.5 then 1
 		when movingAverageFilteredLogRankPenalty > 0.1 then 0.2
 		else 0
-	end
+	end)
 from latest
-where d.id = latest.id and d.sampleTime = latest.sampleTime;
+left join previous using (id)
+where d.id = latest.id 
+and d.sampleTime = latest.sampleTime
+and latest.sampleTime = (select max(sampleTime) from dataset);
