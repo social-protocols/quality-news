@@ -10,6 +10,7 @@ with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gr
 		, penalty
 	from dataset
 	where sampleTime = (select max(sampleTime) from dataset)
+	and score > 3
 ),
 qnRanks as (
 	select 
