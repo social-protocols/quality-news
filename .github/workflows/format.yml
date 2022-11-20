@@ -21,11 +21,11 @@ jobs:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
 
       - uses: actions/checkout@v3
-        with:
-          # https://github.com/actions/checkout/issues/626
-          # This is correct, because we're using a merge queue (mergify) which only merges when built against the latest target branch.
-          # https://docs.mergify.com/actions/queue/
-          ref: ${{ github.event.pull_request.head.sha }}
+        if: steps.check.outputs.triggered == 'true'
+
+      - name: Check out PR
+        if: steps.check.outputs.triggered == 'true'
+        run: gh pr checkout ${{ github.event.issue.number }}
 
       - uses: actions/setup-go@v3
         with:
