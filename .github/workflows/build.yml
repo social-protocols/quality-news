@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version-file: 'go.mod'
+          go-version-file: go.mod
       - uses: actions/checkout@v3
         with:
           # https://github.com/actions/checkout/issues/626
@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version-file: 'go.mod'
+          go-version-file: go.mod
       - uses: actions/checkout@v3
         with:
           # https://github.com/actions/checkout/issues/626
