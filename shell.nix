@@ -7,6 +7,7 @@
       gcc
       go_1_19
       gotools
+      golangci-lint
       sqlite-interactive
     ];
 
