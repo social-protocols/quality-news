@@ -14,38 +14,16 @@ func (app app) ranksDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-		_, ranks, err := rankDatapoints(app.ndb, p.StoryID)
+		ranks, err := rankDatapoints(app.ndb, p.StoryID)
 		if err != nil {
 			return errors.Wrap(err, "rankDataPoints")
 		}
 
-		//b, err := json.MarshalIndent(ranks,"","  ")
 		b, err := json.Marshal(ranks)
 		if err != nil {
-			return errors.Wrap(err, "rankDataPoints: json.Marshal")
+			return errors.Wrap(err, "ranksDataJSON: json.Marshal")
 		}
 		w.Write([]byte(string(b)))
-
-// 		ranksZipped = make([][]any,len(xAxis))
-// 
-//  		for i, age := range xAxis {
-//  			ageHours := float64(age) / 3600
-// 			ranksZipped = {ageHours,ranks[i]}
-// 		}
-
-
-// 			_, _ = w.Write([]byte(fmt.Sprintf("[%.4f", ageHours)))
-// 
-// 			for _, rank := range ranks[i] {
-// 				_, _ = w.Write([]byte(fmt.Sprintf(",%d", rank)))
-// 			}
-// 			_, _ = w.Write([]byte("]"))
-// 
-// 			if i < len(xAxis)-1 {
-// 				_, _ = w.Write([]byte(", "))
-// 			}
-// 		}
-// 		_, _ = w.Write([]byte("\n]"))
 
 		return nil
 	}
@@ -53,27 +31,26 @@ func (app app) ranksDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 
 const nRanks = 6
 
-func rankDatapoints(ndb newsDatabase, storyID int) ([]int64, [][nRanks]int32, error) {
+func rankDatapoints(ndb newsDatabase, storyID int) ([][nRanks+1]any, error) {
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
-		return nil, nil, errors.Wrap(err, "QueryRow: select count")
+		return nil, errors.Wrap(err, "QueryRow: select count")
 	}
 
 	if n == 0 {
-		return nil, nil, ErrStoryIDNotFound
+		return nil, ErrStoryIDNotFound
 	}
 
 	var submissionTime int64
 	if err := ndb.db.QueryRow("select timestamp from stories where id = ?", storyID).Scan(&submissionTime); err != nil {
-		return nil, nil, errors.Wrap(err, "QueryRow: select submissionTime")
+		return nil, errors.Wrap(err, "QueryRow: select submissionTime")
 	}
 
-	xAxis := make([]int64, n)
-	ranks := make([][nRanks]int32, n)
+	ranks := make([][nRanks+1]any, n)
 
 	rows, err := ndb.db.Query("select sampleTime, (case when qnRank > 90 then 91 else qnRank end) as qnRank, topRank, newRank, bestRank, askRank, showRank from dataset where id = ?", storyID)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Query: select ranks")
+		return nil, errors.Wrap(err, "Query: select ranks")
 	}
 
 	i := 0
@@ -85,25 +62,25 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([]int64, [][nRanks]int32, er
 		err = rows.Scan(&sampleTime, &nullableRanks[0], &nullableRanks[1], &nullableRanks[2], &nullableRanks[3], &nullableRanks[4], &nullableRanks[5])
 
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "rows.Scan")
+			return nil, errors.Wrap(err, "rows.Scan")
 		}
+
+		ranks[i][0] = float64(sampleTime - submissionTime) / 3600  // humanize.Time(time.Unix(sampleTime, 0))
 
 		for j, rank := range nullableRanks {
 			if rank.Valid {
-				ranks[i][j] = rank.Int32
+				ranks[i][j+1] = rank.Int32
 			} else {
-				ranks[i][j] = 91
+				ranks[i][j+1] = 91
 			}
 		}
-
-		xAxis[i] = sampleTime - submissionTime // humanize.Time(time.Unix(sampleTime, 0))
 
 		i++
 	}
 
 	err = rows.Err()
 
-	return xAxis, ranks, errors.Wrap(err, "rows.Err")
+	return ranks, errors.Wrap(err, "rows.Err")
 }
 
 func (app app) upvotesDataJSON() httperror.XHandlerFunc[StatsPageParams] {
