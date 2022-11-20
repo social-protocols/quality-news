@@ -40,6 +40,10 @@ func (d frontPageData) IsHNTopPage() bool {
 	return d.Ranking == "hntop"
 }
 
+func (d frontPageData) IsNewPage() bool {
+	return d.Ranking == "new"
+}
+
 func (d frontPageData) GravityString() string {
 	return fmt.Sprintf("%.2f", d.Params.Gravity)
 }
@@ -168,6 +172,8 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		orderBy := "qnRank nulls last"
 		if ranking == "hntop" {
 			orderBy = "topRank nulls last"
+		} else if ranking == "new" {
+			orderBy = "newRank nulls last"
 		} else if params != defaultFrontPageParams {
 			orderBy = qnRankFormulaSQL
 		}
@@ -198,11 +204,10 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		var ageHours int
 		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank, &ageHours)
 
-		if ranking == "quality" {
+		switch ranking {
+		case "quality":
 			s.QNRank = sql.NullInt32{Int32: 0, Valid: false}
-		}
-
-		if ranking == "hntop" {
+		case "hntop":
 			s.TopRank = sql.NullInt32{Int32: 0, Valid: false}
 		}
 
