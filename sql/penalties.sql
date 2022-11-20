@@ -36,8 +36,8 @@ ranks as (
 )
 update dataset as d
 	set penalty = max(previous.penalty, case
-		when movingAverageFilteredLogRankPenalty > 0.5 then 1
-		when movingAverageFilteredLogRankPenalty > 0.1 then 0.2
+		when movingAverageFilteredLogRankPenalty > 0.5 then 0.9
+		when movingAverageFilteredLogRankPenalty > 0.1 then 0.4
 		else 0
 	end)
 from latest
