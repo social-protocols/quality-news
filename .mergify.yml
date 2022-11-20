@@ -1,0 +1,36 @@
+queue_rules:
+  - name: default
+
+pull_request_rules:
+  - name: Merge dependency-update PRs
+    conditions:
+      - label=dependencies
+      - base=master
+    actions:
+      queue:
+        name: default
+        method: squash
+
+  - name: Merge PRs (rebase) which are ready to merge
+    conditions:
+      - label=ready-to-merge-rebase
+      - base=master
+      - "#review-requested=0"
+      - "#changes-requested-reviews-by=0"
+      - "#review-threads-unresolved=0"
+    actions:
+      queue:
+        name: default
+        method: rebase
+
+  - name: Merge PRs (squash) which are ready to merge
+    conditions:
+      - label=ready-to-merge-squash
+      - base=master
+      - "#review-requested=0"
+      - "#changes-requested-reviews-by=0"
+      - "#review-threads-unresolved=0"
+    actions:
+      queue:
+        name: default
+        method: squash
