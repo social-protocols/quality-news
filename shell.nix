@@ -5,7 +5,7 @@
       entr
       git
       gcc
-      go_1_18
+      go_1_19
       gotools
       sqlite-interactive
     ];
