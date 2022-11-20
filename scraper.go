@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gocolly/colly/v2"
+	"github.com/gocolly/colly/v2/proxy"
 	"github.com/pkg/errors"
 )
 
@@ -160,6 +162,13 @@ func (rs rawStory) Clean() (ScrapedStory, error) {
 func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error, moreLinkCh chan string) *colly.Collector {
 	c := colly.NewCollector()
 	c.SetClient(app.httpClient)
+
+	// https://go-colly.org/docs/examples/proxy_switcher/
+	rp, err := proxy.RoundRobinProxySwitcher("https://localhost:8081")
+	if err != nil {
+		log.Fatal(err)
+	}
+	c.SetProxyFunc(rp)
 
 	var rs rawStory
 
