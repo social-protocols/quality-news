@@ -13,7 +13,6 @@ processes = []
   PORT = "8080"
   SQLITE_DATA_DIR="/data"
   LOG_LEVEL="INFO"
-  LOG_FORMAT = "JSON"
   CACHE_SIZE=1000
 
 [experimental]
