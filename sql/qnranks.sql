@@ -19,7 +19,7 @@ uadjustedranks as (
 		, sampleTime
 		, penalty
 	from latestData join parameters
-)
+),
 qnRanks as (
 	select 
 	id
