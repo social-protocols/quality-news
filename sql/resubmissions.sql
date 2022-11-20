@@ -104,13 +104,13 @@ with latest as (
   from dataset join stories using (id)
   where sampleTime = (select max(sampleTime) from dataset)
 )
--- now get the data from the last crawl
+-- now get the data from the previous crawl
 , previous as (
   select 
-    id
-    , max(submissionTime) as submissionTime
-  from dataset
-  where sampleTime > (select max(sampleTime) from dataset) - 3600*24 -- only look back 24 hours to make query faster
+    dataset.id
+    , max(dataset.submissionTime) as submissionTime
+  from dataset join latest using (id) -- join so we are only looking at stories that exist in the latest sample
+  where dataset.sampleTime < (select max(sampleTime) from dataset)
   group by 1
 )
 update dataset as d 
