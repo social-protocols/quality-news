@@ -32,6 +32,7 @@ ranks as (
     id
     , max(penalty) as penalty
   from dataset
+  where sampleTime > (select max(sampleTime) from dataset) - 3600*24
   group by 1
 )
 update dataset as d

@@ -77,6 +77,10 @@ func (ndb newsDatabase) init() error {
 		ON dataset(sampletime, id);
 		`,
 		`
+	    CREATE INDEX IF NOT EXISTS dataset_id_sampletime
+	    ON dataset(id, sampletime);
+		`,
+		`
 		CREATE INDEX IF NOT EXISTS dataset_id
 		ON dataset(id);
 		`,

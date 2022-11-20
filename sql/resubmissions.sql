@@ -108,8 +108,11 @@ with latest as (
 , previous as (
   select 
     dataset.id
-    , max(dataset.submissionTime) as submissionTime
-  from dataset join latest using (id) -- join so we are only looking at stories that exist in the latest sample
+    , dataset.submissionTime
+  from dataset join latest using (id)
+  -- this is not ideal, as it only looks at data from the previous crawl. This means if a story is not included in the crawl,
+  -- and then appears again, we "forget" the submission time calculation and have to start over. However, fixing this makes this
+  -- query much slower.
   where dataset.sampleTime < (select max(sampleTime) from dataset)
   group by 1
 )
