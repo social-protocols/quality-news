@@ -110,6 +110,7 @@ with latest as (
     id
     , max(submissionTime) as submissionTime
   from dataset
+  where sampleTime > (select max(sampleTime) from dataset) - 3600*24 -- only look back 24 hours to make query faster
   group by 1
 )
 update dataset as d 
