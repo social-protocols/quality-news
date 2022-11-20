@@ -26,6 +26,8 @@ jobs:
       - name: Check out PR
         if: steps.check.outputs.triggered == 'true'
         run: gh pr checkout ${{ github.event.issue.number }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-go@v3
         with:
