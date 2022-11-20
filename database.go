@@ -80,11 +80,6 @@ func (ndb newsDatabase) init() error {
 		CREATE INDEX IF NOT EXISTS dataset_id
 		ON dataset(id);
 		`,
-		`
-			-- clear penalties calculated before Nov 19. This is only needed 
-			-- temporarily while we experiment with different penalty calculations.
-			update dataset set penalty = 0 where sampleTime < 1668913600
-		`,
 	}
 
 	for _, s := range seedStatements {
