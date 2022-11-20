@@ -56,7 +56,5 @@ jobs:
           version: v1.50.1
       - name: Check if go code is formatted
         run: |
-          # build currently happens in docker container
-          # (cd compute && go build)
           UNFORMATTED_FILES=$(gofmt -l .)
           test -z $UNFORMATTED_FILES || (echo -e "Go code not formatted:\n$UNFORMATTED_FILES\n"; exit 1)
