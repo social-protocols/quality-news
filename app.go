@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -52,6 +54,26 @@ func initApp() app {
 	retryClient.RetryMax = 3
 	retryClient.RetryWaitMin = 1 * time.Second
 	retryClient.RetryWaitMax = 5 * time.Second
+	retryClient.CheckRetry = func(ctx context.Context, resp *http.Response, err error) (bool, error) {
+		log.Printf("proxy: %s\n", retryClient.HTTPClient.Transport)
+		if err != nil {
+			return true, err
+		}
+		if resp.StatusCode >= 500 {
+			log.Printf("retrying request, because status: %v, err: %v", resp.StatusCode, err)
+			return true, nil
+		}
+		return false, nil
+	}
+
+	// add proxy support
+	proxyURL, err := url.Parse("http://localhost:8081")
+	if err != nil {
+		panic(err)
+	}
+	retryClient.HTTPClient.Transport = &http.Transport{
+		Proxy: http.ProxyURL(proxyURL),
+	}
 
 	retryClient.Logger = wrapLoggerForRetryableHTTPClient(logger)
 
