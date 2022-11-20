@@ -31,6 +31,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+          cache: true
       - run: go build *.go
       - name: Check if working directory is clean
         run: git diff --quiet --exit-code || (git status && false)
@@ -47,6 +48,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version-file: go.mod
+          cache: true
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
