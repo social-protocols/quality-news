@@ -1,0 +1,59 @@
+name: Formatter
+
+on:
+  pull_request:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  format:
+    name: "Format"
+    runs-on: ubuntu-22.04
+    if: github.event.issue.pull_request
+    steps:
+      - uses: khan/pull-request-comment-trigger@v1.1.0
+        id: check
+        with:
+          trigger: '/format'
+          reaction: "+1" # Reaction must be one of the reactions here: https://developer.github.com/v3/reactions/#reaction-types
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+
+      - uses: actions/checkout@v3
+        with:
+          # https://github.com/actions/checkout/issues/626
+          # This is correct, because we're using a merge queue (mergify) which only merges when built against the latest target branch.
+          # https://docs.mergify.com/actions/queue/
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - name: Format Go Code
+        if: steps.check.outputs.triggered == 'true'
+        run: |
+          go fmt .
+
+      - name: Commit changes
+        if: steps.check.outputs.triggered == 'true'
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+
+          git status
+          git diff --stat
+          git commit -am "chore: format code"
+
+          git log --oneline --max-count=10
+
+          git push
+
+      - uses: khan/pull-request-comment-trigger@v1.1.0
+        if: failure()
+        with:
+          trigger: '/format'
+          reaction: "confused" # Reaction must be one of the reactions here: https://developer.github.com/v3/reactions/#reaction-types
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
