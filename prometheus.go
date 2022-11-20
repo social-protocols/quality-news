@@ -15,6 +15,7 @@ import (
 
 var (
 	crawlErrorsTotal            = metrics.NewCounter(`errors_total{type="crawl"}`)
+	crawlRequestErrors          = metrics.NewCounter(`request_errors{type="crawl"}`)
 	requestErrorsTotal          = metrics.NewCounter(`errors_total{type="request"}`)
 	crawlDuration               = metrics.NewHistogram("crawl_duration_seconds")
 	crawlPostprocessingDuration = metrics.NewHistogram("crawl_postprocessing_duration_seconds")

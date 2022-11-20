@@ -62,15 +62,11 @@ func initApp() app {
 		retryClient.HTTPClient.Transport = &http.Transport{
 			Proxy: http.ProxyURL(proxyURL),
 		}
-		// log.Printf("proxy: %s\n", retryClient.HTTPClient.Transport)
-		if err != nil {
-			return true, err
-		}
 		if resp.StatusCode >= 500 {
-			log.Printf("retrying request, because status: %v, err: %v", resp.StatusCode, err)
+			crawlRequestErrors.Inc()
 			return true, nil
 		}
-		return false, nil
+		return retryablehttp.DefaultRetryPolicy(ctx, resp, err)
 	}
 
 	// add proxy support

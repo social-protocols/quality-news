@@ -6,6 +6,7 @@ require (
 	github.com/NYTimes/gziphandler v1.1.1
 	github.com/VictoriaMetrics/metrics v1.23.0
 	github.com/dustin/go-humanize v1.0.0
+	github.com/elazarl/goproxy v0.0.0-20221015165544-a0805db90819
 	github.com/gocolly/colly/v2 v2.1.0
 	github.com/gorilla/schema v1.2.0
 	github.com/hashicorp/go-retryablehttp v0.7.1
@@ -29,10 +30,8 @@ require (
 	github.com/antchfx/xmlquery v1.3.12 // indirect
 	github.com/antchfx/xpath v1.2.1 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
-	github.com/elazarl/goproxy v0.0.0-20221015165544-a0805db90819 // indirect
 	github.com/fatih/color v1.12.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/gocolly/colly v1.2.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -45,7 +44,6 @@ require (
 	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
 	golang.org/x/crypto v0.0.0-20220926161630-eccd6366d1be // indirect
-	golang.org/x/exp v0.0.0-20220827204233-334a2380cb91 // indirect
 	golang.org/x/net v0.2.0 // indirect
 	golang.org/x/sys v0.2.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
