@@ -164,7 +164,7 @@ func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error, moreLink
 	c.SetClient(app.httpClient)
 
 	// https://go-colly.org/docs/examples/proxy_switcher/
-	rp, err := proxy.RoundRobinProxySwitcher("https://localhost:8081")
+	rp, err := proxy.RoundRobinProxySwitcher("http://localhost:8081")
 	if err != nil {
 		log.Fatal(err)
 	}
