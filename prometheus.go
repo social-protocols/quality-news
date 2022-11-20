@@ -14,10 +14,10 @@ import (
 // Metric name may contain labels in Prometheus format - see below.
 
 var (
-	crawlErrorsTotal   = metrics.NewCounter(`errors_total{type="crawl"}`)
-	requestErrorsTotal = metrics.NewCounter(`errors_total{type="request"}`)
-	crawlDuration      = metrics.NewHistogram("crawl_duration_seconds")
-	crawlPostprocessingDuration      = metrics.NewHistogram("crawl_postprocessing_duration_seconds")
+	crawlErrorsTotal            = metrics.NewCounter(`errors_total{type="crawl"}`)
+	requestErrorsTotal          = metrics.NewCounter(`errors_total{type="request"}`)
+	crawlDuration               = metrics.NewHistogram("crawl_duration_seconds")
+	crawlPostprocessingDuration = metrics.NewHistogram("crawl_postprocessing_duration_seconds")
 
 	upvotesTotal     = metrics.NewCounter(`upvotes_total`)
 	submissionsTotal = metrics.NewCounter(`submissions_total`)

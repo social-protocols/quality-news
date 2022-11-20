@@ -231,7 +231,6 @@ STORY:
 	crawlDuration.UpdateDuration(t)
 	logger.Info("Completed crawl", "nitems", len(stories), slog.Duration("elapsed", time.Since(t)))
 
-
 	t = time.Now()
 
 	upvotesTotal.Add(sitewideUpvotes)

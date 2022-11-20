@@ -35,6 +35,7 @@ jobs:
       - run: go build *.go
       - name: Check if working directory is clean
         run: git diff --quiet --exit-code || (git status && false)
+
   lint:
     name: "Lint"
     runs-on: ubuntu-22.04
@@ -53,3 +54,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: v1.50.1
+      - name: Check if go code is formatted
+        run: |
+          UNFORMATTED_FILES=$(gofmt -l .)
+          test -z $UNFORMATTED_FILES || (echo -e "Go code not formatted:\n$UNFORMATTED_FILES\n"; exit 1)
