@@ -264,6 +264,8 @@ STORY:
 
 	crawlPostprocessingDuration.UpdateDuration(t)
 
+	app.logger.Info("Finished crawl postprocessing", slog.Duration("elapsed", time.Since(t)))
+
 	return errors.Wrap(err, "update QN Ranks")
 }
 
@@ -299,7 +301,7 @@ func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
 
 	_, err = stmt.ExecContext(ctx)
 
-	app.logger.Info("Finished executing updateQNRanks", slog.Duration("elapsed", time.Since(t)))
+	app.logger.Debug("Finished executing updateQNRanks", slog.Duration("elapsed", time.Since(t)))
 
 	return errors.Wrap(err, "executing updateQNRanksSQL")
 }
@@ -316,7 +318,7 @@ func (app app) updateResubmissions(ctx context.Context, tx *sql.Tx) error {
 
 	_, err = stmt.ExecContext(ctx)
 
-	app.logger.Info("Finished executing resubmissions", slog.Duration("elapsed", time.Since(t)))
+	app.logger.Debug("Finished executing resubmissions", slog.Duration("elapsed", time.Since(t)))
 
 	return errors.Wrap(err, "executing resubmissions SQL")
 }
@@ -333,7 +335,7 @@ func (app app) updatePenalties(ctx context.Context, tx *sql.Tx) error {
 
 	_, err = stmt.ExecContext(ctx)
 
-	app.logger.Info("Finished executing penalties", slog.Duration("elapsed", time.Since(t)))
+	app.logger.Debug("Finished executing penalties", slog.Duration("elapsed", time.Since(t)))
 
 	return errors.Wrap(err, "executing penalties SQL")
 }
