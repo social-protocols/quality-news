@@ -152,4 +152,3 @@ func (app app) mainLoop(ctx context.Context) {
 		}
 	}
 }
-

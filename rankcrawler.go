@@ -269,7 +269,7 @@ STORY:
 	return errors.Wrap(err, "update QN Ranks")
 }
 
-const qnRankFormulaSQL = "pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours + 2, gravity) * (1 - penalty*penaltyWeight) desc"
+const qnRankFormulaSQL = "pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours + 2, gravity) desc"
 
 func readSQLSource(filename string) string {
 	f, err := resources.Open("sql/" + filename)
