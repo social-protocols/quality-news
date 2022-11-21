@@ -2,8 +2,7 @@ package main
 
 import (
 	"database/sql"
-        "encoding/json"
-	"fmt"
+	"encoding/json"
 	"net/http"
 
 	"github.com/johnwarden/httperror"
@@ -19,19 +18,13 @@ func (app app) ranksDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 			return errors.Wrap(err, "rankDataPoints")
 		}
 
-		b, err := json.Marshal(ranks)
-		if err != nil {
-			return errors.Wrap(err, "ranksDataJSON: json.Marshal")
-		}
-		w.Write([]byte(string(b)))
-
-		return nil
+		return writeJSON(w,ranks)
 	}
 }
 
 const nRanks = 6
 
-func rankDatapoints(ndb newsDatabase, storyID int) ([][nRanks+1]any, error) {
+func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
 		return nil, errors.Wrap(err, "QueryRow: select count")
@@ -46,7 +39,7 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([][nRanks+1]any, error) {
 		return nil, errors.Wrap(err, "QueryRow: select submissionTime")
 	}
 
-	ranks := make([][nRanks+1]any, n)
+	ranks := make([][]any, n)
 
 	rows, err := ndb.db.Query("select sampleTime, (case when qnRank > 90 then 91 else qnRank end) as qnRank, topRank, newRank, bestRank, askRank, showRank from dataset where id = ?", storyID)
 	if err != nil {
@@ -65,6 +58,7 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([][nRanks+1]any, error) {
 			return nil, errors.Wrap(err, "rows.Scan")
 		}
 
+		ranks[i] = make([]any, nRanks+1)
 		ranks[i][0] = float64(sampleTime - submissionTime) / 3600  // humanize.Time(time.Unix(sampleTime, 0))
 
 		for j, rank := range nullableRanks {
@@ -87,53 +81,41 @@ func (app app) upvotesDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-		xAxis, upvotes, expectedUpvotes, _, err := upvotesDatapoints(app.ndb, p.StoryID)
+		upvotes, err := upvotesDatapoints(app.ndb, p.StoryID)
 		if err != nil {
 			return errors.Wrap(err, "upvotesDatapoints")
 		}
 
-		_, _ = w.Write([]byte("[\n"))
-		for i, age := range xAxis {
-			if i%8 == 0 {
-				_, _ = w.Write([]byte("\n\t"))
-			}
+		subchart := make([][]any, len(upvotes))
 
-			ageHours := float64(age) / 3600
+		for i, row := range upvotes {
+			subchart[i] = []any{ row[0], row[1], row[2] }
+                }
 
-			_, _ = w.Write([]byte(fmt.Sprintf("[%.4f,%d,%.2f]", ageHours, upvotes[i], expectedUpvotes[i])))
-			if i < len(xAxis)-1 {
-				_, _ = w.Write([]byte(", "))
-			}
-		}
-		_, _ = w.Write([]byte("\n]"))
-
-		return nil
+		return writeJSON(w,subchart)
 	}
 }
 
-func upvotesDatapoints(ndb newsDatabase, storyID int) ([]int64, []int32, []float64, []float64, error) {
+func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
-		return nil, nil, nil, nil, errors.Wrap(err, "QueryRow: select count")
+		return nil, errors.Wrap(err, "QueryRow: select count")
 	}
 
 	if n == 0 {
-		return nil, nil, nil, nil, ErrStoryIDNotFound
+		return nil, ErrStoryIDNotFound
 	}
 
 	var submissionTime int64
 	if err := ndb.db.QueryRow("select timestamp from stories where id = ?", storyID).Scan(&submissionTime); err != nil {
-		return nil, nil, nil, nil, errors.Wrap(err, "QueryRow: select submissionTime")
+		return nil, errors.Wrap(err, "QueryRow: select submissionTime")
 	}
 
-	xAxis := make([]int64, n)
-	upvotesData := make([]int32, n)
-	expectedUpvotesData := make([]float64, n)
-	upvoteRateData := make([]float64, n)
+	upvotesData := make([][]any, n)
 
 	rows, err := ndb.db.Query("select sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes from dataset where id = ?", storyID)
 	if err != nil {
-		return nil, nil, nil, nil, errors.Wrap(err, "Query: select upvotes")
+		return nil, errors.Wrap(err, "Query: select upvotes")
 	}
 
 	i := 0
@@ -145,48 +127,48 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([]int64, []int32, []float
 		err = rows.Scan(&sampleTime, &upvotes, &expectedUpvotes)
 
 		if err != nil {
-			return nil, nil, nil, nil, errors.Wrap(err, "rows.Scan")
+			return nil, errors.Wrap(err, "rows.Scan")
 		}
 
-		xAxis[i] = sampleTime - submissionTime
-		upvotesData[i] = int32(upvotes)
-		expectedUpvotesData[i] = expectedUpvotes
-
 		priorWeight := defaultFrontPageParams.PriorWeight
-		upvoteRateData[i] = (float64(upvotes) + priorWeight) / float64(expectedUpvotes+priorWeight)
-
+		upvotesData[i] = []any{
+			float64(sampleTime - submissionTime) / 3600,  // humanize.Time(time.Unix(sampleTime, 0))
+			int32(upvotes),
+			expectedUpvotes,
+			(float64(upvotes) + priorWeight) / float64(expectedUpvotes+priorWeight) }
 		i++
 	}
 
 	err = rows.Err()
 
-	return xAxis, upvotesData, expectedUpvotesData, upvoteRateData, errors.Wrap(err, "rows.Err")
+	return upvotesData, errors.Wrap(err, "rows.Err")
 }
 
 func (app app) upvoteRateDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
-		xAxis, _, _, upvoteRates, err := upvotesDatapoints(app.ndb, p.StoryID)
+		upvotes, err := upvotesDatapoints(app.ndb, p.StoryID)
 		if err != nil {
 			return errors.Wrap(err, "upvotesDatapoints")
 		}
 
-		_, _ = w.Write([]byte("[\n"))
-		for i, age := range xAxis {
-			if i%8 == 0 {
-				_, _ = w.Write([]byte("\n\t"))
-			}
+		subchart := make([][]any, len(upvotes))
 
-			ageHours := float64(age) / 3600
+		for i, row := range upvotes {
+			subchart[i] = []any{ row[0], row[3] }
+                }
 
-			_, _ = w.Write([]byte(fmt.Sprintf("[%.4f,%.2f]", ageHours, upvoteRates[i])))
-			if i < len(xAxis)-1 {
-				_, _ = w.Write([]byte(", "))
-			}
-		}
-		_, _ = w.Write([]byte("\n]"))
-
-		return nil
+		return writeJSON(w,subchart)
 	}
+}
+
+func writeJSON(w http.ResponseWriter, j [][]any) error {
+	b, err := json.Marshal(j)
+	if err != nil {
+		return errors.Wrap(err, "json.Marshal")
+	}
+	w.Write([]byte(string(b)))
+
+	return nil
 }
