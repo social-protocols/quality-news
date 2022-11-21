@@ -101,8 +101,6 @@ const frontPageSQL = `
 var statements map[string]*sql.Stmt
 
 func (app app) serveFrontPage(r *http.Request, w http.ResponseWriter, ranking string, p FrontPageParams) error {
-	t := time.Now()
-
 	d, err := app.getFrontPageData(r.Context(), ranking, p)
 	if err != nil {
 		return errors.Wrap(err, "getFrontPageData")
@@ -111,8 +109,6 @@ func (app app) serveFrontPage(r *http.Request, w http.ResponseWriter, ranking st
 	if err = templates.ExecuteTemplate(w, "index.html.tmpl", d); err != nil {
 		return errors.Wrap(err, "executing front page template")
 	}
-
-	generateFrontpageMetrics[ranking].UpdateDuration(t)
 
 	return nil
 }

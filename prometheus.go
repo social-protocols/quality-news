@@ -23,15 +23,6 @@ var (
 	submissionsTotal = metrics.NewCounter(`submissions_total`)
 )
 
-var generateFrontpageMetrics map[string]*metrics.Histogram
-
-func init() {
-	generateFrontpageMetrics = make(map[string]*metrics.Histogram)
-	for _, ranking := range []string{"hntop", "quality", "new"} {
-		generateFrontpageMetrics[ranking] = metrics.NewHistogram(`generate_frontpage_duration_seconds{ranking="` + ranking + `"}`)
-	}
-}
-
 func servePrometheusMetrics() func(ctx context.Context) error {
 	mux := http.NewServeMux()
 
