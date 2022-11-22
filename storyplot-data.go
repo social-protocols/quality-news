@@ -168,7 +168,7 @@ func writeJSON(w http.ResponseWriter, j [][]any) error {
 	if err != nil {
 		return errors.Wrap(err, "json.Marshal")
 	}
-	w.Write([]byte(string(b)))
+	_, _ = w.Write([]byte(string(b)))
 
 	return nil
 }
