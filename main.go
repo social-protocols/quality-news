@@ -123,8 +123,7 @@ func (app app) mainLoop(ctx context.Context) {
 	// Now the next crawl happens on the minute. Make the first tick happen at the next
 	// Minute mark.
 	go func() {
-		t = time.Now().Unix()
-		logger.Debug("Waiting for next minute mark", "seconds", 60-t%60)
+		logger.Debug("Waiting for next minute mark", "seconds", 60-time.Now().Unix()%60)
 		<-time.After(time.Duration(60-t%60) * time.Second)
 		ticker <- struct{}{}
 	}()
@@ -145,7 +144,6 @@ func (app app) mainLoop(ctx context.Context) {
 			if err = app.crawlAndPostprocess(ctx); err != nil {
 				logger.Error("crawlAndPostprocess", err)
 			}
-			t = time.Now().Unix()
 			logger.Debug("Waiting for next minute mark", "seconds", 60-time.Now().Unix()%60)
 
 		case <-ctx.Done():

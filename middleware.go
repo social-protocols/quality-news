@@ -17,6 +17,13 @@ import (
 	"github.com/victorspringer/http-cache/adapter/memory"
 )
 
+var nonCanonicalDomains = map[string]bool{
+	"social-protocols-news.fly.dev:443": true,
+	"127.0.0.1:8080":                    true, // just for testing
+}
+
+const canonicalDomain = "news.social-protocols.org"
+
 // middleware converts a handler of type httperror.XHandlerFunc[P] into an
 // httprouter.Handle. We use the former type for our http handler functions:
 // this is a clean function signature that accepts parameters as a struct and
@@ -40,6 +47,17 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 	}
 
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+		// Handle redirects from non-canonical domains (namely, our fly.dev instance) to
+		// the canonical domain.
+		if _, found := nonCanonicalDomains[r.Host]; found {
+			url := "https://" + canonicalDomain + r.RequestURI
+			logger.Debug("Redirecting to", "url", url)
+			http.Redirect(w, r, url, 301)
+		} else if r.Host != canonicalDomain+":443" && r.Host != "localhost:8080" {
+			handleError(w, httperror.NotFound)
+			return
+		}
+
 		var params P
 		err := unmarshalRouterRequest(r, ps, &params)
 		if err != nil {
