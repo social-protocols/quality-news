@@ -39,7 +39,7 @@ type dataPoint struct {
 	job                       bool
 }
 
-func (app app) crawlHN(ctx context.Context) (count int, err error) {
+func (app app) crawlHN(ctx context.Context) (err error) {
 	// this function is called every minute. It crawls the hacker news
 	// website, collects all stories which appear on a rank < 90 and stores
 	// its ranks for all different pageTypes, and updates the story in the DB
@@ -54,10 +54,7 @@ func (app app) crawlHN(ctx context.Context) (count int, err error) {
 		return
 	}
 
-	initialStoryCount, err := ndb.storyCount(tx)
-	if err != nil {
-		return 0, errors.Wrap(err, "storyCount")
-	}
+	var initialStoryCount, finalStoryCount, sitewideUpvotes int
 
 	// Use the commit/rollback in a defer pattern described in:
 	// https://stackoverflow.com/questions/16184238/database-sql-tx-detecting-commit-or-rollback
@@ -67,15 +64,25 @@ func (app app) crawlHN(ctx context.Context) (count int, err error) {
 			// If the transaction succeeds, it will be committed before the function exits, making the deferred rollback call a no-op.
 			logger.Debug("Rolling back transaction")
 			e := tx.Rollback()
+			crawlErrorsTotal.Inc()
 			if e != nil {
 				logger.Error("tx.Rollback", e)
 			}
 			return
-		} else {
-			logger.Debug("Commit transaction")
-			err = tx.Commit()
+		}
+		logger.Debug("Commit transaction")
+		err = tx.Commit() // here we are setting the return value err
+
+		if err != nil {
+			submissionsTotal.Add(finalStoryCount - initialStoryCount)
+			upvotesTotal.Add(sitewideUpvotes)
 		}
 	}()
+
+	initialStoryCount, err = ndb.storyCount(tx)
+	if err != nil {
+		return errors.Wrap(err, "storyCount")
+	}
 
 	t := time.Now()
 	sampleTime := t.Unix()
@@ -133,7 +140,7 @@ func (app app) crawlHN(ctx context.Context) (count int, err error) {
 		}
 
 		if nSuccess == 0 {
-			return 0, fmt.Errorf("Didn't successfully parse any stories from %s page", pageTypeName)
+			return fmt.Errorf("Didn't successfully parse any stories from %s page", pageTypeName)
 		}
 		Debugf(logger, "Crawled %d stories on %s page", nSuccess, pageTypeName)
 
@@ -148,7 +155,6 @@ func (app app) crawlHN(ctx context.Context) (count int, err error) {
 	logger.Info("Inserting rank data", "nitems", len(uniqueStoryIds))
 
 	// for every story, calculate metrices used for ranking
-	var sitewideUpvotes int // total number of upvotes (since last sample point)
 	// per story:
 	deltaUpvotes := make([]int, len(uniqueStoryIds))          // number of upvotes (since last sample point)
 	lastCumulativeUpvotes := make([]int, len(uniqueStoryIds)) // last number of upvotes tracked by our crawler
@@ -170,7 +176,7 @@ STORY:
 		lastSeenScore, lastSeenUpvotes, lastSeenExpectedUpvotes, err := ndb.selectLastSeenData(tx, storyID)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				return 0, errors.Wrap(err, "selectLastSeenScore")
+				return errors.Wrap(err, "selectLastSeenScore")
 			}
 		} else {
 			deltaUpvotes[i] = story.Score - lastSeenScore
@@ -182,7 +188,7 @@ STORY:
 
 		// save story details in database
 		if _, err := ndb.insertOrReplaceStory(tx, story.Story); err != nil {
-			return 0, errors.Wrap(err, "insertOrReplaceStory")
+			return errors.Wrap(err, "insertOrReplaceStory")
 		}
 	}
 
@@ -224,7 +230,7 @@ STORY:
 		}
 
 		if err := ndb.insertDataPoint(tx, datapoint); err != nil {
-			return 0, errors.Wrap(err, "insertDataPoint")
+			return errors.Wrap(err, "insertDataPoint")
 		}
 	}
 
@@ -233,37 +239,37 @@ STORY:
 
 	t = time.Now()
 
-	upvotesTotal.Add(sitewideUpvotes)
-
 	logger.Debug("Totals",
 		"deltaExpectedUpvotes", totalDeltaExpectedUpvotes,
 		"sitewideUpvotes", sitewideUpvotes,
 		"totalExpectedUpvotesShare", totalExpectedUpvotesShare,
 		"dataPoints", len(stories))
 
-	finalStoryCount, err := ndb.storyCount(tx)
+	finalStoryCount, err = ndb.storyCount(tx)
 	if err != nil {
-		return 0, errors.Wrap(err, "storyCount")
+		return errors.Wrap(err, "storyCount")
 	}
 
 	err = app.updateResubmissions(ctx, tx)
 	if err != nil {
-		return 0, errors.Wrap(err, "updateResubmissions")
+		return errors.Wrap(err, "updateResubmissions")
 	}
 
 	err = app.updatePenalties(ctx, tx)
 	if err != nil {
-		return 0, errors.Wrap(err, "estimatePenalties")
+		return errors.Wrap(err, "estimatePenalties")
 	}
 
 	err = app.updateQNRanks(ctx, tx)
 
 	crawlPostprocessingDuration.UpdateDuration(t)
 
-	return finalStoryCount - initialStoryCount, errors.Wrap(err, "update QN Ranks")
+	app.logger.Info("Finished crawl postprocessing", slog.Duration("elapsed", time.Since(t)))
+
+	return errors.Wrap(err, "update QN Ranks")
 }
 
-const qnRankFormulaSQL = "pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours + 2, gravity) * (1 - penalty*penaltyWeight) desc"
+const qnRankFormulaSQL = "pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours + 2, gravity) desc"
 
 func readSQLSource(filename string) string {
 	f, err := resources.Open("sql/" + filename)
@@ -295,7 +301,7 @@ func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
 
 	_, err = stmt.ExecContext(ctx)
 
-	app.logger.Info("Finished executing updateQNRanks", slog.Duration("elapsed", time.Since(t)))
+	app.logger.Debug("Finished executing updateQNRanks", slog.Duration("elapsed", time.Since(t)))
 
 	return errors.Wrap(err, "executing updateQNRanksSQL")
 }
@@ -312,7 +318,7 @@ func (app app) updateResubmissions(ctx context.Context, tx *sql.Tx) error {
 
 	_, err = stmt.ExecContext(ctx)
 
-	app.logger.Info("Finished executing resubmissions", slog.Duration("elapsed", time.Since(t)))
+	app.logger.Debug("Finished executing resubmissions", slog.Duration("elapsed", time.Since(t)))
 
 	return errors.Wrap(err, "executing resubmissions SQL")
 }
@@ -329,7 +335,7 @@ func (app app) updatePenalties(ctx context.Context, tx *sql.Tx) error {
 
 	_, err = stmt.ExecContext(ctx)
 
-	app.logger.Info("Finished executing penalties", slog.Duration("elapsed", time.Since(t)))
+	app.logger.Debug("Finished executing penalties", slog.Duration("elapsed", time.Since(t)))
 
 	return errors.Wrap(err, "executing penalties SQL")
 }

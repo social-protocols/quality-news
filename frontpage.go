@@ -75,6 +75,23 @@ var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4, 1}
 
 const frontPageSQL = `
 	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %f as penaltyWeight)
+	, rankedStories as (
+		select
+			*
+			, timestamp as OriginalSubmissionTime
+			, (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality
+			, cast((sampleTime-submissionTime)/3600 as real) as ageHours
+	  from stories
+	  join dataset using(id)
+	  join parameters
+	  where sampleTime = (select max(sampleTime) from dataset)
+	)
+	, unadjustedRanks as (
+		select
+			*
+			, dense_rank() over(order by %s)  as unadjustedRank
+		from rankedStories
+	)
 	select
 		id
 		, by
@@ -88,21 +105,16 @@ const frontPageSQL = `
 		, (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality 
 		, penalty
 		, topRank
-		, qnRank
+		, dense_rank() over(order by unadjustedRank*power(10,penalty*penaltyWeight)) as qnRank
 		, cast((sampleTime-submissionTime)/3600 as real) as ageHours
-  from stories
-  join dataset using(id)
-  join parameters
-  where sampleTime = (select max(sampleTime) from dataset)
-  order by %s
-  limit 90;
+	from unadjustedRanks
+	order by %s
+	limit 90;
 `
 
 var statements map[string]*sql.Stmt
 
 func (app app) serveFrontPage(r *http.Request, w http.ResponseWriter, ranking string, p FrontPageParams) error {
-	t := time.Now()
-
 	d, err := app.getFrontPageData(r.Context(), ranking, p)
 	if err != nil {
 		return errors.Wrap(err, "getFrontPageData")
@@ -111,8 +123,6 @@ func (app app) serveFrontPage(r *http.Request, w http.ResponseWriter, ranking st
 	if err = templates.ExecuteTemplate(w, "index.html.tmpl", d); err != nil {
 		return errors.Wrap(err, "executing front page template")
 	}
-
-	generateFrontpageMetrics[ranking].UpdateDuration(t)
 
 	return nil
 }
@@ -174,10 +184,8 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 			orderBy = "topRank nulls last"
 		} else if ranking == "new" {
 			orderBy = "newRank nulls last"
-		} else if params != defaultFrontPageParams {
-			orderBy = qnRankFormulaSQL
 		}
-		sql := fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity, penaltyWeight, orderBy)
+		sql := fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity, penaltyWeight, qnRankFormulaSQL, orderBy)
 
 		s, err = ndb.db.Prepare(sql)
 		if err != nil {
@@ -204,6 +212,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		var ageHours int
 		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank, &ageHours)
 
+		// Don't show QN rank if we are on the QN page and vice versa
 		switch ranking {
 		case "quality":
 			s.QNRank = sql.NullInt32{Int32: 0, Valid: false}

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"net/url"
 	"strings"
 	"time"
@@ -45,7 +46,12 @@ func (s Story) QualityString() string {
 }
 
 func (s Story) PenaltyString() string {
-	return fmt.Sprintf("%.0f", s.Penalty*100)
+	// Penalty is the log of the ratio of post-penalty and pre-penalty rank.
+	// So a penalty of 4 means if the pre-penalty rank is 3, the post-penalty
+	// rank is 12. The inverse of that is 1/4, or 25% which we display as a
+	// 75% penalty. So 0% means no penalty, 50% means rank is doubled, and
+	// 100% means the story is pushed completely off the front page.
+	return fmt.Sprintf("%d", int((1-1/math.Pow(10, s.Penalty))*100))
 }
 
 func (s Story) HasPenalty() bool {

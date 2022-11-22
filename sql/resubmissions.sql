@@ -113,8 +113,8 @@ with latest as (
   -- this is not ideal, as it only looks at data from the previous crawl. This means if a story is not included in the crawl,
   -- and then appears again, we "forget" the submission time calculation and have to start over. However, fixing this makes this
   -- query much slower.
-  where dataset.sampleTime < (select max(sampleTime) from dataset)
-  group by 1
+  where dataset.sampleTime = (select max(sampleTime) from dataset where sampleTime != (select max(sampleTime) from dataset))
+  -- group by 1
 )
 update dataset as d 
 -- And use the greater of the lower-bound submission time from the last crawl, and the one we just calculated.  

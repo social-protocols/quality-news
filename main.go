@@ -106,8 +106,8 @@ func (app app) mainLoop(ctx context.Context) {
 	// then crawl right away.
 	if elapsed > 60 {
 		logger.Info("More than 60 seconds since last crawl. Crawling now.")
-		if err = app.crawlAndGenerate(ctx); err != nil {
-			logger.Error("crawlAndGenerate", err)
+		if err = app.crawlHN(ctx); err != nil {
+			logger.Error("crawlHN", err)
 
 			if errors.Is(err, context.Canceled) {
 				return
@@ -142,8 +142,8 @@ func (app app) mainLoop(ctx context.Context) {
 				ticker <- struct{}{}
 			}()
 			logger.Info("Beginning crawl")
-			if err = app.crawlAndGenerate(ctx); err != nil {
-				logger.Error("crawlAndGenerate", err)
+			if err = app.crawlHN(ctx); err != nil {
+				logger.Error("crawlHN", err)
 			}
 			logger.Debug("Waiting for next minute mark", "seconds", 60-t%60)
 
@@ -151,17 +151,4 @@ func (app app) mainLoop(ctx context.Context) {
 			return
 		}
 	}
-}
-
-func (app app) crawlAndGenerate(ctx context.Context) (err error) {
-	c, e := app.crawlHN(ctx)
-
-	if e != nil {
-		crawlErrorsTotal.Inc()
-		err = errors.Wrap(e, "crawlHN")
-		return
-	}
-	submissionsTotal.Add(c)
-
-	return
 }

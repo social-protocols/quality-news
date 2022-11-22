@@ -12,12 +12,24 @@ with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gr
 	where sampleTime = (select max(sampleTime) from dataset)
 	and score > 3
 ),
-qnRanks as (
-	select 
-	id
-		, dense_rank() over(order by %s) as rank
-		, sampleTime
-	from latestData join parameters
+unadjustedRanks as (
+  select 
+  id
+    , dense_rank() over(order by %s) as unadjustedRank
+    , sampleTime
+    , penalty
+  from latestData join parameters
+)
+, qnRanks as (
+  select 
+  id
+    , unadjustedRank
+    , penalty
+    , power(10,penalty*penaltyWeight) as penaltyRatio
+    , unadjustedRank*power(10,penalty*penaltyWeight) as adjustedRank
+    , dense_rank() over(order by unadjustedRank*power(10,penalty*penaltyWeight)) as rank
+    , sampleTime
+  from unadjustedRanks join parameters
 )
 update dataset as d set qnRank = qnRanks.rank
 from qnRanks
