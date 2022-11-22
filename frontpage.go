@@ -80,7 +80,7 @@ const frontPageSQL = `
 			*
 			, timestamp as OriginalSubmissionTime
 			, (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality
-			, cast((sampleTime-submissionTime)/3600 as real) as ageHours
+			, cast((sampleTime-submissionTime) as real)/3600 as ageHours
 	  from stories
 	  join dataset using(id)
 	  join parameters
