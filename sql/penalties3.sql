@@ -9,7 +9,7 @@ with latestScores as (
    from dataset join stories using (id)
 --   where sampleTime > (select max(sampleTime) from dataset) - 3600
    where sampleTime = (select max(sampleTime) from dataset)
-   and score > 3
+   and score >= 3 -- story can't reach front page until score >= 3
 ) 
 
 select 

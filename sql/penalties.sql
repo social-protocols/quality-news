@@ -33,7 +33,7 @@ with latestScores as (
    from dataset join stories using (id)
    -- where sampleTime = 1668791580
    where sampleTime > (select max(sampleTime) from dataset) - 3600 -- look at last 24 hours
-   and score > 3 -- story can't reach front page until score > 3
+   and score >= 3 -- story can't reach front page until score >= 3
 ), 
 ranks as (
   select 

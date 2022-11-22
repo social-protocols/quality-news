@@ -85,6 +85,7 @@ const frontPageSQL = `
 	  join dataset using(id)
 	  join parameters
 	  where sampleTime = (select max(sampleTime) from dataset)
+      and score >= 3
 	)
 	, unadjustedRanks as (
 		select
