@@ -18,7 +18,7 @@ func (app app) ranksDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 			return errors.Wrap(err, "rankDataPoints")
 		}
 
-		return writeJSON(w,ranks)
+		return writeJSON(w, ranks)
 	}
 }
 
@@ -59,7 +59,7 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 		}
 
 		ranks[i] = make([]any, nRanks+1)
-		ranks[i][0] = float64(sampleTime - submissionTime) / 3600  // humanize.Time(time.Unix(sampleTime, 0))
+		ranks[i][0] = float64(sampleTime-submissionTime) / 3600 // humanize.Time(time.Unix(sampleTime, 0))
 
 		for j, rank := range nullableRanks {
 			if rank.Valid {
@@ -89,10 +89,10 @@ func (app app) upvotesDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 		subchart := make([][]any, len(upvotes))
 
 		for i, row := range upvotes {
-			subchart[i] = []any{ row[0], row[1], row[2] }
-                }
+			subchart[i] = []any{row[0], row[1], row[2]}
+		}
 
-		return writeJSON(w,subchart)
+		return writeJSON(w, subchart)
 	}
 }
 
@@ -132,10 +132,10 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 
 		priorWeight := defaultFrontPageParams.PriorWeight
 		upvotesData[i] = []any{
-			float64(sampleTime - submissionTime) / 3600,  // humanize.Time(time.Unix(sampleTime, 0))
+			float64(sampleTime-submissionTime) / 3600, // humanize.Time(time.Unix(sampleTime, 0))
 			int32(upvotes),
 			expectedUpvotes,
-			(float64(upvotes) + priorWeight) / float64(expectedUpvotes+priorWeight) }
+			(float64(upvotes) + priorWeight) / float64(expectedUpvotes+priorWeight)}
 		i++
 	}
 
@@ -156,10 +156,10 @@ func (app app) upvoteRateDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 		subchart := make([][]any, len(upvotes))
 
 		for i, row := range upvotes {
-			subchart[i] = []any{ row[0], row[3] }
-                }
+			subchart[i] = []any{row[0], row[3]}
+		}
 
-		return writeJSON(w,subchart)
+		return writeJSON(w, subchart)
 	}
 }
 
