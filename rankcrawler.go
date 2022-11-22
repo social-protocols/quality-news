@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -39,7 +38,7 @@ type dataPoint struct {
 	job                       bool
 }
 
-func (app app) crawlHN(ctx context.Context) (err error) {
+func (app app) crawlAndPostprocess(ctx context.Context) (err error) {
 	// this function is called every minute. It crawls the hacker news
 	// website, collects all stories which appear on a rank < 90 and stores
 	// its ranks for all different pageTypes, and updates the story in the DB
@@ -72,11 +71,12 @@ func (app app) crawlHN(ctx context.Context) (err error) {
 		}
 		logger.Debug("Commit transaction")
 		err = tx.Commit() // here we are setting the return value err
-
 		if err != nil {
-			submissionsTotal.Add(finalStoryCount - initialStoryCount)
-			upvotesTotal.Add(sitewideUpvotes)
+			return
 		}
+
+		submissionsTotal.Add(finalStoryCount - initialStoryCount)
+		upvotesTotal.Add(sitewideUpvotes)
 	}()
 
 	initialStoryCount, err = ndb.storyCount(tx)
@@ -84,82 +84,107 @@ func (app app) crawlHN(ctx context.Context) (err error) {
 		return errors.Wrap(err, "storyCount")
 	}
 
+	sitewideUpvotes, err = app.crawl(ctx, tx)
+	if err != nil {
+		return
+	}
+
+	finalStoryCount, err = ndb.storyCount(tx)
+	if err != nil {
+		return errors.Wrap(err, "storyCount")
+	}
+
+	err = app.crawlPostprocess(ctx, tx)
+
+	return err
+}
+
+const maxGoroutines = 50
+
+func (app app) crawl(ctx context.Context, tx *sql.Tx) (int, error) {
+	ndb := app.ndb
+	client := app.hnClient
+	logger := app.logger
+
 	t := time.Now()
 	sampleTime := t.Unix()
 
-	storyRanks := map[int]ranksArray{}
-	stories := map[int]ScrapedStory{}
+	storyRanks, err := app.getRanksFromAPI(ctx)
+	if err != nil {
+		return 0, errors.Wrap(err, "getRanksFromAPI")
+	}
 
-	for pageType := 0; pageType < len(pageTypes); pageType++ {
-		pageTypeName := pageTypes[pageType]
-
-		nSuccess := 0
-
-		resultCh := make(chan ScrapedStory)
-		errCh := make(chan error)
-
-		var wg sync.WaitGroup
-
-		// scrape in a goroutine. the scraper will write results to the channel
-		// we provide
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			app.scrapeHN(pageTypeName, resultCh, errCh)
-		}()
-
-		// read from the error channel in print errors in a separate goroutine.
-		// The scraper will block writing to the error channel if nothing is reading
-		// from it.
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for err := range errCh {
-				app.logger.Error("Error parsing story", err)
-				crawlErrorsTotal.Inc()
-			}
-		}()
-
-		for story := range resultCh {
-			oneBasedRank := story.Rank
-			id := story.ID
-
-			var ranks ranksArray
-			var ok bool
-
-			if ranks, ok = storyRanks[id]; !ok {
-				// if story is not in storyRanks, initialize it with empty ranks
-				ranks = ranksArray{}
-			}
-
-			ranks[pageType] = oneBasedRank
-			storyRanks[id] = ranks
-			stories[id] = story
-
-			nSuccess += 1
-		}
-
-		if nSuccess == 0 {
-			return fmt.Errorf("Didn't successfully parse any stories from %s page", pageTypeName)
-		}
-		Debugf(logger, "Crawled %d stories on %s page", nSuccess, pageTypeName)
-
-		wg.Wait()
-
-		// Sleep a bit to avoid rate limiting
-		time.Sleep(time.Millisecond * 100)
+	stories, err := app.scrapeFrontPageStories(ctx)
+	if err != nil {
+		return 0, errors.Wrap(err, "scrapeFrontPageStories")
 	}
 
 	uniqueStoryIds := getKeys(storyRanks)
 
-	logger.Info("Inserting rank data", "nitems", len(uniqueStoryIds))
+	// Now use the API to get details for stories we did not find on the front page
+	{
+		missingStoryIDs := make([]int, 0, len(uniqueStoryIds))
+		for _, id := range uniqueStoryIds {
+			if _, ok := stories[id]; !ok {
+				missingStoryIDs = append(missingStoryIDs, id)
+			}
+		}
 
-	// for every story, calculate metrices used for ranking
-	// per story:
+		t := time.Now()
+
+		// get story details
+		logger.Info("Getting story details from API for stories that were not on the front page", "num_stories", len(uniqueStoryIds), "missing_stories", len(missingStoryIDs))
+		missingStories, err := client.GetItems(ctx, missingStoryIDs, maxGoroutines)
+		if err != nil {
+			return 0, errors.Wrap(err, "client.GetItems")
+		}
+
+		if len(missingStoryIDs) != len(missingStories) {
+			panic(fmt.Sprintf("Story counts don't add up after downloading missing stories: %d, %d", len(missingStoryIDs), len(missingStories)))
+		}
+
+		for _, s := range missingStories {
+			stories[s.ID] = ScrapedStory{Story: Story{
+				ID:                     s.ID,
+				By:                     s.By,
+				Title:                  s.Title,
+				URL:                    s.URL,
+				SubmissionTime:         int64(s.Timestamp),
+				OriginalSubmissionTime: int64(s.Timestamp),
+				AgeApprox:              sampleTime - int64(s.Timestamp),
+				Score:                  s.Score,
+				Comments:               s.Descendants,
+			}}
+		}
+
+		// Output some errors if there are inconsistencies between the set of story IDs the API tells us are on top page
+		// and the set of stories we were able to fetch details for from the API or the scraper
+		if len(uniqueStoryIds) != len(getKeys(stories)) {
+			for _, id := range uniqueStoryIds {
+				if _, ok := stories[id]; !ok {
+					LogErrorf(logger, "failed to get story details for story %d", id)
+				}
+			}
+			for id := range stories {
+				if _, ok := storyRanks[id]; !ok {
+					LogErrorf(logger, "found story on top page from scraper but not on top page from API %d", id)
+				}
+			}
+		}
+
+		app.logger.Info("Got story detaails from API", "nitems", len(missingStoryIDs), slog.Duration("elapsed", time.Since(t)))
+
+	}
+
+	// for every story, calculate metrics used for ranking per story:
+	var sitewideUpvotes int
 	deltaUpvotes := make([]int, len(uniqueStoryIds))          // number of upvotes (since last sample point)
 	lastCumulativeUpvotes := make([]int, len(uniqueStoryIds)) // last number of upvotes tracked by our crawler
 	lastCumulativeExpectedUpvotes := make([]float64, len(uniqueStoryIds))
 
+	logger.Info("Inserting stories into DB", "nitems", len(uniqueStoryIds))
+
+	// insert stories into DB and update aggregate metrics
 STORY:
 	for i, id := range uniqueStoryIds {
 		story := stories[id]
@@ -176,7 +201,7 @@ STORY:
 		lastSeenScore, lastSeenUpvotes, lastSeenExpectedUpvotes, err := ndb.selectLastSeenData(tx, storyID)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				return errors.Wrap(err, "selectLastSeenScore")
+				return 0, errors.Wrap(err, "selectLastSeenScore")
 			}
 		} else {
 			deltaUpvotes[i] = story.Score - lastSeenScore
@@ -188,11 +213,11 @@ STORY:
 
 		// save story details in database
 		if _, err := ndb.insertOrReplaceStory(tx, story.Story); err != nil {
-			return errors.Wrap(err, "insertOrReplaceStory")
+			return 0, errors.Wrap(err, "insertOrReplaceStory")
 		}
 	}
 
-	logger.Debug("sitewideUpvotes", "value", sitewideUpvotes)
+	logger.Info("Inserting rank data into DB", "nitems", len(uniqueStoryIds))
 
 	var totalDeltaExpectedUpvotes float64
 	var totalExpectedUpvotesShare float64
@@ -230,27 +255,68 @@ STORY:
 		}
 
 		if err := ndb.insertDataPoint(tx, datapoint); err != nil {
-			return errors.Wrap(err, "insertDataPoint")
+			return sitewideUpvotes, errors.Wrap(err, "insertDataPoint")
 		}
 	}
 
 	crawlDuration.UpdateDuration(t)
-	logger.Info("Completed crawl", "nitems", len(stories), slog.Duration("elapsed", time.Since(t)))
-
-	t = time.Now()
-
-	logger.Debug("Totals",
+	logger.Info("Finished crawl",
+		"nitems", len(stories), slog.Duration("elapsed", time.Since(t)),
 		"deltaExpectedUpvotes", totalDeltaExpectedUpvotes,
 		"sitewideUpvotes", sitewideUpvotes,
 		"totalExpectedUpvotesShare", totalExpectedUpvotesShare,
 		"dataPoints", len(stories))
 
-	finalStoryCount, err = ndb.storyCount(tx)
-	if err != nil {
-		return errors.Wrap(err, "storyCount")
+	return sitewideUpvotes, nil
+}
+
+// getRanksFromAPI gets all ranks for all page types from the API and puts them into
+// a map[int]ranksArray
+func (app app) getRanksFromAPI(ctx context.Context) (map[int]ranksArray, error) {
+	app.logger.Info("Getting ranks from API")
+
+	t := time.Now()
+
+	storyRanks := map[int]ranksArray{}
+
+	client := app.hnClient
+
+	for pageType := 0; pageType < len(pageTypes); pageType++ {
+		pageTypeName := pageTypes[pageType]
+		storyIDs, err := client.Stories(ctx, pageTypeName)
+		if err != nil {
+			return storyRanks, errors.Wrap(err, "client.Stories")
+		}
+
+		for zeroBasedRank, ID := range storyIDs {
+			var ranks ranksArray
+			var ok bool
+
+			if ranks, ok = storyRanks[ID]; !ok {
+				// if story is not in storyRanks, initialize it with empty ranks
+				ranks = ranksArray{}
+			}
+
+			ranks[pageType] = zeroBasedRank + 1
+			storyRanks[ID] = ranks
+
+			// only take stories which appear on the first 90 ranks
+			if zeroBasedRank+1 >= 90 {
+				break
+			}
+
+		}
 	}
 
-	err = app.updateResubmissions(ctx, tx)
+	app.logger.Info("Got ranks from api", slog.Duration("elapsed", time.Since(t)))
+
+	return storyRanks, nil
+}
+
+func (app app) crawlPostprocess(ctx context.Context, tx *sql.Tx) error {
+	t := time.Now()
+
+	err := app.updateResubmissions(ctx, tx)
 	if err != nil {
 		return errors.Wrap(err, "updateResubmissions")
 	}

@@ -9,6 +9,7 @@ require (
 	github.com/gocolly/colly/v2 v2.1.0
 	github.com/gorilla/schema v1.2.0
 	github.com/hashicorp/go-retryablehttp v0.7.1
+	github.com/johnwarden/hn v1.0.1
 	github.com/johnwarden/httperror v1.6.0
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/mattn/go-sqlite3 v1.14.15

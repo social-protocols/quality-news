@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/johnwarden/hn"
+
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
 )
 
@@ -16,6 +18,7 @@ var resources embed.FS
 
 type app struct {
 	ndb        newsDatabase
+	hnClient   *hn.Client
 	httpClient *http.Client
 	logger     leveledLogger
 	cacheSize  int
@@ -57,8 +60,11 @@ func initApp() app {
 
 	httpClient := retryClient.StandardClient()
 
+	hnClient := hn.NewClient(httpClient)
+
 	return app{
 		httpClient: httpClient,
+		hnClient:   hnClient,
 		logger:     logger,
 		ndb:        db,
 		cacheSize:  cacheSize,

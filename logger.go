@@ -46,6 +46,10 @@ func newLogger(levelString, formatString string) *slog.Logger {
 	return logger
 }
 
+func LogErrorf(l leveledLogger, msg string, args ...interface{}) {
+	l.Error(fmt.Sprintf(msg, args...), nil)
+}
+
 func Debugf(l leveledLogger, msg string, args ...interface{}) {
 	l.Debug(fmt.Sprintf(msg, args...))
 }

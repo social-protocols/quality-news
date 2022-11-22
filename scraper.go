@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gocolly/colly/v2"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slog"
 )
 
 type rawStory struct {
@@ -228,40 +231,6 @@ func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error, moreLink
 	return c
 }
 
-// func testScrape() {
-// 	localFile := "hacker-news-show-p3-deadlinks.html"
-
-// 	app := initApp()
-// 	app.logger.Debug("Doing test scrape")
-
-// 	resultCh := make(chan ScrapedStory)
-// 	errCh := make(chan error)
-// 	go func() {
-// 		t := &http.Transport{}
-// 		//		t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
-// 		t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
-
-// 		c := app.newScraper(resultCh, errCh)
-// 		c.WithTransport(t)
-
-// 		dir, _ := os.Getwd()
-// 		fmt.Println("Visiting", localFile)
-// 		_ = c.Visit("file://" + dir + "/" + localFile)
-// 	}()
-
-// 	go func() {
-// 		app.logger.Debug("Range over errch")
-// 		for e := range errCh {
-// 			fmt.Println("Go terror", e)
-// 		}
-// 	}()
-
-// 	app.logger.Debug("Range over resultch")
-// 	for result := range resultCh {
-// 		fmt.Printf("Got result\n", result)
-// 	}
-// }
-
 func (app app) scrapeHN(pageType string, resultCh chan ScrapedStory, errCh chan error) {
 	baseUrl := "https://news.ycombinator.com/"
 	url := baseUrl
@@ -287,4 +256,60 @@ func (app app) scrapeHN(pageType string, resultCh chan ScrapedStory, errCh chan 
 	}
 	close(resultCh)
 	close(errCh)
+}
+
+func (app app) scrapeFrontPageStories(ctx context.Context) (map[int]ScrapedStory, error) {
+	app.logger.Info("Scraping front page stories")
+
+	stories := map[int]ScrapedStory{}
+
+	pageTypeName := "top"
+
+	nSuccess := 0
+
+	resultCh := make(chan ScrapedStory)
+	errCh := make(chan error)
+
+	var wg sync.WaitGroup
+
+	t := time.Now()
+
+	// scrape in a goroutine. the scraper will write results to the channel
+	// we provide
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		app.scrapeHN(pageTypeName, resultCh, errCh)
+	}()
+
+	// read from the error channel in print errors in a separate goroutine.
+	// The scraper will block writing to the error channel if nothing is reading
+	// from it.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for err := range errCh {
+			app.logger.Error("Error parsing story", err)
+			crawlErrorsTotal.Inc()
+		}
+	}()
+
+	for story := range resultCh {
+		id := story.ID
+
+		stories[id] = story
+
+		nSuccess += 1
+	}
+
+	if nSuccess == 0 {
+		return stories, fmt.Errorf("Didn't successfully parse any stories from %s page", pageTypeName)
+	}
+	Debugf(app.logger, "Crawled %d stories on %s page", nSuccess, pageTypeName)
+
+	wg.Wait()
+
+	app.logger.Info("Scraped stories", "pageTypeName", pageTypeName, slog.Duration("elapsed", time.Since(t)))
+
+	return stories, nil
 }
