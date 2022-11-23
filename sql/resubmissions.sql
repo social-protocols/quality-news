@@ -104,21 +104,9 @@ with latest as (
   from dataset join stories using (id)
   where sampleTime = (select max(sampleTime) from dataset)
 )
--- now get the data from the previous crawl
-, previous as (
-  select 
-    dataset.id
-    , dataset.submissionTime
-  from dataset join latest using (id)
-  -- this is not ideal, as it only looks at data from the previous crawl. This means if a story is not included in the crawl,
-  -- and then appears again, we "forget" the submission time calculation and have to start over. However, fixing this makes this
-  -- query much slower.
-  where dataset.sampleTime = (select max(sampleTime) from dataset where sampleTime != (select max(sampleTime) from dataset))
-  -- group by 1
-)
 update dataset as d 
 -- And use the greater of the lower-bound submission time from the last crawl, and the one we just calculated.  
-set submissionTime = case when latest.sampleTime - ageHours*3600 > ifnull(previous.submissionTime,0) then cast(latest.sampleTime - ageHours*3600 as int) else previous.submissionTime end
+set submissionTime = case when latest.sampleTime - ageHours*3600 > ifnull(previousCrawl.submissionTime,0) then cast(latest.sampleTime - ageHours*3600 as int) else previousCrawl.submissionTime end
 from latest
-left join previous using (id)
+left join previousCrawl using (id)
 where d.id = latest.id and d.sampleTime = latest.sampleTime;

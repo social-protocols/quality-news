@@ -84,6 +84,10 @@ func (ndb newsDatabase) init() error {
 		CREATE INDEX IF NOT EXISTS dataset_id
 		ON dataset(id);
 		`,
+
+		`
+		drop view if exists previousCrawl
+		`,
 	}
 
 	for _, s := range seedStatements {
@@ -92,7 +96,15 @@ func (ndb newsDatabase) init() error {
 			return errors.Wrap(err, "seeding database")
 		}
 	}
-	return nil
+
+	previousCrawlViewSQL := readSQLSource("previous-crawl-view.sql")
+
+	_, err := ndb.db.Exec(previousCrawlViewSQL)
+	if err != nil {
+		return errors.Wrap(err, "executing previousCrawlViewSQL")
+	}
+
+	return errors.Wrap(err, "executing previousCrawlViewSQL")
 }
 
 func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
@@ -165,11 +177,14 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes
 		FROM dataset
 		WHERE id = ?
-		ORDER BY sampleTime DESC LIMIT 1
+		-- ORDER BY sampleTime DESC LIMIT 1
+		-- this should only return a value if this story was in the previous crawl
+		-- otherwise our cumulativeUpvotes calculation can be wrong
+		AND sampleTime = (select max(sampleTime) from dataset)
 		`
 		ndb.selectLastSeenScoreStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
-			return ndb, err
+			return ndb, errors.Wrap(err, "preparing selectLastSeenScoreStatement")
 		}
 	}
 
