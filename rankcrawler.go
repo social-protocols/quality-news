@@ -144,17 +144,20 @@ func (app app) crawl(ctx context.Context, tx *sql.Tx) (int, error) {
 		}
 
 		for _, s := range missingStories {
-			stories[s.ID] = ScrapedStory{Story: Story{
-				ID:                     s.ID,
-				By:                     s.By,
-				Title:                  s.Title,
-				URL:                    s.URL,
-				SubmissionTime:         int64(s.Timestamp),
-				OriginalSubmissionTime: int64(s.Timestamp),
-				AgeApprox:              sampleTime - int64(s.Timestamp),
-				Score:                  s.Score,
-				Comments:               s.Descendants,
-			}}
+			stories[s.ID] = ScrapedStory{
+				Story: Story{
+					ID:                     s.ID,
+					By:                     s.By,
+					Title:                  s.Title,
+					URL:                    s.URL,
+					SubmissionTime:         int64(s.Timestamp),
+					OriginalSubmissionTime: int64(s.Timestamp),
+					AgeApprox:              sampleTime - int64(s.Timestamp),
+					Score:                  s.Score,
+					Comments:               s.Descendants,
+				},
+				Source: "api",
+			}
 		}
 
 		// Output some errors if there are inconsistencies between the set of story IDs the API tells us are on top page

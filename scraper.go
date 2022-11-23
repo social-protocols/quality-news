@@ -36,11 +36,11 @@ type row2 struct {
 
 type ScrapedStory struct {
 	Story
-	Rank      int
-	AgeApprox int64
-	Flagged   bool
-	Dupe      bool
-	Job       bool
+	Rank    int
+	Flagged bool
+	Dupe    bool
+	Job     bool
+	Source  string
 }
 
 func (rs rawStory) Clean() (ScrapedStory, error) {
@@ -50,6 +50,7 @@ func (rs rawStory) Clean() (ScrapedStory, error) {
 			By:    rs.Author,
 			URL:   rs.URL,
 		},
+		Source: "scraper",
 	}
 
 	// parse id
