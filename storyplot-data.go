@@ -135,7 +135,8 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 			float64(sampleTime-submissionTime) / 3600, // humanize.Time(time.Unix(sampleTime, 0))
 			int32(upvotes),
 			expectedUpvotes,
-			(float64(upvotes) + priorWeight) / float64(expectedUpvotes+priorWeight)}
+			(float64(upvotes) + priorWeight) / float64(expectedUpvotes+priorWeight),
+		}
 		i++
 	}
 
