@@ -114,6 +114,19 @@ func (app app) crawl(ctx context.Context, tx *sql.Tx) (int, error) {
 		return 0, errors.Wrap(err, "getRanksFromAPI")
 	}
 
+	// make sure we also get data for every story that was ranked on QN in the previous crawl
+	idsFromPreviousCrawl, err := app.getQNTopFromPreviousCrawl(ctx, tx)
+	if err != nil {
+		return 0, errors.Wrap(err, "getIDSFromPreviousCrawl")
+	}
+	for _, id := range idsFromPreviousCrawl {
+		if _, ok := storyRanks[id]; !ok {
+			// create an empty ranks array for stories that were not ranked on
+			// any of the HN pages but where ranked on QN in the last crawl
+			storyRanks[id] = ranksArray{}
+		}
+	}
+
 	stories, err := app.scrapeFrontPageStories(ctx)
 	if err != nil {
 		return 0, errors.Wrap(err, "scrapeFrontPageStories")
@@ -316,6 +329,34 @@ func (app app) getRanksFromAPI(ctx context.Context) (map[int]ranksArray, error) 
 	return storyRanks, nil
 }
 
+func (app app) getQNTopFromPreviousCrawl(ctx context.Context, tx *sql.Tx) ([]int, error) {
+	result := make([]int, 0, 90)
+
+	s, err := tx.Prepare("select id from dataset where qnRank <= 90 and sampleTime = (select max(sampleTime) from dataset where sampleTime != (select max(sampleTime) from dataset))")
+	if err != nil {
+		return nil, errors.Wrap(err, "preparing getQNTopFromPreviousCrawl sql")
+	}
+
+	rows, err := s.QueryContext(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "executing getQNTopFromPreviousCrawl sql")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+
+		var id sql.NullInt32
+
+		err := rows.Scan(&id)
+		if err != nil {
+			return nil, errors.Wrap(err, "rows.Scan")
+		}
+		result = append(result, int(id.Int32))
+	}
+
+	return result, nil
+}
+
 func (app app) crawlPostprocess(ctx context.Context, tx *sql.Tx) error {
 	t := time.Now()
 
@@ -399,12 +440,12 @@ func (app app) updatePenalties(ctx context.Context, tx *sql.Tx) error {
 
 	stmt, err := tx.Prepare(penaltiesSQL)
 	if err != nil {
-		return errors.Wrap(err, "preparing penalties SQL")
+		return errors.Wrap(err, "preparing penaltiesSQL")
 	}
 
 	_, err = stmt.ExecContext(ctx)
 
-	app.logger.Debug("Finished executing penalties", slog.Duration("elapsed", time.Since(t)))
+	app.logger.Debug("Finished executing penpenaltiesSQLalties", slog.Duration("elapsed", time.Since(t)))
 
-	return errors.Wrap(err, "executing penalties SQL")
+	return errors.Wrap(err, "executing penaltiesSQL")
 }
