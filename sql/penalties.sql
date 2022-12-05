@@ -58,28 +58,6 @@ ranks as (
   select * from movingAverages
   where sampleTime = (select max(sampleTime) from dataset)
 )
--- now get the data from the previous crawl
-, previousSampleTime as (
-  select
-    id
-    , max(dataset.sampleTime) as sampleTime
-  from dataset
-   -- join movingAverages using (id)
-  -- get latest previous sample time for each story
-  where dataset.sampleTime < (select max(sampleTime) from dataset)
-  -- and dataset.sampleTime > (select max(sampleTime) from dataset) - 3600*24 
-  and dataSet.sampleTime > (select max(sampleTime) from dataset) - 3600
-  group by 1
-)
-
-, previous as (
-  select 
-    id
-    , penalty
-  from previousSampleTime join dataset using (id, sampleTime)
-)
-
-
 update dataset as d
   set 
     currentPenalty = case
@@ -100,8 +78,7 @@ update dataset as d
           end)
       end
 from latest
-left join previous using (id)
-join dataset using (id)
+left join previousCrawl previous using (id)
 where d.id = latest.id 
 and d.sampleTime = latest.sampleTime;
 
