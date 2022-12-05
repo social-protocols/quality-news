@@ -33,6 +33,7 @@ function upvoteRatePlot() {
   var data = new google.visualization.DataTable();
   data.addColumn('number', 'Age');
   data.addColumn('number', 'Estimated True Upvote Rate');
+  data.addColumn('number', 'Penalty');
   data.addColumn('number', 'Expected Upvote Rate');
 
   data.addRows(upvoteRateData);
@@ -56,11 +57,12 @@ function upvoteRatePlot() {
     },
     series: {
       0: {},
-      1: {lineDashStyle: [6,6], lineWidth: 3}
+      1: {},
+      2: {lineDashStyle: [6,6], lineWidth: 3}
     },
 
     lineWidth: 3,
-    colors: ['#0089F4', 'black'],
+    colors: ['#0089F4', 'red', 'black'],
     chartArea:{left:80,top:50, bottom: 80, right: 20},
     legend: { position: 'bottom' },
     height: 400,
