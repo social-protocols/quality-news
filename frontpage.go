@@ -103,13 +103,36 @@ const frontPageSQL = `
 		, ageApprox
 		, score
 		, descendants
-		, (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality 
+		, (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality
 		, penalty
 		, topRank
 		, dense_rank() over(order by unadjustedRank*power(10,penalty*penaltyWeight)) as qnRank
 		, cast((sampleTime-submissionTime)/3600 as real) as ageHours
 	from unadjustedRanks
 	order by %s
+	limit 90;
+`
+
+const newPageSQL = `
+	with parameters as (select %f as priorWeight, %f as overallPriorWeight)
+	select
+		id
+		, by
+		, title
+		, url
+		, submissionTime
+		, timestamp as OriginalSubmissionTime
+		, ageApprox
+		, score
+		, descendants
+		, (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality 
+		, penalty
+		, topRank
+		, qnRank
+		, cast((sampleTime-submissionTime)/3600 as real) as ageHours
+	from dataset join stories using (id) join parameters
+	where sampleTime = (select max(sampleTime) from dataset)
+	order by newRank nulls last
 	limit 90;
 `
 
@@ -180,17 +203,22 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 	// custom parameters
 	if statements[ranking] == nil || params != defaultFrontPageParams {
 
-		orderBy := "qnRank nulls last"
-		if ranking == "hntop" {
-			orderBy = "topRank nulls last"
-		} else if ranking == "new" {
-			orderBy = "newRank nulls last"
+		var sql string
+		if ranking == "new" {
+			sql = fmt.Sprintf(newPageSQL, priorWeight, overallPriorWeight)
+		} else {
+			orderBy := "qnRank nulls last"
+			if ranking == "hntop" {
+				orderBy = "topRank nulls last"
+			} else if ranking == "new" {
+				orderBy = "newRank nulls last"
+			}
+			sql = fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity, penaltyWeight, qnRankFormulaSQL, orderBy)
 		}
-		sql := fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity, penaltyWeight, qnRankFormulaSQL, orderBy)
 
 		s, err = ndb.db.Prepare(sql)
 		if err != nil {
-			return stories, errors.Wrap(err, "preparing front page SQL")
+			return stories, errors.Wrap(err, "preparing SQL")
 		}
 
 		if params == defaultFrontPageParams {
@@ -202,7 +230,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 
 	rows, err := s.QueryContext(ctx)
 	if err != nil {
-		return stories, errors.Wrap(err, "executing front page SQL")
+		return stories, errors.Wrap(err, "executing SQL")
 	}
 	defer rows.Close()
 
