@@ -1,6 +1,6 @@
 var upvotesData
 
-function drawUpvotesPlot() {
+function drawUpvotesPlot(submissionTime) {
 
   var plotDiv = document.getElementById('upvotes_plot_div')
 
@@ -16,6 +16,7 @@ function drawUpvotesPlot() {
       } else {
 
 
+
         // Modify our dataset so that we only plot points immediately
         // before or after a change. This way the plot looks more like a staircase
         // where the line is horizontal until there is an upvote then jumps up. Then we
@@ -23,6 +24,9 @@ function drawUpvotesPlot() {
         var lastValue = null
         for (var i = 0; i < dataPoints.length; i++) { 
           var p = dataPoints[i]
+
+          p[0] = (p[0] - submissionTime)/3600
+
           if ( p[1] != lastValue || i+1 == dataPoints.length || p[1] != dataPoints[i+1][1] )  {
             lastValue = p[1]
           } else {

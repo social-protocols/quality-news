@@ -59,7 +59,7 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 		}
 
 		ranks[i] = make([]any, nRanks+1)
-		ranks[i][0] = float64(sampleTime-submissionTime) / 3600 // humanize.Time(time.Unix(sampleTime, 0))
+		ranks[i][0] = sampleTime
 
 		for j, rank := range nullableRanks {
 			if rank.Valid {
@@ -133,7 +133,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 
 		priorWeight := defaultFrontPageParams.PriorWeight
 		upvotesData[i] = []any{
-			float64(sampleTime-submissionTime) / 3600, // humanize.Time(time.Unix(sampleTime, 0))
+			sampleTime,
 			int32(upvotes),
 			expectedUpvotes,
 			(float64(upvotes) + priorWeight) / float64(expectedUpvotes+priorWeight),
