@@ -299,6 +299,10 @@ func (app app) getRanksFromAPI(ctx context.Context) (map[int]ranksArray, error) 
 
 	for pageType := 0; pageType < len(pageTypes); pageType++ {
 		pageTypeName := pageTypes[pageType]
+
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+
 		storyIDs, err := client.Stories(ctx, pageTypeName)
 		if err != nil {
 			return storyRanks, errors.Wrap(err, "client.Stories")
