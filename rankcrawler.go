@@ -145,6 +145,9 @@ func (app app) crawl(ctx context.Context, tx *sql.Tx) (int, error) {
 
 		t := time.Now()
 
+		ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		defer cancel()
+
 		// get story details
 		logger.Info("Getting story details from API for stories that were not on the front page", "num_stories", len(uniqueStoryIds), "missing_stories", len(missingStoryIDs))
 		missingStories, err := client.GetItems(ctx, missingStoryIDs, maxGoroutines)
