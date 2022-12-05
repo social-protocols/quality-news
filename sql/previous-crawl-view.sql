@@ -2,7 +2,7 @@
 -- It is a bit tricky because the sampleTime may be different for each story, because
 -- Some stories may appear and disappear from crawl results if they fall off the front page and reappear.
 
-create view previousCrawl as
+create temporary table previousCrawl as
 with latest as (
   select * from dataset
   where sampleTime = (select max(sampleTime) from dataset)
