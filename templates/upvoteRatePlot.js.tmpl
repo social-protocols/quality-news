@@ -1,6 +1,6 @@
 var upvoteRateData
 
-function drawUpvoteRatePlot() {
+function drawUpvoteRatePlot(submissionTime) {
 
   var plotDiv = document.getElementById('upvoterate_plot_div')
 
@@ -16,6 +16,9 @@ function drawUpvoteRatePlot() {
       } else {
         // average upvoteRate is always 1
         for (var i = 0; i < dataPoints.length; i++) { 
+          // convert timestamp to age in hours
+          dataPoints[i][0] = (dataPoints[i][0] - submissionTime)/3600
+
           dataPoints[i].push(1)
         }
 

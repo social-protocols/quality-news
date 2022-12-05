@@ -6,9 +6,9 @@ google.charts.setOnLoadCallback(drawCharts);
 window.addEventListener('resize', drawCharts, false);
 
 function drawCharts() {
-  drawRanksPlot()
-  drawUpvotesPlot()
-  drawUpvoteRatePlot()
+  drawRanksPlot({{.SubmissionTime}})
+  drawUpvotesPlot({{.SubmissionTime}})
+  drawUpvoteRatePlot({{.SubmissionTime}})
 }
 
 class rankFormat {
@@ -27,18 +27,16 @@ class rankFormat {
 class ageFormat {
   format(dt, column) {
     for (var i=0;i<dt.getNumberOfRows();i++) {
-      var v = dt.getValue(i, column);
-      var minutes = Math.floor(v*60) % 60
-      var hours = Math.floor(v)
+      var ageHours = dt.getValue(i, column);
 
-      var f = ""
-      if (hours >= 1) {
-        f = hours + "h"
-      }
-      if (minutes > 0 || hours < 1) {
-        f = f + " " + minutes + "m"
-      }
-      dt.setFormattedValue(i, column, f + " old");
+      // We converted the sample time to an age in hours for display on the X axis
+      // But when we hover we want to see the original sample time.
+      var timeStamp = {{.SubmissionTime}} + ageHours * 3600
+
+      var d = new Date(0); // The 0 there is the key, which sets the date to the epoch
+      d.setUTCSeconds(timeStamp);
+
+      dt.setFormattedValue(i, column, d.toISOString().split('.')[0] + 'Z');
     }
   }
 }

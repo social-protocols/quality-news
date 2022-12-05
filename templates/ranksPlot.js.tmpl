@@ -1,6 +1,6 @@
 var ranksData
 
-function drawRanksPlot() {
+function drawRanksPlot(submissionTime) {
   if (ranksData !== undefined) {
     return ranksPlot()
   }
@@ -9,6 +9,7 @@ function drawRanksPlot() {
 
   getJSON('/plots/ranks.json?id={{.ID}}',
     function(err, dataPoints) {
+
       plotDiv.classList.remove("spinner")
       if (err !== null) {
         plotDiv.innerHTML = "error fetching chart data"
@@ -22,6 +23,9 @@ function drawRanksPlot() {
         for (var i = 0; i < dataPoints.length; i++) { 
 
           var p = dataPoints[i].slice(0, n)
+
+          // convert timestamp to age in hours
+          p[0] = (p[0] - submissionTime)/3600
 
           // only plot a single point when a line leaves/exits the chart from below rank 91
           for (var j = 1; j < n; j++) {
