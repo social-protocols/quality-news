@@ -181,18 +181,17 @@ func (app app) crawl(ctx context.Context, tx *sql.Tx) (int, error) {
 		if len(uniqueStoryIds) != len(getKeys(stories)) {
 			for _, id := range uniqueStoryIds {
 				if _, ok := stories[id]; !ok {
-					LogErrorf(logger, "failed to get story details for story %d", id)
+					logger.Warn("failed to get story details for story", "story_id", id)
 				}
 			}
 			for id := range stories {
 				if _, ok := storyRanks[id]; !ok {
-					LogErrorf(logger, "found story on top page from scraper but not on top page from API %d", id)
+					logger.Warn("found story on top page from scraper but not on top page from API", "story_id", id)
 				}
 			}
 		}
 
-		app.logger.Info("Got story detaails from API", "nitems", len(missingStoryIDs), slog.Duration("elapsed", time.Since(t)))
-
+		logger.Info("Got story details from API", "nitems", len(missingStoryIDs), slog.Duration("elapsed", time.Since(t)))
 	}
 
 	// for every story, calculate metrics used for ranking per story:
@@ -200,6 +199,7 @@ func (app app) crawl(ctx context.Context, tx *sql.Tx) (int, error) {
 	deltaUpvotes := make([]int, len(uniqueStoryIds))          // number of upvotes (since last sample point)
 	lastCumulativeUpvotes := make([]int, len(uniqueStoryIds)) // last number of upvotes tracked by our crawler
 	lastCumulativeExpectedUpvotes := make([]float64, len(uniqueStoryIds))
+	lastSeenTimes := make([]int, len(uniqueStoryIds))
 
 	logger.Info("Inserting stories into DB", "nitems", len(uniqueStoryIds))
 
@@ -217,18 +217,21 @@ STORY:
 
 		storyID := story.ID
 
-		lastSeenScore, lastSeenUpvotes, lastSeenExpectedUpvotes, err := ndb.selectLastSeenData(tx, storyID)
+		lastSeenScore, lastSeenUpvotes, lastSeenExpectedUpvotes, lastSeenTime, err := ndb.selectLastSeenData(tx, storyID)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				return 0, errors.Wrap(err, "selectLastSeenScore")
 			}
 		} else {
-			deltaUpvotes[i] = story.Score - lastSeenScore
+			// if no more than 5 minutes have passed.
 			lastCumulativeUpvotes[i] = lastSeenUpvotes
 			lastCumulativeExpectedUpvotes[i] = lastSeenExpectedUpvotes
-		}
+			lastSeenTimes[i] = lastSeenTime
 
-		sitewideUpvotes += deltaUpvotes[i]
+			deltaUpvotes[i] = story.Score - lastSeenScore
+			sitewideUpvotes += deltaUpvotes[i]
+
+		}
 
 		// save story details in database
 		if _, err := ndb.insertOrReplaceStory(tx, story.Story); err != nil {
@@ -238,25 +241,37 @@ STORY:
 
 	logger.Info("Inserting rank data into DB", "nitems", len(uniqueStoryIds))
 
-	var totalDeltaExpectedUpvotes float64
-	var totalExpectedUpvotesShare float64
+	var sitewideDeltaExpectedUpvotes float64
+	var sitewideExpectedUpvotesShare float64
 
 	for i, id := range uniqueStoryIds {
 		story := stories[id]
 
 		ranks := storyRanks[id]
-		expectedUpvotesAcrossPageTypes := 0.0
+		cumulativeUpvotes := lastCumulativeUpvotes[i]
+		cumulativeExpectedUpvotes := lastCumulativeExpectedUpvotes[i]
 
-	RANKS:
-		for pageType, rank := range ranks {
-			if rank == 0 {
-				continue RANKS
+		if sampleTime-int64(lastSeenTimes[i]) < 300 {
+			// only accumulate upvotes if we haven't gone more than a few
+			// minutes since last crawl. Otherwise our assumption that the
+			// story has been at this rank since the last crawl starts to
+			// become less and less reasonable
+
+			cumulativeUpvotes += deltaUpvotes[i]
+
+		RANKS:
+			for pageType, rank := range ranks {
+				if rank == 0 {
+					continue RANKS
+				}
+
+				expectedUpvotesShare := expectedUpvoteShare(pageType, rank)
+				deltaExpectedUpvotes := expectedUpvotesShare * float64(sitewideUpvotes)
+
+				cumulativeExpectedUpvotes += deltaExpectedUpvotes
+				sitewideDeltaExpectedUpvotes += deltaExpectedUpvotes
+				sitewideExpectedUpvotesShare += expectedUpvotesShare
 			}
-			deltaExpectedUpvotes, expectedUpvotesShare := deltaExpectedUpvotes(ndb, logger, pageType, id, rank, sampleTime, deltaUpvotes[i], sitewideUpvotes)
-			expectedUpvotesAcrossPageTypes += deltaExpectedUpvotes
-
-			totalDeltaExpectedUpvotes += deltaExpectedUpvotes
-			totalExpectedUpvotesShare += expectedUpvotesShare
 		}
 
 		datapoint := dataPoint{
@@ -266,8 +281,8 @@ STORY:
 			sampleTime:                sampleTime,
 			submissionTime:            story.SubmissionTime,
 			ranks:                     ranks,
-			cumulativeExpectedUpvotes: lastCumulativeExpectedUpvotes[i] + expectedUpvotesAcrossPageTypes,
-			cumulativeUpvotes:         lastCumulativeUpvotes[i] + deltaUpvotes[i],
+			cumulativeExpectedUpvotes: cumulativeExpectedUpvotes,
+			cumulativeUpvotes:         cumulativeUpvotes,
 			ageApprox:                 story.AgeApprox,
 			flagged:                   story.Flagged,
 			job:                       story.Job,
@@ -281,9 +296,9 @@ STORY:
 	crawlDuration.UpdateDuration(t)
 	logger.Info("Finished crawl",
 		"nitems", len(stories), slog.Duration("elapsed", time.Since(t)),
-		"deltaExpectedUpvotes", totalDeltaExpectedUpvotes,
+		"deltaExpectedUpvotes", sitewideDeltaExpectedUpvotes,
 		"sitewideUpvotes", sitewideUpvotes,
-		"totalExpectedUpvotesShare", totalExpectedUpvotesShare,
+		"sitewideExpectedUpvotesShare", sitewideExpectedUpvotesShare,
 		"dataPoints", len(stories))
 
 	return sitewideUpvotes, nil

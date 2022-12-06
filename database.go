@@ -174,7 +174,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	{
 		sql := `
-		SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes
+		SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes, sampleTime
 		FROM dataset
 		WHERE id = ?
 		-- ORDER BY sampleTime DESC LIMIT 1
@@ -285,19 +285,20 @@ func (ndb newsDatabase) insertOrReplaceStory(tx *sql.Tx, story Story) (int64, er
 	return r.RowsAffected()
 }
 
-func (ndb newsDatabase) selectLastSeenData(tx *sql.Tx, id int) (int, int, float64, error) {
+func (ndb newsDatabase) selectLastSeenData(tx *sql.Tx, id int) (int, int, float64, int, error) {
 	var score int
 	var cumulativeUpvotes int
 	var cumulativeExpectedUpvotes float64
+	var lastSeenTime int
 
 	stmt := tx.Stmt(ndb.selectLastSeenScoreStatement)
 
-	err := stmt.QueryRow(id).Scan(&score, &cumulativeUpvotes, &cumulativeExpectedUpvotes)
+	err := stmt.QueryRow(id).Scan(&score, &cumulativeUpvotes, &cumulativeExpectedUpvotes, &lastSeenTime)
 	if err != nil {
-		return score, cumulativeUpvotes, cumulativeExpectedUpvotes, err
+		return score, cumulativeUpvotes, cumulativeExpectedUpvotes, lastSeenTime, err
 	}
 
-	return score, cumulativeUpvotes, cumulativeExpectedUpvotes, nil
+	return score, cumulativeUpvotes, cumulativeExpectedUpvotes, lastSeenTime, nil
 }
 
 func (ndb newsDatabase) selectLastCrawlTime() (int, error) {
