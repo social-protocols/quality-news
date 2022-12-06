@@ -42,24 +42,3 @@ func expectedUpvoteShare(pageType, oneBasedRank int) float64 {
 
 	return math.Exp(logExpectedUpvoteShare)
 }
-
-func deltaExpectedUpvotes(ndb newsDatabase, logger leveledLogger, pageType int, storyID int, oneBasedRank int, sampleTime int64, deltaUpvotes int, sitewideUpvotes int) (float64, float64) {
-	expectedUpvotesShare := expectedUpvoteShare(pageType, oneBasedRank)
-	deltaExpectedUpvotes := float64(sitewideUpvotes) * expectedUpvotesShare
-
-	// logger.Debug(
-	// 	"Updating cumulative expectedUpvotes",
-	// 	"pageType", pageType,
-	// 	"oneBasedPage", zeroBasedPage+1,
-	// 	"oneBasedRankOnPage", oneBasedRankOnPage,
-	// 	"deltaUpvotes", deltaUpvotes,
-	// 	"deltaExpectedUpvotes", deltaExpectedUpvotes,
-	// 	"sitewideUpvotes", sitewideUpvotes,
-	// 	"pageTypeCoefficient", cs.pageTypeCoefficient,
-	// 	"term2", cs.pageCoefficient*math.Log(float64(zeroBasedPage+1)),
-	// 	"term3", cs.rankCoefficients[zeroBasedPage]*math.Log(float64(oneBasedRankOnPage)),
-	// 	"logExpectedUpvotesShare", logExpectedUpvotesShare,
-	// 	"expectedUpvotesShare", math.Exp(logExpectedUpvotesShare))
-
-	return deltaExpectedUpvotes, expectedUpvotesShare
-}
