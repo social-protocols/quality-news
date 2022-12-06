@@ -60,10 +60,7 @@ ranks as (
 )
 update dataset as d
   set 
-    currentPenalty = case
-      when movingAverageFilteredLogRankPenalty > 0.1 then movingAverageFilteredLogRankPenalty
-      else 0
-    end
+    currentPenalty = log(rankFiltered) - log(expectedRankFiltered)
     , penalty =
       case 
         when rank <= 90 then

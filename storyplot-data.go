@@ -113,7 +113,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 
 	upvotesData := make([][]any, n)
 
-	rows, err := ndb.db.Query("select sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes, penalty from dataset where id = ?", storyID)
+	rows, err := ndb.db.Query("select sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes, penalty, currentPenalty from dataset where id = ?", storyID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Query: select upvotes")
 	}
@@ -124,8 +124,9 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 		var upvotes int
 		var expectedUpvotes float64
 		var penalty float64
+		var currentPenalty float64
 
-		err = rows.Scan(&sampleTime, &upvotes, &expectedUpvotes, &penalty)
+		err = rows.Scan(&sampleTime, &upvotes, &expectedUpvotes, &penalty, &currentPenalty)
 
 		if err != nil {
 			return nil, errors.Wrap(err, "rows.Scan")
@@ -138,6 +139,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 			expectedUpvotes,
 			(float64(upvotes) + priorWeight) / float64(expectedUpvotes+priorWeight),
 			penalty,
+			currentPenalty,
 		}
 		i++
 	}
@@ -159,7 +161,7 @@ func (app app) upvoteRateDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 		subchart := make([][]any, len(upvotes))
 
 		for i, row := range upvotes {
-			subchart[i] = []any{row[0], row[3], row[4]}
+			subchart[i] = []any{row[0], row[3], row[4], row[5]}
 		}
 
 		return writeJSON(w, subchart)
