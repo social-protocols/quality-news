@@ -17,12 +17,14 @@
 -- means the story has been highly penalized, but if the pre-penalty rank is
 -- already close to 90 then it doesn't tell us much. 
 
--- Since stories don't change ranks very vast the solution I am trying here is
--- to calculate the moving average and use this value if the story is
--- currently in the top 90, so that penalties can move up and down. But if
--- the story falls out of the moving average, use the greater of the current
--- moving average and the previous moving average (so the moving average
--- forms a bound).
+-- The solution I am trying here is use the greater of the current moving
+-- average and the previous moving average if the story is in the top 90.
+-- So penalties can only increase. The exceptions are when there are less than
+-- 30 minutes worth of data, in which case we use a weighted average of the 
+-- moving average and zero (this is like Bayesian averaging with a prior of zero).
+-- Also if the moving average falls consistently to negative territory, penalties
+-- are removed.
+
 with latestScores as ( 
   -- first, get the data from the latest crawl and calculate ranking scores
   select 
@@ -52,6 +54,11 @@ ranks as (
           over (partition by id order by sampleTime rows between 59 preceding and current row) 
         , 0
       ) as movingAverageFilteredLogRankPenalty
+    , ifnull(
+        count(*)
+          over (partition by id order by sampleTime rows between 59 preceding and current row) 
+        , 0
+      ) as numRows
   from ranks
 )
 , latest as (
@@ -63,12 +70,22 @@ update dataset as d
     currentPenalty = log(rankFiltered) - log(expectedRankFiltered)
     , penalty =
       case 
-        when rank <= 90 then
-          case
-            when movingAverageFilteredLogRankPenalty > 0.1 then movingAverageFilteredLogRankPenalty
+        when numRows < 30 then
+          -- If we have less than 60 values in our moving average window,
+          -- calculate the moving average as if we had 60 values but the 
+          -- missing values are zero. So the moving average will always start
+          -- at zero and move up hopefully to a steady value after 30 minutes.
+          case 
+            when movingAverageFilteredLogRankPenalty > 0.1 then movingAverageFilteredLogRankPenalty * numRows / 30
             else 0
           end
+        when rank <= 90 and movingAverageFilteredLogRankPenalty < 0 then
+          -- Remove the penalty only if the log rank penalty has moved to be consistently negative
+          -- which is strong evidence this story is no longer penalized.
+          0
         else 
+          -- Otherwise, use the greater of the previous penalty and the latest moving average.
+          -- Set a threshold of 0.1 for applying penalties to remove some false positives.
           max(ifnull(previous.penalty,0), case
             when movingAverageFilteredLogRankPenalty > 0.1 then movingAverageFilteredLogRankPenalty
             else 0
