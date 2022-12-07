@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/pkg/errors"
@@ -377,97 +375,4 @@ func (app app) getQNTopFromPreviousCrawl(ctx context.Context, tx *sql.Tx) ([]int
 	}
 
 	return result, nil
-}
-
-func (app app) crawlPostprocess(ctx context.Context, tx *sql.Tx) error {
-	t := time.Now()
-
-	err := app.updateResubmissions(ctx, tx)
-	if err != nil {
-		return errors.Wrap(err, "updateResubmissions")
-	}
-
-	err = app.updatePenalties(ctx, tx)
-	if err != nil {
-		return errors.Wrap(err, "estimatePenalties")
-	}
-
-	err = app.updateQNRanks(ctx, tx)
-
-	crawlPostprocessingDuration.UpdateDuration(t)
-
-	app.logger.Info("Finished crawl postprocessing", slog.Duration("elapsed", time.Since(t)))
-
-	return errors.Wrap(err, "update QN Ranks")
-}
-
-const qnRankFormulaSQL = "pow((cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight) * ageHours, 0.8) / pow(ageHours + 2, gravity) desc"
-
-func readSQLSource(filename string) string {
-	f, err := resources.Open("sql/" + filename)
-	if err != nil {
-		panic(err)
-	}
-	defer f.Close()
-	buf := bytes.NewBuffer(nil)
-	_, err = io.Copy(buf, f)
-	if err != nil {
-		panic(err)
-	}
-
-	return buf.String()
-}
-
-var qnRanksSQL = readSQLSource("qnranks.sql")
-
-func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
-	t := time.Now()
-
-	d := defaultFrontPageParams
-	sql := fmt.Sprintf(qnRanksSQL, d.PriorWeight, d.OverallPriorWeight, d.Gravity, d.PenaltyWeight, qnRankFormulaSQL)
-
-	stmt, err := tx.Prepare(sql)
-	if err != nil {
-		return errors.Wrap(err, "preparing updateQNRanksSQL")
-	}
-
-	_, err = stmt.ExecContext(ctx)
-
-	app.logger.Debug("Finished executing updateQNRanks", slog.Duration("elapsed", time.Since(t)))
-
-	return errors.Wrap(err, "executing updateQNRanksSQL")
-}
-
-var resubmissionsSQL = readSQLSource("resubmissions.sql")
-
-func (app app) updateResubmissions(ctx context.Context, tx *sql.Tx) error {
-	t := time.Now()
-
-	stmt, err := tx.Prepare(resubmissionsSQL)
-	if err != nil {
-		return errors.Wrap(err, "preparing resubmissions SQL")
-	}
-
-	_, err = stmt.ExecContext(ctx)
-
-	app.logger.Debug("Finished executing resubmissions", slog.Duration("elapsed", time.Since(t)))
-
-	return errors.Wrap(err, "executing resubmissions SQL")
-}
-
-var penaltiesSQL = readSQLSource("penalties.sql")
-
-func (app app) updatePenalties(ctx context.Context, tx *sql.Tx) error {
-	t := time.Now()
-
-	stmt, err := tx.Prepare(penaltiesSQL)
-	if err != nil {
-		return errors.Wrap(err, "preparing penaltiesSQL")
-	}
-
-	_, err = stmt.ExecContext(ctx)
-
-	app.logger.Debug("Finished executing penpenaltiesSQLalties", slog.Duration("elapsed", time.Since(t)))
-
-	return errors.Wrap(err, "executing penaltiesSQL")
 }
