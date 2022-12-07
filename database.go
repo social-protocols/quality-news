@@ -97,14 +97,7 @@ func (ndb newsDatabase) init() error {
 		}
 	}
 
-	previousCrawlViewSQL := readSQLSource("previous-crawl-view.sql")
-
-	_, err := ndb.db.Exec(previousCrawlViewSQL)
-	if err != nil {
-		return errors.Wrap(err, "executing previousCrawlViewSQL")
-	}
-
-	return errors.Wrap(err, "executing previousCrawlViewSQL")
+	return nil
 }
 
 func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
