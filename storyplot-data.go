@@ -124,7 +124,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 		var upvotes int
 		var expectedUpvotes float64
 		var penalty float64
-		var currentPenalty float64
+		var currentPenalty sql.NullFloat64
 
 		err = rows.Scan(&sampleTime, &upvotes, &expectedUpvotes, &penalty, &currentPenalty)
 
@@ -139,7 +139,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 			expectedUpvotes,
 			(float64(upvotes) + priorWeight) / float64(expectedUpvotes+priorWeight),
 			penalty,
-			currentPenalty,
+			currentPenalty.Float64,
 		}
 		i++
 	}
