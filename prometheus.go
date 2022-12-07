@@ -49,10 +49,9 @@ func prometheusMiddleware[P any](routeName string, h httperror.XHandler[P]) http
 
 	return func(w http.ResponseWriter, r *http.Request, p P) error {
 		startTime := time.Now()
+		defer requestDuration.UpdateDuration(startTime)
 
 		err := h.Serve(w, r, p)
-
-		requestDuration.UpdateDuration(startTime)
 
 		return err
 	}

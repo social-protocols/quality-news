@@ -105,6 +105,7 @@ func (app app) crawl(ctx context.Context, tx *sql.Tx) (int, error) {
 	logger := app.logger
 
 	t := time.Now()
+	defer crawlDuration.UpdateDuration(t)
 	sampleTime := t.Unix()
 
 	storyRanks, err := app.getRanksFromAPI(ctx)
@@ -291,7 +292,6 @@ STORY:
 		}
 	}
 
-	crawlDuration.UpdateDuration(t)
 	logger.Info("Finished crawl",
 		"nitems", len(stories), slog.Duration("elapsed", time.Since(t)),
 		"deltaExpectedUpvotes", sitewideDeltaExpectedUpvotes,
