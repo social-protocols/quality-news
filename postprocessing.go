@@ -20,7 +20,7 @@ func (app app) crawlPostprocess(ctx context.Context, tx *sql.Tx) error {
 
 	var err error
 
-	for _, filename := range []string{"previous-crawl.sql", "previous-crawl-index.sql", "resubmissions.sql", "penalties.sql"} {
+	for _, filename := range []string{"previous-crawl.sql", "resubmissions.sql", "penalties.sql"} {
 		err = app.ndb.executeSQLFile(ctx, tx, filename)
 		if err != nil {
 			return err
@@ -30,11 +30,6 @@ func (app app) crawlPostprocess(ctx context.Context, tx *sql.Tx) error {
 	err = app.updateQNRanks(ctx, tx)
 	if err != nil {
 		return errors.Wrap(err, "updateQNRanks")
-	}
-
-	_, err = tx.ExecContext(ctx, "drop table previousCrawl")
-	if err != nil {
-		return errors.Wrap(err, "dropping previousCrawl temporary table")
 	}
 
 	app.logger.Info("Finished crawl postprocessing", slog.Duration("elapsed", time.Since(t)))
