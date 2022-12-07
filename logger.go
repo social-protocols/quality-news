@@ -64,7 +64,7 @@ type retryableHTTPClientloggerWrapper struct {
 }
 
 func (l retryableHTTPClientloggerWrapper) Error(msg string, keysAndValues ...interface{}) {
-	l.Logger.Error(msg, nil, keysAndValues...)
+	l.Logger.Error("retryableHTTPClient: "+msg, nil, keysAndValues...)
 }
 
 func (l retryableHTTPClientloggerWrapper) Debug(msg string, keysAndValues ...interface{}) {
