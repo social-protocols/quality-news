@@ -32,15 +32,15 @@ with latestScores as (
     , submissionTime > timestamp as resubmitted
    from dataset join stories using (id)
    -- where sampleTime = 1668791580
-   where sampleTime > (select max(sampleTime) from dataset) - 3600 -- look at last 24 hours
+   where sampleTime > (select max(sampleTime) from dataset) - 3600 -- look at last hour
    and score >= 3 -- story can't reach front page until score >= 3
 ), 
 ranks as (
   select 
     *
     , ifnull(topRank,91) as rank
-    , count(*) filter (where not resubmitted and ageApprox < 3600*24 and not job and upvotes > 0 and topRank is not null) over (partition by sampleTime order by rankingScore desc) as expectedRankFiltered
-    , count(*) filter (where not resubmitted and ageApprox < 3600*24 and not job and upvotes > 0 and topRank is not null) over (partition by sampleTime order by topRank nulls last) as rankFiltered
+    , count(*) filter (where  ageApprox < 3600*24 and not job and upvotes > 0 and topRank is not null) over (partition by sampleTime order by rankingScore desc) as expectedRankFiltered
+    , count(*) filter (where  ageApprox < 3600*24 and not job and upvotes > 0 and topRank is not null) over (partition by sampleTime order by topRank nulls last) as rankFiltered
   from latestScores
   order by rank
 )
