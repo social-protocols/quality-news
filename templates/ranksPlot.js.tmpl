@@ -83,7 +83,10 @@ function ranksPlot() {
     dataOpacity: 0.85,
     hAxis: {
       title: 'Age [hours]',
-      logScale: false
+      logScale: false,
+      viewWindow: {
+        min: 0,
+      }
     },
     vAxis: {
       title: 'Rank',

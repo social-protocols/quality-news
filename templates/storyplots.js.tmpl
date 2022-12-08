@@ -9,8 +9,10 @@ function drawCharts() {
   drawRanksPlot({{.SubmissionTime}})
   drawUpvotesPlot({{.SubmissionTime}})
   drawUpvoteRatePlot({{.SubmissionTime}})
+  drawPenaltyPlot({{.SubmissionTime}})
 }
 
+// how rank is displayed when hovering over a datapoint
 class rankFormat {
   format(dt, column) {
     for (var i=0;i<dt.getNumberOfRows();i++) {
@@ -23,7 +25,7 @@ class rankFormat {
   }
 }
 
-
+// how age is displayed when hovering over a datapoint
 class ageFormat {
   format(dt, column) {
     for (var i=0;i<dt.getNumberOfRows();i++) {
@@ -60,4 +62,5 @@ var getJSON = function(url, callback) {
 {{template "ranksPlot.js.tmpl" .}}
 {{template "upvotesPlot.js.tmpl" .}}
 {{template "upvoteRatePlot.js.tmpl" .}}
+{{template "penaltyPlot.js.tmpl" .}}
 

@@ -113,7 +113,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 
 	upvotesData := make([][]any, n)
 
-	rows, err := ndb.db.Query("select sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes, penalty, currentPenalty from dataset where id = ?", storyID)
+	rows, err := ndb.db.Query("select sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes from dataset where id = ?", storyID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Query: select upvotes")
 	}
@@ -123,10 +123,8 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 		var sampleTime int64
 		var upvotes int
 		var expectedUpvotes float64
-		var penalty float64
-		var currentPenalty sql.NullFloat64
 
-		err = rows.Scan(&sampleTime, &upvotes, &expectedUpvotes, &penalty, &currentPenalty)
+		err = rows.Scan(&sampleTime, &upvotes, &expectedUpvotes)
 
 		if err != nil {
 			return nil, errors.Wrap(err, "rows.Scan")
@@ -138,8 +136,6 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 			int32(upvotes),
 			expectedUpvotes,
 			(float64(upvotes) + priorWeight) / float64(expectedUpvotes+priorWeight),
-			penalty,
-			currentPenalty.Float64,
 		}
 		i++
 	}
@@ -161,7 +157,83 @@ func (app app) upvoteRateDataJSON() httperror.XHandlerFunc[StatsPageParams] {
 		subchart := make([][]any, len(upvotes))
 
 		for i, row := range upvotes {
-			subchart[i] = []any{row[0], row[3], row[4], row[5]}
+			subchart[i] = []any{row[0], row[3]}
+		}
+
+		return writeJSON(w, subchart)
+	}
+}
+
+func penaltyDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
+	var n int
+	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
+		return nil, errors.Wrap(err, "QueryRow: select count")
+	}
+
+	if n == 0 {
+		return nil, ErrStoryIDNotFound
+	}
+
+	var submissionTime int64
+	if err := ndb.db.QueryRow("select timestamp from stories where id = ?", storyID).Scan(&submissionTime); err != nil {
+		return nil, errors.Wrap(err, "QueryRow: select submissionTime")
+	}
+
+	upvotesData := make([][]any, n)
+
+	rows, err := ndb.db.Query("select sampleTime, penalty, currentPenalty, topRank from dataset where id = ?", storyID)
+	if err != nil {
+		return nil, errors.Wrap(err, "Query: select penalties")
+	}
+
+	i := 0
+	for rows.Next() {
+		var sampleTime int64
+		var penalty float64
+		var currentPenalty sql.NullFloat64
+		var nullableHNRank sql.NullInt32
+
+		var hnRank int32
+
+		err = rows.Scan(&sampleTime, &penalty, &currentPenalty, &nullableHNRank)
+
+		if err != nil {
+			return nil, errors.Wrap(err, "rows.Scan")
+		}
+
+		if nullableHNRank.Valid {
+			hnRank = nullableHNRank.Int32
+		} else {
+			hnRank = 91
+		}
+
+		upvotesData[i] = []any{
+			sampleTime,
+			penalty,
+			currentPenalty.Float64,
+			hnRank,
+		}
+		i++
+	}
+
+	err = rows.Err()
+
+	return upvotesData, errors.Wrap(err, "rows.Err")
+}
+
+func (app app) penaltyDataJSON() httperror.XHandlerFunc[StatsPageParams] {
+	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
+		d, err := penaltyDatapoints(app.ndb, p.StoryID)
+		if err != nil {
+			return errors.Wrap(err, "penaltyDatapoints")
+		}
+
+		subchart := make([][]any, len(d))
+
+		for i, row := range d {
+			subchart[i] = []any{row[0], row[1], row[2], row[3]}
 		}
 
 		return writeJSON(w, subchart)
