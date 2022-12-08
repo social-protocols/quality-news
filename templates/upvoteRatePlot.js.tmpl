@@ -14,19 +14,9 @@ function drawUpvoteRatePlot(submissionTime) {
       if (err !== null) {
         plotDiv.innerHTML = "error fetching chart data"
       } else {
-        // average upvoteRate is always 1
         for (var i = 0; i < dataPoints.length; i++) { 
           // convert timestamp to age in hours
-          dataPoints[i][0] = (dataPoints[i][0] - submissionTime)/3600
-
-          if (dataPoints[i][2] === 0) {
-            dataPoints[i][2] = null
-          }
-          if (dataPoints[i][3] === 0) {
-            dataPoints[i][3] = null
-          }
-
-          dataPoints[i].push(1)
+          dataPoints[i] = [(dataPoints[i][0] - submissionTime)/3600, dataPoints[i][1], 1]
         }
 
         upvoteRateData = dataPoints
@@ -43,8 +33,6 @@ function upvoteRatePlot() {
   var data = new google.visualization.DataTable();
   data.addColumn('number', 'Age');
   data.addColumn('number', 'Estimated True Upvote Rate');
-  data.addColumn('number', 'Average Estimated Penalty');
-  data.addColumn('number', 'Current Estimated Penalty');
   data.addColumn('number', 'Expected Upvote Rate');
 
   data.addRows(upvoteRateData);
@@ -57,7 +45,10 @@ function upvoteRatePlot() {
     backgroundColor: {fill: 'transparent'},
     hAxis: {
       title: 'Age [hours]',
-      logScale: false
+      logScale: false,
+      viewWindow: {
+        min: 0,
+      }
     },
     vAxis: {
       title: 'Upvote Rate',
@@ -68,13 +59,11 @@ function upvoteRatePlot() {
     },
     series: {
       0: {},
-      1: {},
-      2: {lineDashStyle: [6,6]},
-      3: {lineDashStyle: [6,6], lineWidth: 3}
+      1: {lineDashStyle: [6,6], lineWidth: 3}
     },
 
     lineWidth: 3,
-    colors: ['#0089F4', 'red', 'orange', 'black'],
+    colors: ['#0089F4',  'black'],
     chartArea:{left:80,top:50, bottom: 80, right: 20},
     legend: { position: 'bottom' },
     height: 400,

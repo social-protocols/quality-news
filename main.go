@@ -104,8 +104,8 @@ func (app app) mainLoop(ctx context.Context) {
 
 	// If it has been more than a minute since our last crawl,
 	// then crawl right away.
-	if elapsed > 60 {
-		logger.Info("More than 60 seconds since last crawl. Crawling now.")
+	if elapsed >= 60 {
+		logger.Info("60 seconds since last crawl. Crawling now.")
 		if err = app.crawlAndPostprocess(ctx); err != nil {
 			logger.Error("crawlAndPostprocess", err)
 

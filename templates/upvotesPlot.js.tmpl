@@ -60,7 +60,10 @@ function upvotesPlot() {
     backgroundColor: {fill: 'transparent'},
     hAxis: {
       title: 'Age [hours]',
-      logScale: false
+      logScale: false,
+      viewWindow: {
+        min: 0,
+      }
     },
     vAxis: {
       title: 'Upvotes',
