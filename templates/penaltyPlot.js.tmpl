@@ -1,0 +1,109 @@
+var penaltyData
+
+function drawPenaltyPlot(submissionTime) {
+
+  var plotDiv = document.getElementById('penalty_plot_div')
+
+  if (penaltyData !== undefined) {
+    return penaltyPlot()
+  }
+
+  getJSON('/plots/penalty.json?id={{.ID}}',
+    function(err, dataPoints) {
+      plotDiv.classList.remove("spinner")
+      if (err !== null) {
+        plotDiv.innerHTML = "error fetching chart data"
+      } else {
+        var lastRank = null
+        for (var i = 0; i < dataPoints.length; i++) { 
+
+          var rank = dataPoints[i][3]
+
+          var lastRankIsOffChart = ( lastRank == 91 || lastRank == null )
+          var nextRankIsOnChart = ( i+1 < dataPoints.length && dataPoints[i+1][3] != null && dataPoints[i+1][3] != 91)
+
+          if ( rank == 91 && (lastRankIsOffChart && !nextRankIsOnChart) ) {
+            rank = null
+          } else {
+            lastRank = rank
+          } 
+
+          dataPoints[i] = [
+            (dataPoints[i][0] - submissionTime)/3600, 
+            dataPoints[i][1] || null, 
+            dataPoints[i][2] || null,
+            rank
+          ]
+        }
+
+        penaltyData = dataPoints
+        penaltyPlot()
+      }
+    }
+  )
+}
+
+function penaltyPlot() {
+
+  var plotDiv = document.getElementById('penalty_plot_div')
+
+  var data = new google.visualization.DataTable();
+  data.addColumn('number', 'Age');
+  data.addColumn('number', 'Average Estimated Penalty');
+  data.addColumn('number', 'Current Estimated Penalty');
+  data.addColumn('number', 'HN Rank');
+
+  data.addRows(penaltyData);
+
+  var ageFormatter = new ageFormat()
+  ageFormatter.format(data, 0);
+
+  // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
+  var options = {
+    backgroundColor: {fill: 'transparent'},
+    hAxis: {
+      title: 'Age [hours]',
+      logScale: false,
+      viewWindow: {
+        min: 0,
+      }
+    },
+
+
+    vAxes: {
+      0: {
+        title: 'Penalty',
+        logScale: false,
+      },
+      1: {
+        title: 'Rank',
+        logScale: true,
+        direction: -1,
+        viewWindow: {
+          max: 1,
+          min: 91
+        },
+        ticks: [1,2,4,8,16,32,64,{v: 91, f: "> 90"}],
+        gridlines: {color: "#bac5de", count: 2},
+      },
+    },
+    series: {
+      0: {targetAxisIndex: 0},
+      1: {pointShape: 'diamond', pointSize: 2, lineWidth: 0, targetAxisIndex: 0},
+      2: {pointShape: 'circle', pointSize: 5, interpolateNulls: false, lineDashStyle: [4,4], lineWidth: 2, targetAxisIndex: 1},
+    },
+
+    lineWidth: 3,
+    colors: ['red', '#b32b6c', '#FF6600'],
+    chartArea:{left:80,top:50, bottom: 80, right: 80},
+    legend: { position: 'bottom' },
+    height: 400,
+    crosshair: { trigger: 'both' },
+    title: "Penalties",
+  };
+
+  var chart = new google.visualization.LineChart(plotDiv);
+  chart.draw(data, options);
+}
+
+
