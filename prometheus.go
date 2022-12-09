@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -31,8 +32,10 @@ func servePrometheusMetrics() func(ctx context.Context) error {
 		metrics.WritePrometheus(w, true)
 	})
 
+	listenAddress := os.Getenv("LISTEN_ADDRESS")
+
 	s := &http.Server{
-		Addr:    ":9091",
+		Addr:    listenAddress + ":9091",
 		Handler: mux,
 	}
 
