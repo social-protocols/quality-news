@@ -29,13 +29,15 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 		port = "8080"
 	}
 
+	listenAddress := os.Getenv("LISTEN_ADDRESS")
+
 	staticRoot, err := fs.Sub(staticFS, "static")
 	if err != nil {
 		LogFatal(l, "fs.Sub", err)
 	}
 
 	server := &http.Server{
-		Addr:              ":" + port,
+		Addr:              listenAddress + ":" + port,
 		WriteTimeout:      writeTimeout,
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
