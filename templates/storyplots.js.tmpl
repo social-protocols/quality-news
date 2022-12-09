@@ -5,11 +5,23 @@ google.charts.setOnLoadCallback(drawCharts);
 
 window.addEventListener('resize', drawCharts, false);
 
+var submissionTime = {{.Story.SubmissionTime}};
+
+var ranksPlotData = {{.RanksPlotData}};
+var upvotesPlotData = {{.UpvotesPlotData}};
+var upvoteRatePlotData = upvotesPlotData; //same data
+var penaltyPlotData = {{.PenaltyPlotData}};
+
 function drawCharts() {
-  drawRanksPlot({{.SubmissionTime}})
-  drawUpvotesPlot({{.SubmissionTime}})
-  drawUpvoteRatePlot({{.SubmissionTime}})
-  drawPenaltyPlot({{.SubmissionTime}})
+
+  // make all charts have the same x-axis range as the ranks plot chart
+  var startTime = ranksPlotData[0][0]
+  var endTime = ranksPlotData[ranksPlotData.length - 1][0]
+
+  ranksPlot(ranksPlotData, submissionTime, startTime, endTime)
+  upvotesPlot(upvotesPlotData, submissionTime, startTime, endTime)
+  upvoteRatePlot(upvoteRatePlotData, submissionTime, startTime, endTime)
+  penaltyPlot(penaltyPlotData, submissionTime, startTime, endTime)
 }
 
 // how rank is displayed when hovering over a datapoint
@@ -33,7 +45,7 @@ class ageFormat {
 
       // We converted the sample time to an age in hours for display on the X axis
       // But when we hover we want to see the original sample time.
-      var timeStamp = {{.SubmissionTime}} + ageHours * 3600
+      var timeStamp = {{.Story.SubmissionTime}} + ageHours * 3600
 
       var d = new Date(0); // The 0 there is the key, which sets the date to the epoch
       d.setUTCSeconds(timeStamp);

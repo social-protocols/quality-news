@@ -1,32 +1,8 @@
-var upvoteRateData
-
-function drawUpvoteRatePlot(submissionTime) {
-
-  var plotDiv = document.getElementById('upvoterate_plot_div')
-
-  if (upvoteRateData !== undefined) {
-    return upvoteRatePlot()
-  }
-
-  getJSON('/plots/upvoterate.json?id={{.ID}}',
-    function(err, dataPoints) {
-      plotDiv.classList.remove("spinner")
-      if (err !== null) {
-        plotDiv.innerHTML = "error fetching chart data"
-      } else {
-        for (var i = 0; i < dataPoints.length; i++) { 
-          // convert timestamp to age in hours
-          dataPoints[i] = [(dataPoints[i][0] - submissionTime)/3600, dataPoints[i][1], 1]
-        }
-
-        upvoteRateData = dataPoints
-        upvoteRatePlot()
-      }
-    }
-  )
+function prepareUpvoteRatePlotData(dataPoints, submissionTime) {
+  return dataPoints.map((dataPoint, i) => [(dataPoints[i][0] - submissionTime)/3600, dataPoints[i][3], 1])
 }
 
-function upvoteRatePlot() {
+function upvoteRatePlot(upvoteRatePlotData, submissionTime, startTime, endTime) {
 
   var plotDiv = document.getElementById('upvoterate_plot_div')
 
@@ -35,7 +11,7 @@ function upvoteRatePlot() {
   data.addColumn('number', 'Estimated True Upvote Rate');
   data.addColumn('number', 'Expected Upvote Rate');
 
-  data.addRows(upvoteRateData);
+  data.addRows(prepareUpvoteRatePlotData(upvoteRatePlotData, submissionTime));
 
   var ageFormatter = new ageFormat()
   ageFormatter.format(data, 0);
@@ -47,7 +23,8 @@ function upvoteRatePlot() {
       title: 'Age [hours]',
       logScale: false,
       viewWindow: {
-        min: 0,
+        min: (startTime-submissionTime)/3600,
+        max: (endTime-submissionTime)/3600,
       }
     },
     vAxis: {
@@ -64,9 +41,9 @@ function upvoteRatePlot() {
 
     lineWidth: 3,
     colors: ['#0089F4',  'black'],
-    chartArea:{left:80,top:50, bottom: 80, right: 20},
+    chartArea:{left:80, top:50, bottom: 80, right: 80},
+    height: 350,
     legend: { position: 'bottom' },
-    height: 400,
     crosshair: { trigger: 'both' },
     title: "Upvote Rate",
   };

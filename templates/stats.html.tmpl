@@ -33,7 +33,7 @@
 
 <script>
 
-{{template "storyplots.js.tmpl" .Story}}
+{{template "storyplots.js.tmpl" .}}
 
 </script>
 
@@ -55,7 +55,7 @@
 
 <div id="storyplots">
 
-  <div id="ranks_plot_div" class="spinner"></div>
+  <div id="ranks_plot_div"></div>
   <div class="plot-description">
     This chart shows the history of this story's rank on <a href="/" style="color: #0089F4; font-weight: bold;">Quality News</a> compared to its rank on 
     the Hacker News <a href="https://news.ycombinator.com/" style="color: #FF6600; font-weight: bold;">Front Page</a>,
@@ -63,24 +63,28 @@
     and <a href="https://news.ycombinator.com/best" style="color: #6FAEAE; font-weight: bold;">"Best"</a> Page.
   </div>
 
+  <hr/>
 
-  <div id="upvotes_plot_div" class="spinner"></div>
+  <div id="upvotes_plot_div"></div>
   <div class="plot-description">
     This chart shows the history of this story's <span style="color: #55cccc; font-weight: bold;">upvotes</span> compared to the <span style="color: black; font-weight: bold">expected upvotes</span> for stories shown at the same ranks and times. See the <a href="https://github.com/social-protocols/news#about">about page</a> for further details.
   </div>
 
+  <hr/>
 
-
-  <div id="upvoterate_plot_div" class="spinner"></div>
+  <div id="upvoterate_plot_div"></div>
   <div class="plot-description">
     This chart shows the history of this story's <span style="color: #0089F4; font-weight: bold;">estimated true upvote rate</span>: the predicted long-term ratio of upvotes to expected upvotes. See the <a href="https://github.com/social-protocols/news#about">about page</a> for further details.
   </div>
 
-  <div id="penalty_plot_div" class="spinner"></div>
+  <hr/>
+
+  <div id="penalty_plot_div"></div>
   <div class="plot-description">
-    This chart shows a history of the story's estimated <span style="color: #b32b6c; font-weight: bold;">current penalty</span> based on the discrepancy between the story's <span style="color: #FF6600; font-weight: bold;">HN rank</span> and its expected rank based on the published ranking formula. A factor based on the moving <span style="color: red; font-weight: bold;">average estimated penalty</span> is then applied to the QN ranking score.
+    This chart shows the history of the story's estimated <span style="color: #b32b6c; font-weight: bold;">current penalty</span> based on the discrepancy between the story's <span style="color: #FF6600; font-weight: bold;">HN rank</span> and its expected rank based on the published ranking formula. A factor based on the moving <span style="color: red; font-weight: bold;">average estimated penalty</span> is applied to the QN ranking score.
   </div>
 
+  <hr/>
 
 </div>
 </div>

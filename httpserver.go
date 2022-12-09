@@ -48,11 +48,6 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.GET("/new", middleware("new", l, onPanic, app.frontpageHandler("new")))
 	router.GET("/stats", middleware("stats", l, onPanic, app.statsHandler()))
 
-	router.GET("/plots/ranks.json", middleware("ranks-plotdata", l, onPanic, app.ranksDataJSON()))
-	router.GET("/plots/upvotes.json", middleware("upvotes-plotdata", l, onPanic, app.upvotesDataJSON()))
-	router.GET("/plots/upvoterate.json", middleware("upvoterate-plotdata", l, onPanic, app.upvoteRateDataJSON()))
-	router.GET("/plots/penalty.json", middleware("penalty-plotdata", l, onPanic, app.penaltyDataJSON()))
-
 	server.Handler = app.cacheAndCompressMiddleware(router)
 
 	return server

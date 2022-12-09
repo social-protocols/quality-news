@@ -1,47 +1,26 @@
-var upvotesData
+function prepareUpvotesPlotData(dataPoints, submissionTime) {
 
-function drawUpvotesPlot(submissionTime) {
+   var results = []
 
-  var plotDiv = document.getElementById('upvotes_plot_div')
-
-  if (upvotesData !== undefined) {
-    return upvotesPlot()
-  }
-
-  getJSON('/plots/upvotes.json?id={{.ID}}',
-    function(err, dataPoints) {
-      plotDiv.classList.remove("spinner")
-      if (err !== null) {
-        plotDiv.innerHTML = "error fetching chart data"
-      } else {
-
-
-
-        // Modify our dataset so that we only plot points immediately
-        // before or after a change. This way the plot looks more like a staircase
-        // where the line is horizontal until there is an upvote then jumps up. Then we
-        // only have diagonal lines where there is missing data.
-        var lastValue = null
-        for (var i = 0; i < dataPoints.length; i++) { 
-          var p = dataPoints[i]
-
-          p[0] = (p[0] - submissionTime)/3600
-
-          if ( p[1] != lastValue || i+1 == dataPoints.length || p[1] != dataPoints[i+1][1] )  {
-            lastValue = p[1]
-          } else {
-            p[1] = null
-          }
-        }
-
-        upvotesData = dataPoints
-        upvotesPlot()
-      }
-    }
-  )
+   // Modify our dataset so that we only plot points immediately
+   // before or after a change. This way the plot looks more like a staircase
+   // where the line is horizontal until there is an upvote then jumps up. Then we
+   // only have diagonal lines where there is missing data.
+   var lastValue = null
+   for (var i = 0; i < dataPoints.length; i++) { 
+     var p = dataPoints[i]
+     var upvotes = p[1]
+     if ( upvotes != lastValue || i+1 == dataPoints.length || upvotes != dataPoints[i+1][1] )  {
+       lastValue = upvotes
+     } else {
+       upvotes = null
+     }
+     results[i] = [(p[0] - submissionTime)/3600, upvotes, p[2]]
+   }
+   return results;
 }
 
-function upvotesPlot() {
+function upvotesPlot(upvotesData, submissionTime, startTime, endTime) {
 
   var plotDiv = document.getElementById('upvotes_plot_div')
 
@@ -50,7 +29,7 @@ function upvotesPlot() {
   data.addColumn('number', 'Upvotes');
   data.addColumn('number', 'Expected Upvotes');
 
-  data.addRows(upvotesData);
+  data.addRows(prepareUpvotesPlotData(upvotesData, submissionTime));
 
   var ageFormatter = new ageFormat()
   ageFormatter.format(data, 0);
@@ -62,7 +41,8 @@ function upvotesPlot() {
       title: 'Age [hours]',
       logScale: false,
       viewWindow: {
-        min: 0,
+        min: (startTime-submissionTime)/3600,
+        max: (endTime-submissionTime)/3600,
       }
     },
     vAxis: {
@@ -79,9 +59,9 @@ function upvotesPlot() {
     interpolateNulls: true, 
 
     colors: ['#55cccc', 'black'],
-    chartArea:{left:80,top:50, bottom: 80, right: 20},
+    chartArea:{left:80, top:50, bottom: 80, right: 80},
+    height: 350,
     legend: { position: 'bottom' },
-    height: 400,
     crosshair: { trigger: 'both' },
     title: "Upvotes",
   };
