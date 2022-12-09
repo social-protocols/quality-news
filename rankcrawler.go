@@ -144,7 +144,7 @@ func (app app) crawl(ctx context.Context, tx *sql.Tx) (int, error) {
 
 		t := time.Now()
 
-		ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
 		// get story details
@@ -316,7 +316,7 @@ func (app app) getRanksFromAPI(ctx context.Context) (map[int]ranksArray, error) 
 	for pageType := 0; pageType < len(pageTypes); pageType++ {
 		pageTypeName := pageTypes[pageType]
 
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		defer cancel()
 
 		storyIDs, err := client.Stories(ctx, pageTypeName)
