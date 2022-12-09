@@ -30,10 +30,9 @@ with latestScores as (
   select 
     *
     , score-1 as upvotes
-    , pow(score-1, 0.8) / pow(cast(sampleTime - timestamp as real)/3600+2, 1.8) as rankingScore -- pre-penalty HN ranking formula
+    , pow(score-1, 0.8) / pow(cast(sampleTime - submissionTime as real)/3600+2, 1.8) as rankingScore -- pre-penalty HN ranking formula
     , submissionTime > timestamp as resubmitted
    from dataset join stories using (id)
-   -- where sampleTime = 1668791580
    where sampleTime > (select max(sampleTime) from dataset) - 3600 -- look at last hour
    and score >= 3 -- story can't reach front page until score >= 3
 ), 
