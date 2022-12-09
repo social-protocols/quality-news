@@ -28,8 +28,8 @@ function penaltyPlot(penaltyData, submissionTime, startTime, endTime) {
 
   var data = new google.visualization.DataTable();
   data.addColumn('number', 'Age');
-  data.addColumn('number', 'Average Estimated Penalty');
-  data.addColumn('number', 'Current Estimated Penalty');
+  data.addColumn('number', 'QN Penalty');
+  data.addColumn('number', 'Estimated HN Penalty');
   data.addColumn('number', 'HN Rank');
 
   data.addRows(preparePenaltyPlotData(penaltyData, submissionTime));
