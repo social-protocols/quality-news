@@ -40,8 +40,8 @@ ranks as (
   select 
     *
     , ifnull(topRank,91) as rank
-    , count(*) filter (where  ageApprox < 3600*24 and not job and upvotes > 0 and topRank is not null) over (partition by sampleTime order by rankingScore desc) as expectedRankFiltered
-    , count(*) filter (where  ageApprox < 3600*24 and not job and upvotes > 0 and topRank is not null) over (partition by sampleTime order by topRank nulls last) as rankFiltered
+    , count(*) filter (where ageApprox < 3600*24 and topRank is not null) over (partition by sampleTime order by rankingScore desc) as expectedRankFiltered
+    , count(*) filter (where ageApprox < 3600*24 and topRank is not null) over (partition by sampleTime order by topRank nulls last) as rankFiltered
   from latestScores
   order by rank
 )
@@ -69,6 +69,7 @@ update dataset as d
     currentPenalty = log(rankFiltered) - log(expectedRankFiltered)
     , penalty =
       case 
+        when resubmitted then 0
         when numRows < 30 then
           -- If we have less than 60 values in our moving average window,
           -- calculate the moving average as if we had 60 values but the 
