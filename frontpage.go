@@ -71,7 +71,7 @@ func (p FrontPageParams) String() string {
 	return fmt.Sprintf("%#v", p)
 }
 
-var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4, 2}
+var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4, 1.0}
 
 const frontPageSQL = `
 	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %f as penaltyWeight)
