@@ -2,25 +2,9 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
-	"net/http"
 
-	"github.com/johnwarden/httperror"
 	"github.com/pkg/errors"
 )
-
-func (app app) ranksDataJSON() httperror.XHandlerFunc[StatsPageParams] {
-	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-		ranks, err := rankDatapoints(app.ndb, p.StoryID)
-		if err != nil {
-			return errors.Wrap(err, "rankDataPoints")
-		}
-
-		return writeJSON(w, ranks)
-	}
-}
 
 const nRanks = 6
 
@@ -77,25 +61,6 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	return ranks, errors.Wrap(err, "rows.Err")
 }
 
-func (app app) upvotesDataJSON() httperror.XHandlerFunc[StatsPageParams] {
-	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-		upvotes, err := upvotesDatapoints(app.ndb, p.StoryID)
-		if err != nil {
-			return errors.Wrap(err, "upvotesDatapoints")
-		}
-
-		subchart := make([][]any, len(upvotes))
-
-		for i, row := range upvotes {
-			subchart[i] = []any{row[0], row[1], row[2]}
-		}
-
-		return writeJSON(w, subchart)
-	}
-}
-
 func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
@@ -143,25 +108,6 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	err = rows.Err()
 
 	return upvotesData, errors.Wrap(err, "rows.Err")
-}
-
-func (app app) upvoteRateDataJSON() httperror.XHandlerFunc[StatsPageParams] {
-	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-		upvotes, err := upvotesDatapoints(app.ndb, p.StoryID)
-		if err != nil {
-			return errors.Wrap(err, "upvotesDatapoints")
-		}
-
-		subchart := make([][]any, len(upvotes))
-
-		for i, row := range upvotes {
-			subchart[i] = []any{row[0], row[3]}
-		}
-
-		return writeJSON(w, subchart)
-	}
 }
 
 func penaltyDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
@@ -219,33 +165,4 @@ func penaltyDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	err = rows.Err()
 
 	return upvotesData, errors.Wrap(err, "rows.Err")
-}
-
-func (app app) penaltyDataJSON() httperror.XHandlerFunc[StatsPageParams] {
-	return func(w http.ResponseWriter, _ *http.Request, p StatsPageParams) error {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-		d, err := penaltyDatapoints(app.ndb, p.StoryID)
-		if err != nil {
-			return errors.Wrap(err, "penaltyDatapoints")
-		}
-
-		subchart := make([][]any, len(d))
-
-		for i, row := range d {
-			subchart[i] = []any{row[0], row[1], row[2], row[3]}
-		}
-
-		return writeJSON(w, subchart)
-	}
-}
-
-func writeJSON(w http.ResponseWriter, j [][]any) error {
-	b, err := json.Marshal(j)
-	if err != nil {
-		return errors.Wrap(err, "json.Marshal")
-	}
-	_, _ = w.Write([]byte(string(b)))
-
-	return nil
 }

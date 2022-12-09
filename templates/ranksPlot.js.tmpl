@@ -1,53 +1,36 @@
-var ranksData
 
-function drawRanksPlot(submissionTime) {
-  if (ranksData !== undefined) {
-    return ranksPlot()
-  }
+function prepareRanksPlotData(dataPoints, submissionTime) {
 
-  var plotDiv = document.getElementById('ranks_plot_div')
+  var results = []
 
-  getJSON('/plots/ranks.json?id={{.ID}}',
-    function(err, dataPoints) {
+  // plot only age, qntop, hntop, new, and best
+  // so 5 columns of data (x axis plus 4 ranks) 
+  var n = 5 
+  var lastValue = [null,null,null,null,null]
+  for (var i = 0; i < dataPoints.length; i++) { 
 
-      plotDiv.classList.remove("spinner")
-      if (err !== null) {
-        plotDiv.innerHTML = "error fetching chart data"
+    var p = dataPoints[i].slice(0, n)
+
+    // convert timestamp to age in hours
+    p[0] = (p[0] - submissionTime)/3600
+
+    // only plot a single point when a line leaves/exits the chart from below rank 91
+    for (var j = 1; j < n; j++) {
+      var lastValueIsOffChart = ( lastValue[j] == 91 || lastValue[j] == null )
+      var nextValueIsOnChart = ( i+1 < dataPoints.length && dataPoints[i+1][j] != null && dataPoints[i+1][j] != 91)
+
+      if ( p[j] == 91 && (lastValueIsOffChart && !nextValueIsOnChart) ) {
+        p[j] = null
       } else {
-
-
-        // plot only age, qntop, hntop, new, and best
-        // so 5 columns of data (x axis plus 4 ranks) 
-        var n = 5 
-        var lastValue = [null,null,null,null,null]
-        for (var i = 0; i < dataPoints.length; i++) { 
-
-          var p = dataPoints[i].slice(0, n)
-
-          // convert timestamp to age in hours
-          p[0] = (p[0] - submissionTime)/3600
-
-          // only plot a single point when a line leaves/exits the chart from below rank 91
-          for (var j = 1; j < n; j++) {
-            var lastValueIsOffChart = ( lastValue[j] == 91 || lastValue[j] == null )
-            var nextValueIsOnChart = ( i+1 < dataPoints.length && dataPoints[i+1][j] != null && dataPoints[i+1][j] != 91)
-
-            if ( p[j] == 91 && (lastValueIsOffChart && !nextValueIsOnChart) ) {
-              p[j] = null
-            } else {
-              lastValue[j] = p[j]
-            } 
-          }
-          dataPoints[i] = p
-        }
-        ranksData = dataPoints
-        ranksPlot()
-      }
+        lastValue[j] = p[j]
+      } 
     }
-  )
+    results[i] = p
+  }
+  return results
 }
 
-function ranksPlot() {
+function ranksPlot(dataPoints, submissionTime, startTime, endTime) {
   var plotDiv = document.getElementById('ranks_plot_div')
 
   var data = new google.visualization.DataTable();
@@ -57,15 +40,8 @@ function ranksPlot() {
   data.addColumn('number', 'New Rank');
   data.addColumn('number', 'Best Rank');
 
-  // these lines add too much noise to the plot and they
-  // have little influence on upvotes and thus on understanding
-  // story performance
-  // data.addColumn('number', 'Ask HN');
-  // data.addColumn('number', 'Show HN');
+  data.addRows(prepareRanksPlotData(dataPoints, submissionTime));
 
-  data.addRows(ranksData);
-
-  //var ageFormatter = new google.visualization.NumberFormat({suffix: ' hours old'});
   var ageFormatter = new ageFormat();
   
   ageFormatter.format(data, 0);
@@ -85,7 +61,8 @@ function ranksPlot() {
       title: 'Age [hours]',
       logScale: false,
       viewWindow: {
-        min: 0,
+        min: (startTime-submissionTime)/3600,
+        max: (endTime-submissionTime)/3600,
       }
     },
     vAxis: {
@@ -111,9 +88,9 @@ function ranksPlot() {
     lineDashStyle: [4,4],
     lineWidth: 2,
     colors: ['#0089F4', '#FF6600', "#AF7FDF", "#6FAEAE", "green","pink"],
-    chartArea:{left:80, top:50, bottom: 80, right: 20},
+    chartArea:{left:80, top:50, bottom: 80, right: 80},
+    height: 350,
     legend: { position: 'bottom' },
-    height: 400,
     crosshair: { trigger: 'both' },
     title: "Rank",
   };

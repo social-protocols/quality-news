@@ -18,6 +18,9 @@ type StatsPageData struct {
 	StatsPageParams
 	EstimatedUpvoteRate int
 	Story               Story
+	RanksPlotData       [][]any
+	UpvotesPlotData     [][]any
+	PenaltyPlotData     [][]any
 }
 
 func (d StatsPageData) IsQualityPage() bool {
@@ -48,6 +51,24 @@ func statsPage(ndb newsDatabase, w io.Writer, r *http.Request, params StatsPageP
 		EstimatedUpvoteRate: 1.0,
 		Story:               s,
 	}
+
+	ranks, err := rankDatapoints(ndb, params.StoryID)
+	if err != nil {
+		return errors.Wrap(err, "rankDatapoints")
+	}
+	d.RanksPlotData = ranks
+
+	upvotes, err := upvotesDatapoints(ndb, params.StoryID)
+	if err != nil {
+		return errors.Wrap(err, "upvotesDatapoints")
+	}
+	d.UpvotesPlotData = upvotes
+
+	penalty, err := penaltyDatapoints(ndb, params.StoryID)
+	if err != nil {
+		return errors.Wrap(err, "penaltyDatapoints")
+	}
+	d.PenaltyPlotData = penalty
 
 	err = templates.ExecuteTemplate(w, "stats.html.tmpl", d)
 
