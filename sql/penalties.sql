@@ -34,7 +34,7 @@ with latestScores as (
     , submissionTime > timestamp as resubmitted
    from dataset join stories using (id)
    where sampleTime > (select max(sampleTime) from dataset) - 3600 -- look at last hour
-   and score >= 3 -- story can't reach front page until score >= 3
+   and score >= 4 -- story can't reach front page until score >= 3. But I have observed that sometimes it takes score reaching 4.
 ), 
 ranks as (
   select 
