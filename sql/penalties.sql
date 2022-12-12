@@ -49,7 +49,7 @@ ranks as (
   select 
     *
     , ifnull(
-        avg(log(rankFiltered) - log(expectedRankFiltered)) filter(where rank > 3) 
+        avg(log10(rankFiltered) - log10(expectedRankFiltered)) filter(where rank > 3)
           over (partition by id order by sampleTime rows between 59 preceding and current row) 
         , 0
       ) as movingAverageFilteredLogRankPenalty
@@ -66,7 +66,7 @@ ranks as (
 )
 update dataset as d
   set 
-    currentPenalty = log(rankFiltered) - log(expectedRankFiltered)
+    currentPenalty = log10(rankFiltered) - log10(expectedRankFiltered)
     , penalty =
       case 
         when resubmitted then 0
