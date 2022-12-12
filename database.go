@@ -170,10 +170,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes, sampleTime
 		FROM dataset
 		WHERE id = ?
-		-- ORDER BY sampleTime DESC LIMIT 1
-		-- this should only return a value if this story was in the previous crawl
-		-- otherwise our cumulativeUpvotes calculation can be wrong
-		AND sampleTime = (select max(sampleTime) from dataset)
+		ORDER BY sampleTime DESC LIMIT 1
 		`
 		ndb.selectLastSeenScoreStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
