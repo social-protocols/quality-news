@@ -217,12 +217,12 @@ STORY:
 		storyID := story.ID
 
 		lastSeenScore, lastSeenUpvotes, lastSeenExpectedUpvotes, lastSeenTime, err := ndb.selectLastSeenData(tx, storyID)
+
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
 				return 0, errors.Wrap(err, "selectLastSeenScore")
 			}
 		} else {
-			// if no more than 5 minutes have passed.
 			lastCumulativeUpvotes[i] = lastSeenUpvotes
 			lastCumulativeExpectedUpvotes[i] = lastSeenExpectedUpvotes
 			lastSeenTimes[i] = lastSeenTime
@@ -250,8 +250,8 @@ STORY:
 		cumulativeUpvotes := lastCumulativeUpvotes[i]
 		cumulativeExpectedUpvotes := lastCumulativeExpectedUpvotes[i]
 
-		if sampleTime-int64(lastSeenTimes[i]) < 300 {
-			// only accumulate upvotes if we haven't gone more than a few
+		if sampleTime-int64(lastSeenTimes[i]) < 120 {
+			// only accumulate upvotes if we haven't gone more than 2
 			// minutes since last crawl. Otherwise our assumption that the
 			// story has been at this rank since the last crawl starts to
 			// become less and less reasonable

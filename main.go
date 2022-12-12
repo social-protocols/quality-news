@@ -118,34 +118,41 @@ func (app app) mainLoop(ctx context.Context) {
 	}
 
 	// And now set a ticker so we crawl every minute going forward
-	ticker := make(chan struct{})
+	ticker := make(chan int64)
 
 	// Now the next crawl happens on the minute. Make the first tick happen at the next
 	// Minute mark.
 	go func() {
 		t = time.Now().Unix()
-		logger.Debug("Waiting for next minute mark", "seconds", 60-t%60)
-		<-time.After(time.Duration(60-t%60) * time.Second)
-		ticker <- struct{}{}
+		delay := 60 - t%60
+		logger.Debug("Waiting for next minute mark", "seconds", delay)
+		<-time.After(time.Duration(delay) * time.Second)
+		ticker <- t + delay
 	}()
 
 	for {
 		select {
-		case <-ticker:
+		case t := <-ticker:
 
 			// Set the next tick at the minute mark. We use this instead of using
 			// time.NewTicker because in dev mode our app can be suspended, and I
 			// want to see all the timestamps in the DB as multiples of 60.
+			delay := 60 - t%60
 			go func() {
-				t := time.Now().Unix()
-				<-time.After(time.Duration(60-t%60) * time.Second)
-				ticker <- struct{}{}
+				<-time.After(time.Duration(delay) * time.Second)
+				ticker <- t + delay
 			}()
 			logger.Info("Beginning crawl")
+
+			// cancel crawl if it doesn't complete 1 second before the next
+			// crawl is supposed to start
+			ctx, cancel := context.WithDeadline(ctx, time.Unix(t+delay-1, 0))
+			defer cancel()
+
 			if err = app.crawlAndPostprocess(ctx); err != nil {
 				logger.Error("crawlAndPostprocess", err)
 			}
-			t = time.Now().Unix()
+
 			logger.Debug("Waiting for next minute mark", "seconds", 60-time.Now().Unix()%60)
 
 		case <-ctx.Done():
