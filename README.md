@@ -56,7 +56,7 @@ We start by looking at historical upvotes on Hacker News for each rank and page 
 We then calculated the *share* of overall site-wide upvotes that occur at each rank. For example, the first story on the `top` page receives on average about 10.2% of all upvotes (about 1.169 upvotes per minute), whereas the 40th story on the `new` page receives about 0.05% (about 0.0055 upvotes per minute). Upvote shares for the `top` page is summarized in the chart below.
 
 
-<img src="static/hn-top-page-votehistogram.svg" width="400" style="float: right;">
+<img src="static/upvote-share-by-rank.png" width="500" height="500">
 
 
 <!--from the hacker-news-data database: 
