@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,10 +10,6 @@ import (
 
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
 )
-
-//go:embed templates/*
-//go:embed sql/*
-var resources embed.FS
 
 type app struct {
 	ndb        newsDatabase

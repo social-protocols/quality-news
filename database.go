@@ -227,7 +227,9 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		}
 	}
 
-	return ndb, nil
+	err = ndb.importPenaltiesData(sqliteDataDir)
+
+	return ndb, err
 }
 
 func rankToNullableInt(rank int) (result sql.NullInt32) {

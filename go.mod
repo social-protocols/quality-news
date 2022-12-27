@@ -18,6 +18,8 @@ require (
 	github.com/victorspringer/http-cache v0.0.0-20221006212759-e323d9f0f0c4
 	github.com/weppos/publicsuffix-go v0.20.0
 	golang.org/x/exp v0.0.0-20221114191408-850992195362
+	gorm.io/driver/sqlite v1.4.3
+	gorm.io/gorm v1.24.2
 )
 
 //replace github.com/johnwarden/httperror v1.6.0 => ../httperror
@@ -36,6 +38,8 @@ require (
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-hclog v0.16.2 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/kennygrant/sanitize v1.2.4 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
