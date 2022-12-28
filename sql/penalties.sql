@@ -78,22 +78,26 @@ update dataset as d
         -- to reach front page we can't estimate penalties. But we can apply
         -- a default domain penalty.
         when latest.score < 4 then ifnull(domain_penalties.avg_penalty,0)
---        when resubmitted then 0
         when numRows < movingAverageWindowLength then
           -- If we have less than movingAverageWindowLength values in our moving average window,
           -- calculate the moving average as if we had movingAverageWindowLength values but the
           -- missing values are equal to the default domain penalty. So the moving average will always start
           -- at the domain penalty and move hopefully to a steady value after movingAverageWindowLength minutes.
           case 
-            when movingAverageFilteredLogRankPenalty > penaltyThreshold then
+            when abs(movingAverageFilteredLogRankPenalty) > penaltyThreshold then
               ( movingAverageFilteredLogRankPenalty * numRows  + ifnull(domain_penalties.avg_penalty,0) * (movingAverageWindowLength - numRows) ) / movingAverageWindowLength
             else 0
           end
-        when rank <= 90 and movingAverageFilteredLogRankPenalty < penaltyThreshold then
-          -- Remove the penalty only if the log rank penalty has moved to be negative over the past movingAverageWindowLength minutes
-          -- which is strong evidence this story is no longer penalized.
-          0
-        else 
+        when movingAverageFilteredLogRankPenalty < 0 then
+          -- If we have a negative penalty (a boost), then use the greater (in terms of absolute value) of the previous penalty and the current negative penalty
+          -- Note if previous penalty is positive, but the moving average is now negative, then the penalty will be either be 1) changed to a boost 
+          -- or 2) removed completely if the absolute value of the new moving average isn't above the threshold, or if the story doesn't rank <= 90 (a negative
+          -- penalty calculation for a story at rank 91 is meaningless, since 91 isn't a real rank).
+          min(ifnull(previous.penalty,0), case
+            when abs(movingAverageFilteredLogRankPenalty) > penaltyThreshold and rank <= 90 then movingAverageFilteredLogRankPenalty
+            else 0
+          end)
+        else
           -- Otherwise, use the greater of the previous penalty and the latest moving average.
           -- Set a threshold of penaltyThreshold for applying penalties to remove some false positives.
           max(ifnull(previous.penalty,0), case

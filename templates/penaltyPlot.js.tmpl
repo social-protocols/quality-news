@@ -3,6 +3,7 @@ var penaltyData
 function preparePenaltyPlotData(dataPoints, submissionTime) {
   var results = []
   var lastRank = null
+
   for (var i = 0; i < dataPoints.length; i++) {
     var rank = dataPoints[i][3]
     var lastRankIsOffChart = ( lastRank == 91 || lastRank == null )
@@ -12,13 +13,25 @@ function preparePenaltyPlotData(dataPoints, submissionTime) {
     } else {
       lastRank = rank
     }
+
     results[i] = [
       (dataPoints[i][0] - submissionTime)/3600,
-      dataPoints[i][1] || null,
       dataPoints[i][2] || null,
+      dataPoints[i][1] || null,
+      null,
       rank
     ]
+
+
+    // Series 1 only shows positive values. Add another series for negative values.
+    if (dataPoints[i][1] !== null && dataPoints[i][1] < 0) {
+       results[i][3] = -dataPoints[i][1]
+       results[i][2] = null
+    }
   }
+
+
+
   return results
 }
 
@@ -28,8 +41,9 @@ function penaltyPlot(penaltyData, submissionTime, startTime, endTime) {
 
   var data = new google.visualization.DataTable();
   data.addColumn('number', 'Age');
+  data.addColumn('number', 'Implied Penalty/Boost');
   data.addColumn('number', 'QN Penalty');
-  data.addColumn('number', 'Estimated HN Penalty');
+  data.addColumn('number', 'QN Boost');
   data.addColumn('number', 'HN Rank');
 
   data.addRows(preparePenaltyPlotData(penaltyData, submissionTime));
@@ -52,7 +66,7 @@ function penaltyPlot(penaltyData, submissionTime, startTime, endTime) {
 
     vAxes: {
       0: {
-        title: 'Penalty',
+        title: 'Penalty / Boost',
         logScale: false,
       },
       1: {
@@ -68,18 +82,19 @@ function penaltyPlot(penaltyData, submissionTime, startTime, endTime) {
       },
     },
     series: {
-      0: {targetAxisIndex: 0},
-      1: {pointShape: 'diamond', pointSize: 2, lineWidth: 0, targetAxisIndex: 0},
-      2: {pointShape: 'circle', pointSize: 5, interpolateNulls: false, lineDashStyle: [4,4], lineWidth: 2, targetAxisIndex: 1},
+      0: {pointShape: 'diamond', pointSize: 2, lineWidth: 0, targetAxisIndex: 0},
+      1: {targetAxisIndex: 0},
+      2: {targetAxisIndex: 0},
+      3: {pointShape: 'circle', pointSize: 5, interpolateNulls: false, lineDashStyle: [4,4], lineWidth: 2, targetAxisIndex: 1},
     },
 
     lineWidth: 3,
-    colors: ['red', '#b32b6c', '#FF6600'],
+    colors: ['black', 'red', 'green', '#FF6600'],
     chartArea:{left:80, top:50, bottom: 80, right: 80},
     height: 350,
     legend: { position: 'bottom' },
     crosshair: { trigger: 'both' },
-    title: "Penalties",
+    title: "Penalty / Boost",
   };
 
   var chart = new google.visualization.LineChart(plotDiv);
