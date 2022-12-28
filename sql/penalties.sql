@@ -52,7 +52,7 @@ ranks as (
   select 
     *
     , ifnull(
-        avg(log10(rankFiltered) - log10(expectedRankFiltered)) filter(where rank > 3)
+        avg(log10(rankFiltered) - log10(expectedRankFiltered))
           over (partition by id order by sampleTime rows between 59 preceding and current row) 
         , 0
       ) as movingAverageFilteredLogRankPenalty
