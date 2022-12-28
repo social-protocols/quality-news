@@ -38,7 +38,6 @@ latestScores as (
     , submissionTime > timestamp as resubmitted
    from dataset join stories using (id)
    where sampleTime > (select max(sampleTime) from dataset) - 3600 -- look at last hour
-   and score >= 4 -- story can't reach front page until score >= 3. But I have observed that sometimes it takes score reaching 4.
 ), 
 ranks as (
   select 
@@ -70,9 +69,15 @@ ranks as (
 )
 update dataset as d
   set 
-    currentPenalty = log10(rankFiltered) - log10(expectedRankFiltered)
+    currentPenalty = case when latest.score < 4 then 0 else log10(rankFiltered) - log10(expectedRankFiltered) end
     , penalty =
       case 
+
+        -- story can't reach front page until score >= 3. But I have observed
+        -- that sometimes it takes score reaching 4. Unless story is eligible
+        -- to reach front page we can't estimate penalties. But we can apply
+        -- a default domain penalty.
+        when latest.score < 4 then ifnull(domain_penalties.avg_penalty,0)
 --        when resubmitted then 0
         when numRows < movingAverageWindowLength then
           -- If we have less than movingAverageWindowLength values in our moving average window,
