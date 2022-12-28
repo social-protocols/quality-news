@@ -121,11 +121,11 @@ If we don't have a lot of data for a story, the observed upvote rate may not be 
 
 A more sophisticated approach uses Bayesian inference: given our prior knowledge about the distribution of upvote rates, plus the evidence we have observed about this particular story, what does Bayes' rule tell us is the most probable true upvote rate?
 
-The resulting estimated true upvote rates will always fall somewhere between the average upvote rate (1.0) and the observed upvote rate (`totalUpvotes/totalExpectedUpvotes`). Our prior assumption about a new story is that it is average. Then as the we collect more data our estimate approaches the observed upvote rate. For example, if expected upvotes is 1 and observed upvotes is 2, then the observed upvote rate is 2.0, but the estimated upvote rate will sill be closer to 1.0 because we don't have a lot of evidence. But if expected upvotes is 100 and observed upvotes is 200, the evidence is pretty strong, and the estimated upvote rate will be closeer to 2.0. 
+Since there are infinitely many possible true upvote rates, we can't use a trivial application of Bayes rule. But we can estimate the most likely true upvote rate using a technique called Bayesian Averaging. Here is good explanation of this technique from [Even Miller](https://www.evanmiller.org/bayesian-average-ratings.html).
 
-In fact, the estimate will always be a simple weighted average of the observed upvote rate (the data) and the prior of 1.0, where the weights are the number of expected upvotes and a constant representing the strength of the prior. Expected upvotes is roughly proportional to the number of people who have *paid attention* to a story, and thus can be thought of as a proxy for sample size. The constant representing the strength of the prior is the sample size necessary for the data to have more weight than the prior.
+The Bayesian Average will be weighted average of the observed upvote rate (the data) and the average upvote rate of 1.0 (the prior). We weigh the observed upvote rate by the number of expected upvotes (which is roughly proportional to the number of people who have *paid attention* to a story and thus can be thought of as a proxy for sample size). We weigh the prior by a constant representing the strength of the prior (which can be thought of as the sample size necessary for the data to have more weight than the prior), which we estimated using an MCMC simulation.
 
-Using an MCMC simulation to estimate this constant, we can calculate the estimated upvote rate for each story using the sample formula below. This technique is known as [Bayesian averaging](https://en.wikipedia.org/wiki/Bayesian_average)
+The exact formula is shown below.
 
     U = totalUpvotes
     E = totalExpectedUpvotes
