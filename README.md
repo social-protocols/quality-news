@@ -35,7 +35,7 @@ graph LR
     U --> R
 ```
 
-It is not always the best submissions that get caught in this feedback loop. We discussed some of earlier thoughts on this problem in our article on [Improving the Hacker News Ranking Algorithm](https://news.ycombinator.com/item?id=28391659).
+It is not always the best submissions that get caught in this feedback loop. We discussed some of our earlier thoughts on this problem in our article on [Improving the Hacker News Ranking Algorithm](https://news.ycombinator.com/item?id=28391659).
 
 This is the current hacker news ranking formula:
 
@@ -44,8 +44,6 @@ This is the current hacker news ranking formula:
 The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **rank** or 4) **timing**. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night.
 
 Our solution is to account for the effects of rank and timing by giving upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
-
-This doesn't guarantee that some good stories won't be missed, because the "new" page generally gets little attention and many stories are overlooked completely. We plan to approach this problem in the future.
 
 This doesn't guarantee that some high quality stories won't sometimes be overlooked completely because nobody notices them on the new page. We plan to approach this problem in the future.
 
@@ -217,13 +215,13 @@ A large enough number of bots or colluding users can still distort the results. 
 
 ## Penalties
 
-Our first implementation of this ranking algorithm immediately revealed a problem: the front page was dominated by non-technical stories. These was mostly major main-stream news headlines that had little to do with ["hacking and startups"](https://news.ycombinator.com/newsguidelines.html).
+Our first implementation of this ranking algorithm immediately revealed a problem: the front page was dominated by non-technical stories. These were mostly major main-stream news stories that had little to do with ["hacking and startups"](https://news.ycombinator.com/newsguidelines.html).
 
-Hacker News applies penalties to many main-stream news stories, causing them to be ranked lower than they would otherwise given their ranking score. Even though the HN community was formed around the topic of hacking and topics, it is full of curious people with a variety of interests, and it is natural that they will find value in discussing a wide range of topics. But in the long term communities can lose their value if they don't artificially focus the discussion. It seems like HN has arrived at a good compromise that quietly down-ranks off-topic articles while still allowing them, so that the community remains focused, but people also derive value from discussing other topics that truly interest them.
+HN moderators remove purely political or sensational stories, and apply penalties to some non-technical stories so that they are ranked lower than they would otherwise be given their ranking score.
 
-Unfortunately, Hacker News does not publish penalties or their method for applying them. Our initial attempt at reverse-engineering HN penalties was based on a method similar to the one described in this [blog post from 2013](https://www.righto.com/2013/11/how-hacker-news-ranking-really-works.html). We have since implemented logic that attempts to reproduce HN penalties as measured as a ratio of their expected rank to their actual rank.
+Hacker News isn't supposed to be 100% tech. It's mandate is "anything hackers would find interesting" or "intellectual curiosity" per the [guidelines](https://news.ycombinator.com/newsguidelines.html). It's natural for a community built around one topic, such as technology, to come to want to discuss a wide range of topics with members of the same community. But in the long term communities can lose their value if they don't artificially focus the discussion.
 
-Our logic successfully demotes most off-topic stories, though it does miss off-topic stories that have not yet been penalized by the HN editors because they have not yet made the HN home page (even though they have made the QN home page). Estimated penalties can be seen in the last chart of the story stats pages (which you get to by clicking on the blue upvote rate under the story). [For example](https://news.social-protocols.org/stats?id=33962083). You can also see the result of the QN ranking algorithm with [penalties removed](https://news.social-protocols.org/?penaltyWeight=0.001) or [negative penalties](https://news.social-protocols.org/?penaltyWeight=-1).
+It seems like HN has arrived at a good compromise by partially penalizing some non-technical stories without moving them completely, so that the community remains focused, but people also derive value from discussing topics within the site's broader mandate of "intellectual curiosity". Here's a more [nuanced explanation](https://news.ycombinator.com/item?id=22902490) from dang about how HN moderators try to focus the discussion.
 
 
 ## Possible Improvements
@@ -233,9 +231,9 @@ Our logic successfully demotes most off-topic stories, though it does miss off-t
 
 One improvement would be to properly account for **causality**. The formula for `estimatedUpvoteRate` makes some implicit assumptions about the causal relationship between the rank a story is shown at, and the number of upvotes it receives. These assumptions are not quite correct. As a result there are systematic errors in our upvote rate estimates that could be corrected by making appropriate statistical adjustments.
 
-Just as more deaths occur in hospitals because society sends sick people to hospitals, and not necessarily because hospitals cause people to die, more upvotes occur at higher ranks because the HN ranking algorithm sends the highest-scoring stories to higher ranks. So when we look at the number of upvotes that historically occur at different ranks, we need to consider that this is due to the *combined* effect of the algorithm, and the actual effect of rank on upvotes.
+Just as more deaths occur in hospitals because society sends sick people to hospitals, and not necessarily because hospitals cause people to die, more upvotes occur at higher ranks because the HN ranking algorithm sends the highest-scoring stories to higher ranks. So when we look at the number of upvotes that historically occur at different ranks, we need to consider that this is due to the *combined* effect of the algorithm and the actual effect of rank on upvotes.
 
-This is a problem because our upvote rate calculation depends on an estimate of the number of upvotes we would expect *the average story* to receive at each rank. But the data in our `upvoteShare`  table don't tell us this. Instead it tells us how many upvotes actually occured at each rank. But the *average* story was not shown at each rank. Above average stories are generally shown at higher ranks, and below-average stories are generally shown at lower ranks.
+This is a problem because our upvote rate calculation depends on an estimate of the number of upvotes we would expect *the average story* to receive at each rank. But the data in our `upvoteShare`  table don't tell us this. Instead it tells us how many upvotes actually occured at each rank. But the *average* story was not shown at each rank. Above-average stories are generally shown at higher ranks, and below-average stories are generally shown at lower ranks.
 
 So we don't know how many many more upvotes the average story *should* receive at rank 1 than at rank 90, just by looking at the historical averages.
 
@@ -247,11 +245,11 @@ A story's upvote rate is by definition a factor of how many more or fewer upvote
 
 ### Fatigue
 
-In general, upvote rates decrease as a story receives more attention. The more attention a story has received, the more likely it is that users have already seen it. So if a story spends a lot of time on  home page the upvote rate will eventually start to drop. 
+In general, upvote rates decrease as a story receives more attention. The more attention a story has received, the more likely it is that users have already seen it. So if a story spends a lot of time on  home page the upvote rate will eventually start to drop.
 
 But we'd like a true upvote rate estimate that measures the tendency of the story itself to attract upvotes, and not the amount of attention it has received on Hacker News. We can do this by building a fatigue factor into the expected upvote calculation.
 
-### Moving Averaging
+### Moving Averages
 
 Looking only at more recent data could make vote manipulation even harder: it would require a constant supply of new votes as the moving average window moves.
 
@@ -292,7 +290,7 @@ go run *.go
 Or, to automatically watch for source file changes:
 
 ```sh
-./watch.sh.
+./watch.sh
 ```
 
 ### Using NIX
