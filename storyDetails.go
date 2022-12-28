@@ -45,11 +45,11 @@ func (s Story) QualityString() string {
 }
 
 func (s Story) PenaltyString() string {
-	return fmt.Sprintf("▼%.2f", s.Penalty)
+	return fmt.Sprintf("-%.0f%%", s.Penalty*100)
 }
 
 func (s Story) BoostString() string {
-	return fmt.Sprintf("▲%.2f", -s.Penalty)
+	return fmt.Sprintf("+%.0f%%", -s.Penalty*100)
 }
 
 func (s Story) HasPenalty() bool {
