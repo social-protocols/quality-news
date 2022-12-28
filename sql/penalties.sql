@@ -20,12 +20,16 @@
 -- The solution I am trying here is use the greater of the current moving
 -- average and the previous moving average if the story is in the top 90.
 -- So penalties can only increase. The exceptions are when there are less than
--- 30 minutes worth of data, in which case we use a weighted average of the 
+-- movingAverageWindowLength minutes worth of data, in which case we use a weighted average of the
 -- moving average and zero (this is like Bayesian averaging with a prior of zero).
 -- Also if the moving average falls consistently to negative territory, penalties
 -- are removed.
-
-with latestScores as ( 
+with parameters as (
+  select
+    30 as movingAverageWindowLength
+    , 0.1 as penaltyThreshold
+),
+latestScores as (
   -- first, get the data from the latest crawl and calculate ranking scores
   select 
     *
@@ -70,29 +74,35 @@ update dataset as d
     , penalty =
       case 
         when resubmitted then 0
-        when numRows < 30 then
-          -- If we have less than 60 values in our moving average window,
-          -- calculate the moving average as if we had 60 values but the 
-          -- missing values are zero. So the moving average will always start
-          -- at zero and move up hopefully to a steady value after 30 minutes.
+        when numRows < movingAverageWindowLength then
+          -- If we have less than movingAverageWindowLength values in our moving average window,
+          -- calculate the moving average as if we had movingAverageWindowLength values but the
+          -- missing values are equal to the default domain penalty. So the moving average will always start
+          -- at the domain penalty and move hopefully to a steady value after movingAverageWindowLength minutes.
           case 
-            when movingAverageFilteredLogRankPenalty > 0.1 then movingAverageFilteredLogRankPenalty * numRows / 30
+            when movingAverageFilteredLogRankPenalty > penaltyThreshold then
+              ( movingAverageFilteredLogRankPenalty * numRows  + ifnull(domain_penalties.avg_penalty,0) * (movingAverageWindowLength - numRows) ) / movingAverageWindowLength
             else 0
           end
-        when rank <= 90 and movingAverageFilteredLogRankPenalty < 0 then
-          -- Remove the penalty only if the log rank penalty has moved to be consistently negative
+        when rank <= 90 and movingAverageFilteredLogRankPenalty < penaltyThreshold then
+          -- Remove the penalty only if the log rank penalty has moved to be negative over the past movingAverageWindowLength minutes
           -- which is strong evidence this story is no longer penalized.
           0
         else 
           -- Otherwise, use the greater of the previous penalty and the latest moving average.
-          -- Set a threshold of 0.1 for applying penalties to remove some false positives.
+          -- Set a threshold of penaltyThreshold for applying penalties to remove some false positives.
           max(ifnull(previous.penalty,0), case
-            when movingAverageFilteredLogRankPenalty > 0.1 then movingAverageFilteredLogRankPenalty
+            when movingAverageFilteredLogRankPenalty > penaltyThreshold then movingAverageFilteredLogRankPenalty
             else 0
           end)
       end
 from latest
 left join previousCrawl previous using (id)
+left join domain_penalties on (
+  url like ('http://' || domain || '%')
+  or url like ('https://' || domain || '%')
+)
+join parameters
 where d.id = latest.id 
 and d.sampleTime = latest.sampleTime;
 
