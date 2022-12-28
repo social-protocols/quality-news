@@ -12,8 +12,8 @@
     </span>
     <a href="https://news.ycombinator.com/item?id={{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> 
 
-    {{if .HasPenalty}} | <span class="penalty">{{.PenaltyString}}</span>{{end}}
-    {{if .HasBoost}} | <span class="boost">{{.BoostString}}</span>{{end}}
+    {{if .HasPenalty}} | <a href="/stats?id={{.ID}}" class="penalty">{{.PenaltyString}}</a>{{end}}
+    {{if .HasBoost}} | <a href="/stats?id={{.ID}}" class="boost">{{.BoostString}}</a>{{end}}
   </div>
 </div>
 </div>
