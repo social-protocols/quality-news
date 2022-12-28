@@ -73,7 +73,7 @@ update dataset as d
     currentPenalty = log10(rankFiltered) - log10(expectedRankFiltered)
     , penalty =
       case 
-        when resubmitted then 0
+--        when resubmitted then 0
         when numRows < movingAverageWindowLength then
           -- If we have less than movingAverageWindowLength values in our moving average window,
           -- calculate the moving average as if we had movingAverageWindowLength values but the
