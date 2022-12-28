@@ -11,6 +11,7 @@ with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gr
 	from dataset
 	where sampleTime = (select max(sampleTime) from dataset)
 	and score >= 3 -- story can't reach front page until score >= 3
+  and coalesce(topRank, bestRank, newRank, askRank, showRank) is not null -- let's not rank stories if they aren't accumulating attention
 ),
 unadjustedRanks as (
   select 
