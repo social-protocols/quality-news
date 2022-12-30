@@ -114,31 +114,33 @@ func (app app) mainLoop(ctx context.Context) {
 			}
 		}
 	} else {
-		logger.Info("Less than 60 seconds since last crawl.", "seconds", 60-time.Now().Unix()%60)
+		logger.Info("Less than 60 seconds since last crawl.", "waitSeconds", 60-time.Now().Unix()%60)
 	}
 
 	// And now set a ticker so we crawl every minute going forward
 	ticker := make(chan int64)
 
-	// Now the next crawl happens on the minute. Make the first tick happen at the next
+	// Make the first tick happen at the next
 	// Minute mark.
 	go func() {
-		t = time.Now().Unix()
+		t := time.Now().Unix()
 		delay := 60 - t%60
-		logger.Debug("Waiting for next minute mark", "seconds", delay)
+		logger.Debug("Scheduling tick at next minute mark", "seconds", delay, "now", t, "nextTick", t+delay)
 		<-time.After(time.Duration(delay) * time.Second)
 		ticker <- t + delay
 	}()
 
 	for {
 		select {
-		case t := <-ticker:
+		case <-ticker:
 
+			t := time.Now().Unix()
 			// Set the next tick at the minute mark. We use this instead of using
 			// time.NewTicker because in dev mode our app can be suspended, and I
 			// want to see all the timestamps in the DB as multiples of 60.
 			delay := 60 - t%60
 			go func() {
+				logger.Debug("Scheduling tick at next minute mark", "seconds", delay, "lastTick", t, "nextTick", t+delay)
 				<-time.After(time.Duration(delay) * time.Second)
 				ticker <- t + delay
 			}()
@@ -146,6 +148,7 @@ func (app app) mainLoop(ctx context.Context) {
 
 			// cancel crawl if it doesn't complete 1 second before the next
 			// crawl is supposed to start
+			logger.Debug("Setting deadline ", "time", t, "deadline", t+delay-1)
 			ctx, cancel := context.WithDeadline(ctx, time.Unix(t+delay-1, 0))
 			defer cancel()
 
