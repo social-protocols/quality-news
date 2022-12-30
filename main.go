@@ -156,7 +156,7 @@ func (app app) mainLoop(ctx context.Context) {
 				logger.Error("crawlAndPostprocess", err)
 			}
 
-			logger.Debug("Waiting for next minute mark", "seconds", 60-time.Now().Unix()%60)
+			logger.Debug("Scheduling tick at next minute mark", "seconds", 60-time.Now().Unix()%60)
 
 		case <-ctx.Done():
 			return
