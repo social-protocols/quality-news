@@ -106,7 +106,7 @@ const frontPageSQL = `
 		, (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality
 		, penalty
 		, topRank
-		, dense_rank() over(order by unadjustedRank*power(10,penalty*penaltyWeight)) as qnRank
+		, dense_rank() over(order by unadjustedRank + penalty*penaltyWeight) as qnRank
 		, cast((sampleTime-submissionTime)/3600 as real) as ageHours
 	from unadjustedRanks
 	order by %s

@@ -26,9 +26,8 @@ unadjustedRanks as (
   id
     , unadjustedRank
     , penalty
-    , power(10,penalty*penaltyWeight) as penaltyRatio
-    , unadjustedRank*power(10,penalty*penaltyWeight) as adjustedRank
-    , dense_rank() over(order by unadjustedRank*power(10,penalty*penaltyWeight)) as rank
+    , unadjustedRank + penalty*penaltyWeight as adjustedRank
+    , dense_rank() over(order by unadjustedRank + penalty*penaltyWeight) as rank
     , sampleTime
   from unadjustedRanks join parameters
 )

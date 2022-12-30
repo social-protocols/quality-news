@@ -2,32 +2,26 @@
 -- similar to the effect on HN. If a story is demoted by several ranks on HN
 -- it should be demoted several ranks on QN.
 
--- Demotion from rank 1 to rank 3 is more significant than demotion from rank
--- 81 to rank 83. So we'll measure penalties in terms of the story's actual
--- rank over its pre-penalty rank. So if a penalties causes a story to be
--- demoted from rank 1 to rank 3, the ratio is 3/1. The same if is is demoted
--- from rank 30 to rank 90.
+-- Here we are experimenting with defining penalties in terms of the absolute
+-- difference in ranks. So if the story is expected to be at rank 2 and is at
+-- rank 5, then the penalty is 5-2-3.
 
--- The log of a ratio is a difference of logs. Wee compute penalty as 
--- the difference of logs, because if we take the average of the difference of
--- logs and convert back to a ratio, that is the same as a geometric average.
-
--- When the story is not in the top 90 the penalty ratio calculation is
--- tricky. If the pre-penalty rank is high then not showing up in the top 90
--- means the story has been highly penalized, but if the pre-penalty rank is
--- already close to 90 then it doesn't tell us much. 
+-- Because we only crawl the top 90 stories, then if the rank is >= 90 we
+-- don't actually know the rank. This puts a cap on the penalty estimate.
+-- When the story rank is close to 90, then this will tend to result in
+-- underestimated penalties.
 
 -- The solution I am trying here is use the greater of the current moving
--- average and the previous moving average if the story is in the top 90.
--- So penalties can only increase. The exceptions are when there are less than
--- movingAverageWindowLength minutes worth of data, in which case we use a weighted average of the
--- moving average and zero (this is like Bayesian averaging with a prior of zero).
--- Also if the moving average falls consistently to negative territory, penalties
--- are removed.
-with parameters as (
-  select
-    30 as movingAverageWindowLength
-    , 0.1 as penaltyThreshold
+-- average and the previous moving average if the story is in the top 90. So
+-- penalties can only increase. The exceptions are when there are less than
+-- movingAverageWindowLength minutes worth of data, in which case we use a
+-- weighted average of the moving average and the domain-level default
+-- penalty (this is like Bayesian averaging with the domain penalty as
+-- prior). Also if the moving average falls consistently to negative
+-- territory, penalties are removed.
+
+with parameters as ( select 30 as movingAverageWindowLength
+    , 2 as penaltyThreshold
 ),
 latestScores as (
   -- first, get the data from the latest crawl and calculate ranking scores
@@ -37,7 +31,7 @@ latestScores as (
     , pow(score-1, 0.8) / pow(cast(sampleTime - submissionTime as real)/3600+2, 1.8) as rankingScore -- pre-penalty HN ranking formula
     , submissionTime > timestamp as resubmitted
    from dataset join stories using (id)
-   where sampleTime > (select max(sampleTime) from dataset) - 3600 -- look at last hour
+   where sampleTime > (select max(sampleTime) from dataset) - 24*3600 -- look at last hour
 ), 
 ranks as (
   select 
@@ -52,10 +46,10 @@ ranks as (
   select 
     *
     , ifnull(
-        avg(log10(rankFiltered) - log10(expectedRankFiltered))
+        avg(rankFiltered - expectedRankFiltered)
           over (partition by id order by sampleTime rows between 59 preceding and current row) 
         , 0
-      ) as movingAverageFilteredLogRankPenalty
+      ) as movingAverageFilteredRankPenalty
     , ifnull(
         count(*)
           over (partition by id order by sampleTime rows between 59 preceding and current row) 
@@ -69,7 +63,7 @@ ranks as (
 )
 update dataset as d
   set 
-    currentPenalty = case when latest.score < 4 then 0 else log10(rankFiltered) - log10(expectedRankFiltered) end
+    currentPenalty = case when latest.score < 4 then 0 else rankFiltered - expectedRankFiltered end
     , penalty =
       case 
 
@@ -84,24 +78,24 @@ update dataset as d
           -- missing values are equal to the default domain penalty. So the moving average will always start
           -- at the domain penalty and move hopefully to a steady value after movingAverageWindowLength minutes.
           case 
-            when abs(movingAverageFilteredLogRankPenalty) > penaltyThreshold then
-              ( movingAverageFilteredLogRankPenalty * numRows  + ifnull(domain_penalties.avg_penalty,0) * (movingAverageWindowLength - numRows) ) / movingAverageWindowLength
+            when abs(movingAverageFilteredRankPenalty) > penaltyThreshold then
+              ( movingAverageFilteredRankPenalty * numRows  + ifnull(domain_penalties.avg_penalty,0) * (movingAverageWindowLength - numRows) ) / movingAverageWindowLength
             else 0
           end
-        when movingAverageFilteredLogRankPenalty < 0 then
+        when movingAverageFilteredRankPenalty < 0 then
           -- If we have a negative penalty (a boost), then use the greater (in terms of absolute value) of the previous penalty and the current negative penalty
           -- Note if previous penalty is positive, but the moving average is now negative, then the penalty will be either be 1) changed to a boost 
           -- or 2) removed completely if the absolute value of the new moving average isn't above the threshold, or if the story doesn't rank <= 90 (a negative
           -- penalty calculation for a story at rank 91 is meaningless, since 91 isn't a real rank).
           min(ifnull(previous.penalty,0), case
-            when abs(movingAverageFilteredLogRankPenalty) > penaltyThreshold and rank <= 90 then movingAverageFilteredLogRankPenalty
+            when abs(movingAverageFilteredRankPenalty) > penaltyThreshold and rank <= 90 then movingAverageFilteredRankPenalty
             else 0
           end)
         else
           -- Otherwise, use the greater of the previous penalty and the latest moving average.
           -- Set a threshold of penaltyThreshold for applying penalties to remove some false positives.
           max(ifnull(previous.penalty,0), case
-            when movingAverageFilteredLogRankPenalty > penaltyThreshold then movingAverageFilteredLogRankPenalty
+            when movingAverageFilteredRankPenalty > penaltyThreshold then movingAverageFilteredRankPenalty
             else 0
           end)
       end

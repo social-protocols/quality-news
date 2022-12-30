@@ -1,0 +1,1 @@
+create index previousCrawl_id_idx on previousCrawl (id);
