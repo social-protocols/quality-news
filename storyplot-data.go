@@ -29,6 +29,7 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Query: select ranks")
 	}
+	defer rows.Close()
 
 	i := 0
 	for rows.Next() {
@@ -82,6 +83,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Query: select upvotes")
 	}
+	defer rows.Close()
 
 	i := 0
 	for rows.Next() {
@@ -131,6 +133,7 @@ func penaltyDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Query: select penalties")
 	}
+	defer rows.Close()
 
 	i := 0
 	for rows.Next() {
