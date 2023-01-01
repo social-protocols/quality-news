@@ -31,7 +31,7 @@ latestScores as (
     , pow(score-1, 0.8) / pow(cast(sampleTime - submissionTime as real)/3600+2, 1.8) as rankingScore -- pre-penalty HN ranking formula
     , submissionTime > timestamp as resubmitted
    from dataset join stories using (id)
-   where sampleTime > (select max(sampleTime) from dataset) - 24*3600 -- look at last hour
+   where sampleTime > (select max(sampleTime) from dataset) - 3600 -- look at last hour
 ), 
 ranks as (
   select 

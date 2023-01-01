@@ -144,7 +144,7 @@ func (app app) crawl(ctx context.Context, tx *sql.Tx) (int, error) {
 
 		t := time.Now()
 
-		ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
 		// get story details
