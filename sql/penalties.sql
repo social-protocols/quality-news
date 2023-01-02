@@ -72,8 +72,9 @@ update dataset as d
         -- to reach front page we can't estimate penalties. But we can apply
         -- a default domain penalty.
         when latest.score < 4 then ifnull(domain_penalties.avg_penalty,0)
-        when numRows < movingAverageWindowLength then
+        when numRows < movingAverageWindowLength and previous.penalty == 0 then
           -- If we have less than movingAverageWindowLength values in our moving average window,
+          -- and we don't have a previous penalty, then 
           -- calculate the moving average as if we had movingAverageWindowLength values but the
           -- missing values are equal to the default domain penalty. So the moving average will always start
           -- at the domain penalty and move hopefully to a steady value after movingAverageWindowLength minutes.
