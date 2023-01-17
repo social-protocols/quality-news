@@ -12,21 +12,18 @@ const (
 type pageCoefficients = struct {
 	pageTypeCoefficient float64
 	pageCoefficient     float64
-	rankCoefficients    [nPages]float64
+	rankCoefficient     float64
 }
 
-// These coefficients are the output of regression-pagetype-page-and-rank.R
-// from the hacker-news-data repository. The rank coefficients for the
-// ask and best pages looked pretty questionable, due to a sparsity of data,
-// so I manually estimated some values
+// These coefficients are the output of bayesian-quality-pagetype-rank.R
+// from the hacker-news-data repository.
 var (
-	intercept    = -2.31114
 	coefficients = [nPageTypes]pageCoefficients{
-		{0.0, -3.54835, [nPages]float64{-0.64681, -0.36647, -0.19429}},
-		{-3.05791, -2.45658, [nPages]float64{-0.44322, -0.29721, -0.11946}},
-		{-4.25609, -1.84011, [nPages]float64{-0.38478, -0.16904, 0.13236}},
-		{-2.46316, -5.67281, [nPages]float64{-1.25747, -0.58459, -0.09087}},
-		{-5.40623, -4.08824, [nPages]float64{-0.64128, -0.21784, 0.85713}},
+		{-2.733096, -3.492384, -0.5636350},
+		{-5.806347, -2.680377, -0.3879157},
+		{-7.365239, -1.141086, -0.2927700},
+		{-5.743499, -4.986510, -1.0510611},
+		{-7.237460, -4.884862, -0.8878165},
 	}
 )
 
@@ -36,9 +33,9 @@ func expectedUpvoteShare(pageType, oneBasedRank int) float64 {
 
 	cs := coefficients[pageType]
 
-	logExpectedUpvoteShare := intercept + cs.pageTypeCoefficient +
+	logExpectedUpvoteShare := cs.pageTypeCoefficient +
 		cs.pageCoefficient*math.Log(float64(zeroBasedPage+1)) +
-		cs.rankCoefficients[zeroBasedPage]*math.Log(float64(oneBasedRankOnPage))
+		cs.rankCoefficient*math.Log(float64(oneBasedRankOnPage))/float64(zeroBasedPage+1)
 
 	return math.Exp(logExpectedUpvoteShare)
 }
