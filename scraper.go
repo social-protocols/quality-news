@@ -91,6 +91,7 @@ func (rs rawStory) Clean() (ScrapedStory, error) {
 			return story, errors.Wrapf(err, "parse submission time %s", rs.SubmissionTime)
 		}
 		story.SubmissionTime = submissionTime.Unix()
+		story.OriginalSubmissionTime = story.SubmissionTime
 	}
 
 	// parse approximate age

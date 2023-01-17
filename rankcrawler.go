@@ -4,18 +4,29 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slog"
 )
 
-var pageTypes = map[int]string{
-	0: "top",
-	1: "new",
-	2: "best",
-	3: "ask",
-	4: "show",
+type pageTypeInt int
+
+var (
+	top  pageTypeInt = 0
+	new  pageTypeInt = 1
+	best pageTypeInt = 2
+	ask  pageTypeInt = 3
+	show pageTypeInt = 4
+)
+
+var pageTypes = map[pageTypeInt]string{
+	top:  "top",
+	new:  "new",
+	best: "best",
+	ask:  "ask",
+	show: "show",
 }
 
 type ranksArray [5]int // the ranks of a story for different pageTypes
@@ -200,6 +211,8 @@ func (app app) crawl(ctx context.Context, tx *sql.Tx) (int, error) {
 	lastCumulativeExpectedUpvotes := make([]float64, len(uniqueStoryIds))
 	lastSeenTimes := make([]int, len(uniqueStoryIds))
 
+	newRankChanges := make([]int, 0, 10)
+
 	logger.Info("Inserting stories into DB", "nitems", len(uniqueStoryIds))
 
 	// insert stories into DB and update aggregate metrics
@@ -222,6 +235,16 @@ STORY:
 			if !errors.Is(err, sql.ErrNoRows) {
 				return 0, errors.Wrap(err, "selectLastSeenScore")
 			}
+
+			if story.SubmissionTime == 0 {
+				panic(story)
+			}
+
+			if storyRanks[story.ID][1] != 0 {
+				newRankChanges = append(newRankChanges, int(sampleTime)-int(story.SubmissionTime))
+				lastSeenTimes[i] = int(story.SubmissionTime)
+			}
+
 		} else {
 			lastCumulativeUpvotes[i] = lastSeenUpvotes
 			lastCumulativeExpectedUpvotes[i] = lastSeenExpectedUpvotes
@@ -233,7 +256,8 @@ STORY:
 		}
 
 		// save story details in database
-		if _, err := ndb.insertOrReplaceStory(tx, story.Story); err != nil {
+		_, err = ndb.insertOrReplaceStory(tx, story.Story)
+		if err != nil {
 			return 0, errors.Wrap(err, "insertOrReplaceStory")
 		}
 	}
@@ -243,6 +267,13 @@ STORY:
 	var sitewideDeltaExpectedUpvotes float64
 	var sitewideExpectedUpvotesShare float64
 
+	if len(newRankChanges) > 0 {
+		// If there have been N new submissions, each story above rank N has occupied N+1 ranks
+		// So add a rank change time corresponding to the beginning of the crawl period.
+
+		sort.Ints(newRankChanges)
+	}
+
 	for i, id := range uniqueStoryIds {
 		story := stories[id]
 
@@ -250,7 +281,9 @@ STORY:
 		cumulativeUpvotes := lastCumulativeUpvotes[i]
 		cumulativeExpectedUpvotes := lastCumulativeExpectedUpvotes[i]
 
-		if sampleTime-int64(lastSeenTimes[i]) < 120 {
+		elapsedTime := int(sampleTime) - lastSeenTimes[i]
+
+		if elapsedTime < 120 {
 			// only accumulate upvotes if we haven't gone more than 2
 			// minutes since last crawl. Otherwise our assumption that the
 			// story has been at this rank since the last crawl starts to
@@ -259,17 +292,25 @@ STORY:
 			cumulativeUpvotes += deltaUpvotes[i]
 
 		RANKS:
-			for pageType, rank := range ranks {
+			for pt, rank := range ranks {
+				pageType := pageTypeInt(pt)
 				if rank == 0 {
 					continue RANKS
 				}
 
-				expectedUpvotesShare := expectedUpvoteShare(pageType, rank)
-				deltaExpectedUpvotes := expectedUpvotesShare * float64(sitewideUpvotes)
+				exUpvoteShare := 0.0
+
+				if pageType == new && len(newRankChanges) > 0 {
+					exUpvoteShare = expectedUpvoteShareNewPage(rank, elapsedTime, newRankChanges)
+				} else {
+					exUpvoteShare = expectedUpvoteShare(pageType, rank)
+				}
+
+				deltaExpectedUpvotes := exUpvoteShare * float64(sitewideUpvotes-deltaUpvotes[i])
 
 				cumulativeExpectedUpvotes += deltaExpectedUpvotes
 				sitewideDeltaExpectedUpvotes += deltaExpectedUpvotes
-				sitewideExpectedUpvotesShare += expectedUpvotesShare
+				sitewideExpectedUpvotesShare += exUpvoteShare
 			}
 		}
 
@@ -313,7 +354,7 @@ func (app app) getRanksFromAPI(ctx context.Context) (map[int]ranksArray, error) 
 
 	client := app.hnClient
 
-	for pageType := 0; pageType < len(pageTypes); pageType++ {
+	for pageType := top; pageType <= show; pageType++ {
 		pageTypeName := pageTypes[pageType]
 
 		ctx, cancel := context.WithTimeout(ctx, 20*time.Second)

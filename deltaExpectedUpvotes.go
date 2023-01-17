@@ -27,7 +27,7 @@ var (
 	}
 )
 
-func expectedUpvoteShare(pageType, oneBasedRank int) float64 {
+func expectedUpvoteShare(pageType pageTypeInt, oneBasedRank int) float64 {
 	zeroBasedPage := (oneBasedRank - 1) / 30
 	oneBasedRankOnPage := ((oneBasedRank - 1) % 30) + 1
 
@@ -38,4 +38,47 @@ func expectedUpvoteShare(pageType, oneBasedRank int) float64 {
 		cs.rankCoefficient*math.Log(float64(oneBasedRankOnPage))/float64(zeroBasedPage+1)
 
 	return math.Exp(logExpectedUpvoteShare)
+}
+
+var averageCrawlDelay = 10
+
+func expectedUpvoteShareNewPage(oneBasedRank, elapsedTime int, newRankChanges []int) float64 {
+	rank := oneBasedRank
+	exUpvoteShare := 0.0
+
+	for j, current := range append(newRankChanges, elapsedTime+10) {
+
+		r := rank - j
+		if r < 1 {
+			break
+		}
+
+		var previous int
+		var timeAtRank int
+
+		// Calculate the value of the variable previous, which is how many
+		// seconds ago this story moved out of rank r
+		if j > 0 {
+			previous = newRankChanges[j-1]
+		} else {
+			// Most stories don't appear on the new page until about 10 seconds after submission.
+			// So subtract 10 seconds from the age of the story at rank 1.
+			previous = averageCrawlDelay
+		}
+
+		if current > elapsedTime+averageCrawlDelay {
+			current = elapsedTime + averageCrawlDelay
+		}
+		timeAtRank = current - previous
+		if timeAtRank <= 0 {
+			// Some stories might appear on the new page after less than averageCrawlDelay seconds. So by subtracting averageCrawlDelay seconds from
+			// the submission time, we can end up with a negative timeAtRank. But this needs to be positive,
+			// because total attentionShare must be greater than zero. So instead of subtracting averageCrawlDelay, divide by 2.
+			timeAtRank = current / 2
+		}
+
+		exUpvoteShare += expectedUpvoteShare(1, r) * float64(timeAtRank) / float64(elapsedTime)
+	}
+
+	return exUpvoteShare
 }
