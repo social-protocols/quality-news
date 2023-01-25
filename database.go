@@ -161,7 +161,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 		ndb.insertDataPointStatement, err = ndb.db.Prepare(sql) // Prepare statement.
 		if err != nil {
-			return ndb, err
+			return ndb, errors.Wrap(err, "preparing insertDataPointStatement")
 		}
 	}
 
@@ -184,7 +184,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		`
 		ndb.selectLastCrawlTimeStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
-			return ndb, err
+			return ndb, errors.Wrap(err, "preparing selectLastCrawlTimeStatement")
 		}
 	}
 
@@ -211,9 +211,10 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		ORDER BY sampleTime DESC
 		LIMIT 1
 		`
+
 		ndb.selectStoryDetailsStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
-			return ndb, err
+			return ndb, errors.Wrap(err, "preparing selectStoryDetailsStatement")
 		}
 	}
 
@@ -223,7 +224,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		`
 		ndb.selectStoryCountStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
-			return ndb, err
+			return ndb, errors.Wrap(err, "preparing selectStoryCountStatement")
 		}
 	}
 
