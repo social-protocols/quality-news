@@ -70,6 +70,7 @@ func (ndb newsDatabase) init() error {
 			, ageApprox int not null
 			, penalty real not null default 0
 			, currentPenalty real
+			, expectedRank int
 		);
 		`,
 		`
@@ -95,6 +96,16 @@ func (ndb newsDatabase) init() error {
 		if err != nil {
 			return errors.Wrap(err, "seeding database")
 		}
+	}
+
+	alterStatements := []string{
+		`
+		alter table dataset add column expectedRank int
+		`,
+	}
+
+	for _, s := range alterStatements {
+		_, _ = ndb.db.Exec(s)
 	}
 
 	return nil
