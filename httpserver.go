@@ -45,8 +45,8 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router := httprouter.New()
 	router.GET("/static/*filepath", app.serveFiles(http.FS(staticRoot)))
 
-	router.GET("/", middleware("qntop", l, onPanic, app.frontpageHandler("quality")))
-	router.GET("/hntop", middleware("hntop", l, onPanic, app.frontpageHandler("hntop")))
+	router.GET("/", middleware("hntop", l, onPanic, app.frontpageHandler("hntop")))
+	// router.GET("/hntop", middleware("hntop", l, onPanic, app.frontpageHandler("hntop")))
 	router.GET("/new", middleware("new", l, onPanic, app.frontpageHandler("new")))
 	router.GET("/stats", middleware("stats", l, onPanic, app.statsHandler()))
 

@@ -113,4 +113,3 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 
 	return upvotesData, errors.Wrap(err, "rows.Err")
 }
-
