@@ -57,10 +57,10 @@
 
   <div id="ranks_plot_div"></div>
   <div class="plot-description">
-    This chart shows the history of this story's rank on <a href="/" style="color: #0089F4; font-weight: bold;">Quality News</a> compared to its rank on 
-    the Hacker News <a href="https://news.ycombinator.com/" style="color: #FF6600; font-weight: bold;">Front Page</a>,
+    This chart shows the history of this story's rank on the Hacker News <a href="https://news.ycombinator.com/" style="color: #FF6600; font-weight: bold;">"Top"</a> (Front) Page,
     <a href="https://news.ycombinator.com/newest" style="color: #AF7FDF; font-weight: bold;">"New"</a> Page,
-    and <a href="https://news.ycombinator.com/best" style="color: #6FAEAE; font-weight: bold;">"Best"</a> Page.
+    and <a href="https://news.ycombinator.com/best" style="color: #6FAEAE; font-weight: bold;">"Best"</a> Page, as well as its <a style="color: black; font-weight: bold;">expected rank</a>
+    given the Hacker News ranking formula. The difference is due to moderator bonuses and penalties.
   </div>
 
   <hr/>
@@ -75,13 +75,6 @@
   <div id="upvoterate_plot_div"></div>
   <div class="plot-description">
     This chart shows the history of this story's <span style="color: #0089F4; font-weight: bold;">estimated true upvote rate</span>: the predicted long-term ratio of upvotes to expected upvotes. See the <a href="https://github.com/social-protocols/news#the-true-upvote-rate">about page</a> for further details.
-  </div>
-
-  <hr/>
-
-  <div id="penalty_plot_div"></div>
-  <div class="plot-description">
-    This chart shows the history of the story's estimated <span style="color: #b32b6c; font-weight: bold;">penalty</span> or <span style="color: #3da389; font-weight: bold;">boost</span>  based on the discrepancy between the story's <span style="color: #FF6600; font-weight: bold;">HN rank</span> and its expected rank based on the published ranking formula. The Quality News <span style="color: red; font-weight: bold;">penalty</span> or <span style="color: green; font-weight: bold;">boost</span> is then applied based on an upper bound of the moving average of the estimated penalty. See the <a href="https://github.com/social-protocols/news#penalties">about page</a> for further details.
   </div>
 
   <hr/>

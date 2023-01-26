@@ -10,7 +10,7 @@ var submissionTime = {{.Story.SubmissionTime}};
 var ranksPlotData = {{.RanksPlotData}};
 var upvotesPlotData = {{.UpvotesPlotData}};
 var upvoteRatePlotData = upvotesPlotData; //same data
-var penaltyPlotData = {{.PenaltyPlotData}};
+//var penaltyPlotData = {{.PenaltyPlotData}};
 
 function drawCharts() {
 
@@ -21,7 +21,7 @@ function drawCharts() {
   ranksPlot(ranksPlotData, submissionTime, startTime, endTime)
   upvotesPlot(upvotesPlotData, submissionTime, startTime, endTime)
   upvoteRatePlot(upvoteRatePlotData, submissionTime, startTime, endTime)
-  penaltyPlot(penaltyPlotData, submissionTime, startTime, endTime)
+  // penaltyPlot(penaltyPlotData, submissionTime, startTime, endTime)
 }
 
 // how rank is displayed when hovering over a datapoint
@@ -74,5 +74,4 @@ var getJSON = function(url, callback) {
 {{template "ranksPlot.js.tmpl" .}}
 {{template "upvotesPlot.js.tmpl" .}}
 {{template "upvoteRatePlot.js.tmpl" .}}
-{{template "penaltyPlot.js.tmpl" .}}
 

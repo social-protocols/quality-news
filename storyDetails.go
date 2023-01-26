@@ -44,22 +44,6 @@ func (s Story) QualityString() string {
 	return fmt.Sprintf("%.2f", s.Quality)
 }
 
-func (s Story) PenaltyString() string {
-	return fmt.Sprintf("-%.0f", s.Penalty)
-}
-
-func (s Story) BoostString() string {
-	return fmt.Sprintf("+%.0f", -s.Penalty)
-}
-
-func (s Story) HasPenalty() bool {
-	return s.Penalty > 0.0
-}
-
-func (s Story) HasBoost() bool {
-	return s.Penalty < 0.0
-}
-
 func (s Story) Domain() string {
 	u, err := url.Parse(s.URL)
 	if err != nil {

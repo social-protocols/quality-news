@@ -35,10 +35,11 @@ function ranksPlot(dataPoints, submissionTime, startTime, endTime) {
 
   var data = new google.visualization.DataTable();
   data.addColumn('number', 'Age');
-  data.addColumn('number', 'QN Rank');
-  data.addColumn('number', 'HN Rank');
-  data.addColumn('number', 'New Rank');
-  data.addColumn('number', 'Best Rank');
+//  data.addColumn('number', 'QN Rank');
+  data.addColumn('number', 'Expected Rank');
+  data.addColumn('number', '"Top" Rank');
+  data.addColumn('number', '"New" Rank');
+  data.addColumn('number', '"Best" Rank');
 
   data.addRows(prepareRanksPlotData(dataPoints, submissionTime));
 
@@ -77,7 +78,7 @@ function ranksPlot(dataPoints, submissionTime, startTime, endTime) {
     },
     interpolateNulls: false, 
     series: {
-      0: {pointShape: 'diamond', pointSize: 8, interpolateNulls: false},
+      0: {pointShape: 'diamond', pointSize: 3, interpolateNulls: false},
       1: {pointShape: 'circle', pointSize: 5, interpolateNulls: false},
       2: {pointShape: 'square', pointSize: 5, interpolateNulls: false},
       3: {pointShape: 'square', pointSize: 5, interpolateNulls: false},
@@ -87,7 +88,8 @@ function ranksPlot(dataPoints, submissionTime, startTime, endTime) {
 
     lineDashStyle: [4,4],
     lineWidth: 2,
-    colors: ['#0089F4', '#FF6600', "#AF7FDF", "#6FAEAE", "green","pink"],
+    colors: ['black', '#FF6600', "#AF7FDF", "#6FAEAE", "green","pink"],
+    // colors: ['#0089F4', '#FF6600', "#AF7FDF", "#6FAEAE", "green","pink"],
     chartArea:{left:80, top:50, bottom: 80, right: 80},
     height: 350,
     legend: { position: 'bottom' },

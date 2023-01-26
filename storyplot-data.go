@@ -6,8 +6,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const nRanks = 6
-
 func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
@@ -25,11 +23,15 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 
 	ranks := make([][]any, n)
 
-	rows, err := ndb.db.Query("select sampleTime, (case when qnRank > 90 then 91 else qnRank end) as qnRank, topRank, newRank, bestRank, askRank, showRank from dataset where id = ?", storyID)
+	// rows, err := ndb.db.Query("select sampleTime, (case when qnRank > 90 then 91 else qnRank end) as qnRank, topRank, newRank, bestRank, askRank, showRank, expectedRank from dataset where id = ?", storyID)
+	rows, err := ndb.db.Query("select sampleTime, expectedRank, topRank, newRank, bestRank, askRank, showRank from dataset where id = ?", storyID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Query: select ranks")
 	}
 	defer rows.Close()
+
+	// expectedRank, top, new, bet, ask, show
+	const nRanks = 6
 
 	i := 0
 	for rows.Next() {
@@ -112,60 +114,3 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	return upvotesData, errors.Wrap(err, "rows.Err")
 }
 
-func penaltyDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
-	var n int
-	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
-		return nil, errors.Wrap(err, "QueryRow: select count")
-	}
-
-	if n == 0 {
-		return nil, ErrStoryIDNotFound
-	}
-
-	var submissionTime int64
-	if err := ndb.db.QueryRow("select timestamp from stories where id = ?", storyID).Scan(&submissionTime); err != nil {
-		return nil, errors.Wrap(err, "QueryRow: select submissionTime")
-	}
-
-	upvotesData := make([][]any, n)
-
-	rows, err := ndb.db.Query("select sampleTime, penalty, currentPenalty, topRank from dataset where id = ?", storyID)
-	if err != nil {
-		return nil, errors.Wrap(err, "Query: select penalties")
-	}
-	defer rows.Close()
-
-	i := 0
-	for rows.Next() {
-		var sampleTime int64
-		var penalty float64
-		var currentPenalty sql.NullFloat64
-		var nullableHNRank sql.NullInt32
-
-		var hnRank int32
-
-		err = rows.Scan(&sampleTime, &penalty, &currentPenalty, &nullableHNRank)
-
-		if err != nil {
-			return nil, errors.Wrap(err, "rows.Scan")
-		}
-
-		if nullableHNRank.Valid {
-			hnRank = nullableHNRank.Int32
-		} else {
-			hnRank = 91
-		}
-
-		upvotesData[i] = []any{
-			sampleTime,
-			penalty,
-			currentPenalty.Float64,
-			hnRank,
-		}
-		i++
-	}
-
-	err = rows.Err()
-
-	return upvotesData, errors.Wrap(err, "rows.Err")
-}
