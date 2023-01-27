@@ -44,6 +44,18 @@ func (d frontPageData) IsNewPage() bool {
 	return d.Ranking == "new"
 }
 
+func (d frontPageData) IsBestPage() bool {
+	return d.Ranking == "best"
+}
+
+func (d frontPageData) IsAskPage() bool {
+	return d.Ranking == "ask"
+}
+
+func (d frontPageData) IsShowPage() bool {
+	return d.Ranking == "show"
+}
+
 func (d frontPageData) GravityString() string {
 	return fmt.Sprintf("%.2f", d.Params.Gravity)
 }
@@ -113,7 +125,7 @@ const frontPageSQL = `
 	limit 90;
 `
 
-const newPageSQL = `
+const hnPageSQL = `
 	with parameters as (select %f as priorWeight, %f as overallPriorWeight)
 	select
 		id
@@ -132,7 +144,7 @@ const newPageSQL = `
 		, cast((sampleTime-submissionTime)/3600 as real) as ageHours
 	from dataset join stories using (id) join parameters
 	where sampleTime = (select max(sampleTime) from dataset)
-	order by newRank nulls last
+	order by %s
 	limit 90;
 `
 
@@ -204,16 +216,15 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 	if statements[ranking] == nil || params != defaultFrontPageParams {
 
 		var sql string
-		if ranking == "new" {
-			sql = fmt.Sprintf(newPageSQL, priorWeight, overallPriorWeight)
-		} else {
+		if ranking == "quality" {
 			orderBy := "qnRank nulls last"
-			if ranking == "hntop" {
-				orderBy = "topRank nulls last"
-			} else if ranking == "new" {
-				orderBy = "newRank nulls last"
-			}
 			sql = fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity, penaltyWeight, qnRankFormulaSQL, orderBy)
+		} else {
+			orderBy := "topRank nulls last"
+			if ranking != "hntop" {
+				orderBy = fmt.Sprintf("%sRank nulls last", ranking)
+			}
+			sql = fmt.Sprintf(hnPageSQL, priorWeight, overallPriorWeight, orderBy)			
 		}
 
 		s, err = ndb.db.Prepare(sql)
