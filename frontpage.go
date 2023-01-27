@@ -224,7 +224,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 			if ranking != "hntop" {
 				orderBy = fmt.Sprintf("%sRank nulls last", ranking)
 			}
-			sql = fmt.Sprintf(hnPageSQL, priorWeight, overallPriorWeight, orderBy)			
+			sql = fmt.Sprintf(hnPageSQL, priorWeight, overallPriorWeight, orderBy)
 		}
 
 		s, err = ndb.db.Prepare(sql)
