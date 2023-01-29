@@ -48,10 +48,14 @@
 <div class="parameters">
 <h2>parameters</h2>
 <ul>
+{{if .IsQualityPage }}
 <li>Gravity: {{.GravityString}}</li>
+{{ end }}
 <li>Prior Weight: {{.PriorWeightString}}</li>
+{{if .IsQualityPage }}
 <li>Overall Prior Weight: {{.OverallPriorWeightString}}</li>
-<li>Penalty Weight: {{.PenaltyWeightString}}</li>
+{{ end }}
+<li>Sample Time: {{.SampleTimeString}}</li>
 </ul>
 </div>
 

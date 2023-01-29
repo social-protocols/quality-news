@@ -74,6 +74,9 @@ func (app app) frontpageHandler(ranking string) func(http.ResponseWriter, *http.
 		if params.PenaltyWeight == 0 {
 			params.PenaltyWeight = defaultFrontPageParams.PenaltyWeight
 		}
+		if params.PastTime == 0 {
+			params.PastTime = defaultFrontPageParams.PastTime
+		}
 
 		err := app.serveFrontPage(r, w, ranking, params)
 		return errors.Wrap(err, "serveFrontPage")

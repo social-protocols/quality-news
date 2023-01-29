@@ -72,21 +72,30 @@ func (d frontPageData) PenaltyWeightString() string {
 	return fmt.Sprintf("%.2f", d.Params.PenaltyWeight)
 }
 
+func (d frontPageData) SampleTimeString() string {
+	if d.Params.PastTime == 0 {
+		return "now"
+	} else {
+		return time.Unix(d.Params.PastTime, 0).Format(time.RFC3339)
+	}
+}
+
 type FrontPageParams struct {
 	PriorWeight        float64
 	OverallPriorWeight float64
 	Gravity            float64
 	PenaltyWeight      float64
+	PastTime           int64
 }
 
 func (p FrontPageParams) String() string {
 	return fmt.Sprintf("%#v", p)
 }
 
-var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4, 2.5}
+var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4, 2.5, 0}
 
 const frontPageSQL = `
-	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %f as penaltyWeight)
+	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %f as penaltyWeight, %d as pastTime)
 	, rankedStories as (
 		select
 			*
@@ -96,7 +105,7 @@ const frontPageSQL = `
 	  from stories
 	  join dataset using(id)
 	  join parameters
-	  where sampleTime = (select max(sampleTime) from dataset)
+	  where sampleTime = case when pastTime > 0 then pastTime else (select max(sampleTime) from dataset) end
       and score >= 3
 	)
 	, unadjustedRanks as (
@@ -128,7 +137,7 @@ const frontPageSQL = `
 `
 
 const hnPageSQL = `
-	with parameters as (select %f as priorWeight, %f as overallPriorWeight)
+	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %d as pastTime)
 	select
 		id
 		, by
@@ -147,7 +156,7 @@ const hnPageSQL = `
 		, flagged
 		, dupe
 	from dataset join stories using (id) join parameters
-	where sampleTime = (select max(sampleTime) from dataset)
+	where sampleTime = case when pastTime > 0 then pastTime else (select max(sampleTime) from dataset) end
 	order by %s
 	limit 90;
 `
@@ -204,11 +213,6 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 }
 
 func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, params FrontPageParams) (stories []Story, err error) {
-	gravity := params.Gravity
-	overallPriorWeight := params.OverallPriorWeight
-	priorWeight := params.PriorWeight
-	penaltyWeight := params.PenaltyWeight
-
 	if statements == nil {
 		statements = make(map[string]*sql.Stmt)
 	}
@@ -222,13 +226,19 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		var sql string
 		if ranking == "quality" {
 			orderBy := "qnRank nulls last"
-			sql = fmt.Sprintf(frontPageSQL, priorWeight, overallPriorWeight, gravity, penaltyWeight, qnRankFormulaSQL, orderBy)
+			sql = fmt.Sprintf(frontPageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.PenaltyWeight, params.PastTime, qnRankFormulaSQL, orderBy)
 		} else {
-			orderBy := "topRank nulls last"
-			if ranking != "hntop" {
+			orderBy := ""
+			switch ranking {
+			case "hntop":
+				orderBy = "topRank nulls last"
+			case "unadjusted":
+				orderBy = hnRankFormulaSQL
+			default:
 				orderBy = fmt.Sprintf("%sRank nulls last", ranking)
 			}
-			sql = fmt.Sprintf(hnPageSQL, priorWeight, overallPriorWeight, orderBy)
+
+			sql = fmt.Sprintf(hnPageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.PastTime, orderBy)
 		}
 
 		s, err = ndb.db.Prepare(sql)
