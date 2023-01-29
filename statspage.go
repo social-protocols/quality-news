@@ -47,6 +47,10 @@ func (d StatsPageData) IsShowPage() bool {
 	return false
 }
 
+func (d StatsPageData) IsUnadjustedPage() bool {
+	return false
+}
+
 var ErrStoryIDNotFound = httperror.New(404, "Story ID not found")
 
 func statsPage(ndb newsDatabase, w io.Writer, r *http.Request, params StatsPageParams) error {

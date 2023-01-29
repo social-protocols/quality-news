@@ -56,6 +56,10 @@ func (d frontPageData) IsShowPage() bool {
 	return d.Ranking == "show"
 }
 
+func (d frontPageData) IsUnadjustedPage() bool {
+	return d.Ranking == "unadjusted"
+}
+
 func (d frontPageData) GravityString() string {
 	return fmt.Sprintf("%.2f", d.Params.Gravity)
 }

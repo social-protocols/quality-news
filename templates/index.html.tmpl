@@ -27,6 +27,14 @@
 
 {{template "header.html.tmpl"  .}}
 
+{{if .IsUnadjustedPage}}
+
+<p class="introduction">
+	Stories ordered by unadjusted-ranking score, without flags, bonuses, etc: (upvotes^0.8)/(ageHours+2)^1.8.
+</p>
+
+{{end}}
+
 <ol class="stories">
 {{range .Stories}}
 <li id="{{.ID}}">

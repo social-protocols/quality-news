@@ -12,7 +12,10 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-const qnRankFormulaSQL = "pow(ageHours, (cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight)) / pow(ageHours + 2, gravity/0.8) desc"
+const (
+	qnRankFormulaSQL = "pow(ageHours, (cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight)) / pow(ageHours + 2, gravity/0.8) desc"
+	hnRankFormulaSQL = "(score-1) / pow(ageHours + 2, gravity/0.8) desc"
+)
 
 func (app app) crawlPostprocess(ctx context.Context, tx *sql.Tx) error {
 	t := time.Now()
