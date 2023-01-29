@@ -3,6 +3,8 @@
 <div>
   <div><a class="story-title" href="{{.URL}}">{{.Title}}</a>{{if ne .Domain ""}} (<a class="story-domain" href="https://news.ycombinator.com/from?site={{.Domain}}">{{.Domain}}</a>){{end}}</div>
   <div class="story-details">
+    {{if .Flagged}}[flagged]{{end}}
+    {{if .Dupe}}[dupe]{{end}}
     <a href="/stats?id={{.ID}}"{{if ge .QualityString "1"}} class="quality-string" {{end}}{{if ge .QualityString "2"}} style="font-weight:bold;" {{end}}>×{{.QualityString}}</a> | 
     {{.Score}} points by <a href="https://news.ycombinator.com/user?id={{.By}}">{{.By}}</a> 
     {{if .IsResubmitted}}<span class="original-age" title="{{.OriginalISOTimestamp}}">{{.OriginalAgeString}}</span>{{end}} <a href="https://news.ycombinator.com/item?id={{.ID}}" title="{{.ISOTimestamp}}">{{.AgeString}}</a> |

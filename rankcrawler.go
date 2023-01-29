@@ -44,7 +44,7 @@ type dataPoint struct {
 	cumulativeExpectedUpvotes float64
 	cumulativeUpvotes         int
 	flagged                   bool
-	job                       bool
+	dupe                      bool
 }
 
 func (app app) crawlAndPostprocess(ctx context.Context) (err error) {
@@ -325,7 +325,7 @@ STORY:
 			cumulativeUpvotes:         cumulativeUpvotes,
 			ageApprox:                 story.AgeApprox,
 			flagged:                   story.Flagged,
-			job:                       story.Job,
+			dupe:                      story.Dupe,
 		}
 
 		if err := ndb.insertDataPoint(tx, datapoint); err != nil {

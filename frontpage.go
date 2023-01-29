@@ -120,6 +120,8 @@ const frontPageSQL = `
 		, topRank
 		, dense_rank() over(order by unadjustedRank + penalty*penaltyWeight) as qnRank
 		, cast((sampleTime-submissionTime)/3600 as real) as ageHours
+		, flagged
+		, dupe
 	from unadjustedRanks
 	order by %s
 	limit 90;
@@ -142,6 +144,8 @@ const hnPageSQL = `
 		, topRank
 		, qnRank
 		, cast((sampleTime-submissionTime)/3600 as real) as ageHours
+		, flagged
+		, dupe
 	from dataset join stories using (id) join parameters
 	where sampleTime = (select max(sampleTime) from dataset)
 	order by %s
@@ -250,7 +254,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		var s Story
 
 		var ageHours int
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank, &ageHours)
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank, &ageHours, &s.Flagged, &s.Dupe)
 
 		// Don't show QN rank if we are on the QN page and vice versa
 		switch ranking {

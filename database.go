@@ -48,6 +48,7 @@ func (ndb newsDatabase) init() error {
 			, title text not null
 			, url text not null
 			, timestamp int not null
+			, job boolean not null default false
 		);
 		`,
 		`
@@ -65,8 +66,8 @@ func (ndb newsDatabase) init() error {
 			, qnRank integer
 			, cumulativeUpvotes integer
 			, cumulativeExpectedUpvotes real
-			, flagged boolean
-			, job boolean
+			, flagged boolean not null default false
+			, dupe boolean not null default false
 			, ageApprox int not null
 			, penalty real not null default 0
 			, currentPenalty real
@@ -136,7 +137,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	// the newsDatabase type has a few prepared statements that are defined here
 	{
 		sql := `
-		INSERT INTO stories (id, by, title, url, timestamp) VALUES (?, ?, ?, ?, ?) 
+		INSERT INTO stories (id, by, title, url, timestamp, job) VALUES (?, ?, ?, ?, ?, ?) 
 		ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url
 		`
 		ndb.insertOrReplaceStoryStatement, err = ndb.db.Prepare(sql)
@@ -162,7 +163,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			, cumulativeUpvotes
 			, cumulativeExpectedUpvotes
 			, flagged
-			, job
+			, dupe
 		) VALUES (
 			?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?,
@@ -270,7 +271,7 @@ func (ndb newsDatabase) insertDataPoint(tx *sql.Tx, d dataPoint) error {
 		d.cumulativeUpvotes,
 		d.cumulativeExpectedUpvotes,
 		d.flagged,
-		d.job,
+		d.dupe,
 	)
 	if err != nil {
 		return err
@@ -281,7 +282,7 @@ func (ndb newsDatabase) insertDataPoint(tx *sql.Tx, d dataPoint) error {
 func (ndb newsDatabase) insertOrReplaceStory(tx *sql.Tx, story Story) (int64, error) {
 	stmt := tx.Stmt(ndb.insertOrReplaceStoryStatement)
 
-	r, err := stmt.Exec(story.ID, story.By, story.Title, story.URL, story.SubmissionTime)
+	r, err := stmt.Exec(story.ID, story.By, story.Title, story.URL, story.SubmissionTime, story.Job)
 	if err != nil {
 		return 0, err
 	}
@@ -317,7 +318,7 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	var s Story
 	priorWeight := defaultFrontPageParams.PriorWeight
 
-	err := ndb.selectStoryDetailsStatement.QueryRow(priorWeight, priorWeight, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank)
+	err := ndb.selectStoryDetailsStatement.QueryRow(priorWeight, priorWeight, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank, &s.Flagged, &s.Dupe)
 	if err != nil {
 		return s, err
 	}
