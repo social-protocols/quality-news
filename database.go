@@ -202,26 +202,46 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	{
 		sql := `
-		SELECT 
-			id
+		with last as (
+			SELECT
+				stories.*
+				, submissionTime
+				, timestamp
+				, score
+				, descendants
+				, (cumulativeUpvotes + ?)/(cumulativeExpectedUpvotes + ?) as quality 
+				, penalty
+				, dupe
+				, flagged
+			FROM stories
+			JOIN dataset
+			USING (id)
+			WHERE id = ?
+			ORDER BY sampleTime DESC
+			LIMIT 1
+		)
+		SELECT
+			last.id
 			, by
 			, title
 			, url
-			, submissionTime
+			, last.submissionTime
 			, timestamp as originalSubmissionTime
-			, ageApprox
-			, score-1
-			, descendants
-			, (cumulativeUpvotes + ?)/(cumulativeExpectedUpvotes + ?) as quality 
-			, penalty
+			, coalesce(dataset.ageApprox, (unixepoch() - last.submissionTime), 0)
+			, last.score-1
+			, last.descendants
+			, last.quality 
+			, last.penalty
 			, topRank
 			, qnRank
-		FROM stories s
-		JOIN dataset d
-		USING (id)
-		WHERE id = ?
-		ORDER BY sampleTime DESC
-		LIMIT 1
+			, last.flagged
+			, last.dupe
+			-- use latest information from the last available datapoint for this story (even if it is not in the latest crawl) *except* for rank information.
+			FROM last
+			LEFT JOIN dataset on (
+				dataset.id = last.id
+				and dataset.sampleTime = (select max(sampleTime) from dataset)
+			)
 		`
 
 		ndb.selectStoryDetailsStatement, err = ndb.db.Prepare(sql)
