@@ -62,6 +62,8 @@ func statsPage(ndb newsDatabase, w io.Writer, r *http.Request, params StatsPageP
 		return err
 	}
 
+	s.IsStatsPage = true
+
 	d := StatsPageData{
 		StatsPageParams:     params, // pass through any and all URL parameters to the template
 		EstimatedUpvoteRate: 1.0,

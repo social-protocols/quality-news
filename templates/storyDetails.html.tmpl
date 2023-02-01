@@ -8,7 +8,7 @@
     <span {{if ge .QualityString "1"}} class="quality-string" {{end}}{{if ge .QualityString "2"}} style="font-weight:bold;" {{end}}>×{{.QualityString}}</span> 
     {{if lt .RankDiff 0}}<span class="penalty">{{.RankDiff}}</span>{{end}}
     {{if gt .RankDiff 0}}<span class="boost">+{{.RankDiff}}</span>{{end}}
-    </a>
+    {{if (not .IsStatsPage)}} <a href="/stats?id={{.ID}}"><img src="/static/chart-646.png" height="12px"/></a> {{end}}
     <span class="comparative-rank">
       {{if and .TopRank.Valid (not .IsHNTopPage)}}<a href="/#{{.ID}}"><span class="rank-icon hn">#{{.TopRank.Value}}</span></a> {{end}}
 

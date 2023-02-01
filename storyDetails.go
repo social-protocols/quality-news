@@ -31,6 +31,7 @@ type Story struct {
 	Flagged                bool
 	Dupe                   bool
 	IsHNTopPage            bool
+	IsStatsPage            bool
 }
 
 func (s Story) AgeString() string {
