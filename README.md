@@ -6,7 +6,7 @@
             Quality News
         </a>
     </div>
-    A fair ranking algorithm for Hacker News
+    Towards a fair ranking algorithm for Hacker News
 </h1>
 
 <div align="center">
@@ -19,9 +19,21 @@
 
 ## About
 
-[Quality News](https://news.social-protocols.org) implements a new ranking formula for Hacker News, designed to give stories the attention they deserve.
+[Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that shows a new metric for stories called **upvoteRate**, which reflects the intent of the community.
 
-The formula uses minute-by-minute rank and upvote data collected from Hacker News to adjust score based on the ranks and times at which upvotes occurred.
+**upvoteRate** is a measure of how much more or less likely users are to upvote a story than the average story. This makes the measure stable and comparable, regardless of of whether a story got caught in a feedback loop, was submitted at a different time or had a different number of users look at.
+
+The **upvoteRate** calculation uses live minute-by-minute rank and upvote data collected from Hacker News.
+
+It provides the following benefits compared to the raw upvote count:
+- It's comparable, regardless of whether a story got caught in the feedback loop
+- It's comparable across the time/day of week a story was submitted
+- It's comparable across community sizes
+- It reflects the intent of the community
+
+With this project, we provide a frontpage, which looks and behaves very similar to the original Hacker News frontpage, but shows a few more metrics to better estimate voting behavior of the community. For now, the ranking is identical to Hacker News.
+
+It's a fast, lightweight, server-side rendered page written in [go](https://go.dev) and hosted on [fly.io](https://fly.io).
 
 ## Motivation
 
@@ -43,13 +55,13 @@ This is the current hacker news ranking formula:
 
 The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **rank** or 4) **timing**. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night.
 
-Our solution is to account for the effects of rank and timing by giving upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
+Our goal is to provide a reliable metric, which can be used in the formula, replacing the raw upvote count. It accounts for the effects of rank and timing by giving upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
 
-This doesn't guarantee that some high quality stories won't sometimes be overlooked completely because nobody notices them on the new page. We plan to approach this problem in the future.
+This doesn't guarantee that some high quality stories won't sometimes be overlooked completely because nobody notices them on the new page. For those, we simply don't have enough data. We plan to approach this problem in the future.
 
 ## Upvote Share by Rank
 
-We start by looking at historical upvotes on Hacker News for each rank and page type: `top` (front page), `new`, `best`, `ask`, and `show`. We obtained this data by [crawling the hacker news API](https://github.com/social-protocols/hacker-news-data) every minute for several months, and recording each story's rank and score. The change in score tells us approximately how many upvotes occured at that rank.
+We start by looking at historical upvote data on Hacker News for each rank and page type: `top` (front page), `new`, `best`, `ask`, and `show`. We obtained this data by [crawling the hacker news API](https://github.com/social-protocols/hacker-news-data) every minute for several months, and recording each story's rank and score (upvote count). The change in score tells us approximately how many upvotes occured at that rank.
 
 We then calculated the *share* of overall site-wide upvotes that occur at each rank. For example, the first story on the `top` page receives on average about 10.2% of all upvotes (about 1.169 upvotes per minute), whereas the 40th story on the `new` page receives about 0.05% (about 0.0055 upvotes per minute). Upvote shares for the `top` page is summarized in the chart below.
 
@@ -121,7 +133,7 @@ If we don't have a lot of data for a story, the observed upvote rate may not be 
 
 A more sophisticated approach uses Bayesian inference: given our prior knowledge about the distribution of upvote rates, plus the evidence we have observed about this particular story, what does Bayes' rule tell us is the most probable true upvote rate?
 
-Since there are infinitely many possible true upvote rates, we can't use a trivial application of Bayes rule. But we can estimate the most likely true upvote rate using a technique called Bayesian Averaging. Here is good explanation of this technique from [Even Miller](https://www.evanmiller.org/bayesian-average-ratings.html).
+Since there are infinitely many possible true upvote rates, we can't use a trivial application of Bayes rule. But we can estimate the most likely true upvote rate using a technique called Bayesian Averaging. Here is good explanation of this technique from [Evan Miller](https://www.evanmiller.org/bayesian-average-ratings.html).
 
 The Bayesian Average will be weighted average of the observed upvote rate (the data) and the average upvote rate of 1.0 (the prior). We weigh the observed upvote rate by the number of expected upvotes (which is roughly proportional to the number of people who have *paid attention* to a story and thus can be thought of as a proxy for sample size). We weigh the prior by a constant representing the strength of the prior (which can be thought of as the sample size necessary for the data to have more weight than the prior), which we estimated using an MCMC simulation.
 
@@ -140,88 +152,6 @@ The exact formula is shown below.
                                   data   prior
                                                 
                          ≈ (U + W) / (E + W)
-
-
-## Adjusted Upvotes
-
-We can now incorporate `estimatedUpvoteRate` into a new ranking formula that rewards stories not just for receiving more upvotes, but for receiving *more upvotes than expected*. 
-
-However, we cannot simply plug `estimatedUpvoteRate` into the HN ranking formula in place of `upvotes`. To see why, let's look at the HN ranking formula again:
-
-     rankingScore = pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
-
-Since the denominator is constantly increasing as time passes, then for a story to maintain a high rank, the numerator must also be increasing at roughly the same rate. If we simply substituted `estimatedUpvoteRate` for `upvotes` in the above formula, the numerator would stop increasing even though time would not stop passing, and so `rankingScore` would fall very rapidly. The result would be a front page full of only the newest stories.
-
-So to make our formula behave as much like the HN formula as possible, the numerator should grow at roughly the same rate as it does in the current ranking formula. 
-
-It's easy to see that, for the average story, upvotes increase linearly with time, and thus with age. And the rate of increase must be higher for stories with greater `estimatedUpvoteRate`. 
-
-
-So a story that is `age` hours old should typically receive roughly `estimatedUpvoteRate*age*c` upvotes, where the constant `c` is the same for all stories. We call this number `adjustedUpvotes`, and it can be thought of as the number of upvotes a story *should* receive if it got neither more nor less attention than it deserved.
-
-<!--TODO: this is not right. We should have a higher exponent on estimatedUpoteRate because the algorithm favors high upvote rates. In fact it should be a power law distribution-->
-
-## New Ranking Formula:
-
-So we can now substitute `adjustedUpvotes` into the HN ranking formula:
-
-     newRankingScore = pow(adjustedUpvotes, 0.8) / pow(ageHours + 2, 1.8)
-                     = pow(estimatedUpvoteRate * age * c, 0.8) / pow(age + 2, 1.8)
-                     = pow(c, 0.8) * pow(estimatedUpvoteRate * age, 0.8) / pow(age + 2, 1.8)
-
-We then drop the constant `pow(c, 0.8)` and substitute in our Bayesian average estimate of the upvote rate, to get our final ranking formula:
-
-    newRankingScore
-        = pow(age * (totalUpvotes + priorWeight) / (totalExpectedUpvotes + priorWeight), 0.8) / pow(age + 2, 1.8)
-
-
-## Discussion: Expected Upvotes as Proxy for Attention
-
-We expect more upvotes for stories shown at high ranks during peak times because they receive more **attention**. Now we don't have any way to directly measure or even precisely define "attention" (we don't know what's going on in users's heads), but we know that the number of upvotes the average story receives must be roughly proportional to the amount of attention it receives (though the upvote rate tends to decrease gradually as the story ages). So expected upvotes is a *proxy* for attention. 
-
-With the current HN ranking formula, stories that receive a lot of early upvotes while the time penalty is still low can be ranked very high and thus receive more attention, which results in a feedback loop of even more upvotes (the rich get richer) until the quadratic age penalty finally dominates the ranking score. The effect of this feedback loop can overwhelm the effect of the story's true upvote rate.
-
-```mermaid
-graph LR
-    A(Attention)
-    U(Upvotes)
-    R(Rank)
-    R -->|+| A
-    A -->|+| U
-    U -->|+| R
-```
-
-Our proposed algorithm balances this feedback loop by giving expected upvotes -- our proxy for attention -- a direct negative effect on rank.
-
-```mermaid
-graph LR
-    A("Expected Upvotes ≈ Attention")
-    U(Upvotes)
-    R(Rank)
-    R -->|+| A
-    A -->|+| U
-    U -->|+| R
-    A -->|-| R
-
-    linkStyle 3 stroke:red;
-```
-
-
-So a story that gets a lot of upvotes early on will initially enjoy a higher rank and more attention, but this increased attention is a mixed blessing, because now the story is expected to receive more upvotes. In fact, the faster a story accumulates attention, the more quickly this effect kicks in.
-
-If a story doesn't really deserve to be on the front page because it has a low true upvote rate, more attention just will just cause the Bayesian average estimated true upvote rate to converge to the true upvote rate more quickly. This makes it difficult to manipulate rank: a lot of early upvotes may be sufficient to get the story onto the front page, but not to keep it there.
-
-A large enough number of bots or colluding users can still distort the results. But we think overall this ranking formula should do a better job of giving stories the attention they deserve, reducing both over-ranked and under-ranked stories.
-
-## Penalties
-
-Our first implementation of this ranking algorithm immediately revealed a problem: the front page was dominated by non-technical stories. These were mostly major main-stream news stories that had little to do with ["hacking and startups"](https://news.ycombinator.com/newsguidelines.html).
-
-HN moderators remove purely political or sensational stories, and apply penalties to some non-technical stories so that they are ranked lower than they would otherwise be given their ranking score.
-
-Hacker News isn't supposed to be 100% tech. It's mandate is "anything hackers would find interesting" or "intellectual curiosity" per the [guidelines](https://news.ycombinator.com/newsguidelines.html). It's natural for a community built around one topic, such as technology, to come to want to discuss a wide range of topics with members of the same community. But in the long term communities can lose their value if they don't artificially focus the discussion.
-
-It seems like HN has arrived at a good compromise by partially penalizing some non-technical stories without moving them completely, so that the community remains focused, but people also derive value from discussing topics within the site's broader mandate of "intellectual curiosity". Here's a more [nuanced explanation](https://news.ycombinator.com/item?id=22902490) from dang about how HN moderators try to focus the discussion.
 
 
 ## Possible Improvements
