@@ -230,11 +230,11 @@ There is also a [shell.nix](shell.nix) available, which provides all required de
 Install nix on your system, enter the news directory, and run:      
 
 ```sh 
-    git clone github.com/social-protocols/news
-    cd news
-    nix-channel --update
-    nix-shell
-    ./watch.sh
+git clone github.com/social-protocols/news
+cd news
+nix-channel --update
+nix-shell
+./watch.sh
 ```
 
 # Contributions
