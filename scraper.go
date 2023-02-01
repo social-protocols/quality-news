@@ -36,11 +36,8 @@ type row2 struct {
 
 type ScrapedStory struct {
 	Story
-	Rank    int
-	Flagged bool
-	Dupe    bool
-	Job     bool
-	Source  string
+	Rank   int
+	Source string
 }
 
 func (rs rawStory) Clean() (ScrapedStory, error) {

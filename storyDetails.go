@@ -26,9 +26,11 @@ type Story struct {
 	Penalty                float64
 	TopRank                sql.NullInt32
 	QNRank                 sql.NullInt32
+	RawRank                sql.NullInt32
 	Job                    bool
 	Flagged                bool
 	Dupe                   bool
+	IsHNTopPage            bool
 }
 
 func (s Story) AgeString() string {
@@ -45,6 +47,24 @@ func (s Story) IsResubmitted() bool {
 
 func (s Story) QualityString() string {
 	return fmt.Sprintf("%.2f", s.Quality)
+}
+
+func (s Story) RankDiff() int32 {
+	if !s.RawRank.Valid {
+		return 0
+	}
+
+	rawRank := s.RawRank.Int32
+	topRank := s.TopRank.Int32
+
+	if !s.TopRank.Valid {
+		topRank = 91
+		if rawRank > 90 {
+			return -1
+		}
+	}
+
+	return rawRank - topRank
 }
 
 func (s Story) Domain() string {

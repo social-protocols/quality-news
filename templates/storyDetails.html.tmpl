@@ -5,13 +5,18 @@
   <div class="story-details">
     {{if .Flagged}}[flagged]{{end}}
     {{if .Dupe}}[dupe]{{end}}
-    <a href="/stats?id={{.ID}}"{{if ge .QualityString "1"}} class="quality-string" {{end}}{{if ge .QualityString "2"}} style="font-weight:bold;" {{end}}>×{{.QualityString}}</a> | 
+    <span {{if ge .QualityString "1"}} class="quality-string" {{end}}{{if ge .QualityString "2"}} style="font-weight:bold;" {{end}}>×{{.QualityString}}</span> 
+    {{if lt .RankDiff 0}}<span class="penalty">{{.RankDiff}}</span>{{end}}
+    {{if gt .RankDiff 0}}<span class="boost">+{{.RankDiff}}</span>{{end}}
+    </a>
+    <span class="comparative-rank">
+      {{if and .TopRank.Valid (not .IsHNTopPage)}}<a href="/#{{.ID}}"><span class="rank-icon hn">#{{.TopRank.Value}}</span></a> {{end}}
+
+{{/*      {{if and .QNRank.Valid (le .QNRank.Int32 90) (not .IsQualityPage) }}<a href="/#{{.ID}}"><span class="rank-icon qn">#{{.QNRank.Value}}</span> on QN</a> |{{end}} */}}
+    </span>
+    | 
     {{.Score}} points by <a href="https://news.ycombinator.com/user?id={{.By}}">{{.By}}</a> 
     {{if .IsResubmitted}}<span class="original-age" title="{{.OriginalISOTimestamp}}">{{.OriginalAgeString}}</span>{{end}} <a href="https://news.ycombinator.com/item?id={{.ID}}" title="{{.ISOTimestamp}}">{{.AgeString}}</a> |
-    <span class="comparative-rank">
-      {{if .TopRank.Valid}}<a href="/#{{.ID}}"><span class="rank-icon hn">#{{.TopRank.Value}}</span> on HN</a> |{{end}}
-<!--      {{if .QNRank.Valid}}<a href="/#{{.ID}}"><span class="rank-icon qn">#{{.QNRank.Value}}</span> on QN</a> |{{end}}-->
-    </span>
     <a href="https://news.ycombinator.com/item?id={{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> 
 
   </div>

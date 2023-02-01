@@ -37,7 +37,7 @@ ranks as (
   select 
     *
     , ifnull(topRank,91) as rank
-    , count(*) filter (where ageApprox < 3600*24 and topRank is not null) over (partition by sampleTime order by rankingScore desc) as expectedRankFiltered
+    , count(*) filter (where ageApprox < 3600*24 and topRank is not null) over (partition by sampleTime order by rankingScore desc) as rawRankFiltered
     , count(*) filter (where ageApprox < 3600*24 and topRank is not null) over (partition by sampleTime order by topRank nulls last) as rankFiltered
   from latestScores
   order by rank
@@ -46,7 +46,7 @@ ranks as (
   select 
     *
     , ifnull(
-        avg(rankFiltered - expectedRankFiltered)
+        avg(rankFiltered - rawRankFiltered)
           over (partition by id order by sampleTime rows between 59 preceding and current row) 
         , 0
       ) as movingAverageFilteredRankPenalty
@@ -63,7 +63,7 @@ ranks as (
 )
 update dataset as d
   set 
-    currentPenalty = case when latest.score < 4 then 0 else rankFiltered - expectedRankFiltered end
+    currentPenalty = case when latest.score < 4 then 0 else rankFiltered - rawRankFiltered end
     , penalty =
       case 
 

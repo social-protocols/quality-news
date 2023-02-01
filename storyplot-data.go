@@ -23,14 +23,14 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 
 	ranks := make([][]any, n)
 
-	// rows, err := ndb.db.Query("select sampleTime, (case when qnRank > 90 then 91 else qnRank end) as qnRank, topRank, newRank, bestRank, askRank, showRank, expectedRank from dataset where id = ?", storyID)
-	rows, err := ndb.db.Query("select sampleTime, expectedRank, topRank, newRank, bestRank, askRank, showRank from dataset where id = ?", storyID)
+	// rows, err := ndb.db.Query("select sampleTime, (case when qnRank > 90 then 91 else qnRank end) as qnRank, topRank, newRank, bestRank, askRank, showRank, rawRank from dataset where id = ?", storyID)
+	rows, err := ndb.db.Query("select sampleTime, rawRank, topRank, newRank, bestRank, askRank, showRank from dataset where id = ?", storyID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Query: select ranks")
 	}
 	defer rows.Close()
 
-	// expectedRank, top, new, bet, ask, show
+	// rawRank, top, new, bet, ask, show
 	const nRanks = 6
 
 	i := 0

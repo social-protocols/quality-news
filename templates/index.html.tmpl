@@ -27,13 +27,23 @@
 
 {{template "header.html.tmpl"  .}}
 
-{{if .IsUnadjustedPage}}
 
-<p class="introduction">
-	Stories ordered by unadjusted-ranking score, without flags, bonuses, etc: (upvotes^0.8)/(ageHours+2)^1.8.
-</p>
+	<div class="key">
+		<span style="color: #0089f4;">×upvoteRate</span> (?)
+		| <span style="color: #05851e">+</span>/<span style="color: #d4214b">-</span> <span style="color: #223344">rank difference</span> (?) | <span class="original-age">2nd chance</span> (?)
+		{{if (not .IsHNTopPage)}}
+		| <span class="rank-icon hn">#top</span> page rank
+		{{end}}
+	</div>	
 
-{{end}}
+	<div class="introduction">
+		{{if .IsRawPage}}
+				Stories ordered by raw ranking score (no penalties or bonuses)
+		{{end}}
+	</div>
+
+
+
 
 <ol class="stories">
 {{range .Stories}}

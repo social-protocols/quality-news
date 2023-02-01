@@ -56,8 +56,8 @@ func (d frontPageData) IsShowPage() bool {
 	return d.Ranking == "show"
 }
 
-func (d frontPageData) IsUnadjustedPage() bool {
-	return d.Ranking == "unadjusted"
+func (d frontPageData) IsRawPage() bool {
+	return d.Ranking == "raw"
 }
 
 func (d frontPageData) GravityString() string {
@@ -132,6 +132,7 @@ const frontPageSQL = `
 		, penalty
 		, topRank
 		, dense_rank() over(order by unadjustedRank + penalty*penaltyWeight) as qnRank
+		, rawRank
 		, cast((sampleTime-submissionTime)/3600 as real) as ageHours
 		, flagged
 		, dupe
@@ -156,6 +157,7 @@ const hnPageSQL = `
 		, penalty
 		, topRank
 		, qnRank
+		, rawRank
 		, cast((sampleTime-submissionTime)/3600 as real) as ageHours
 		, flagged
 		, dupe
@@ -268,19 +270,10 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		var s Story
 
 		var ageHours int
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank, &ageHours, &s.Flagged, &s.Dupe)
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &ageHours, &s.Flagged, &s.Dupe)
 
-		// Don't show QN rank if we are on the QN page and vice versa
-		switch ranking {
-		case "quality":
-			s.QNRank = sql.NullInt32{Int32: 0, Valid: false}
-		case "hntop":
-			s.TopRank = sql.NullInt32{Int32: 0, Valid: false}
-		}
-
-		// Don't show QN rank if it is greater than 90
-		if s.QNRank.Valid && s.QNRank.Int32 > 90 {
-			s.QNRank = sql.NullInt32{Int32: 0, Valid: false}
+		if ranking == "hntop" {
+			s.IsHNTopPage = true
 		}
 
 		if err != nil {

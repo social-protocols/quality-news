@@ -71,7 +71,7 @@ func (ndb newsDatabase) init() error {
 			, ageApprox int not null
 			, penalty real not null default 0
 			, currentPenalty real
-			, expectedRank int
+			, rawRank int
 		);
 		`,
 		`
@@ -101,8 +101,11 @@ func (ndb newsDatabase) init() error {
 
 	alterStatements := []string{
 		`
-		alter table dataset add column expectedRank int
-		`,
+			alter table dataset rename column expectedRank to rawRank;
+			`,
+		// 	`
+		// 	alter table dataset add column dupe boolean not null default false
+		// 	`,
 	}
 
 	for _, s := range alterStatements {
@@ -138,7 +141,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	{
 		sql := `
 		INSERT INTO stories (id, by, title, url, timestamp, job) VALUES (?, ?, ?, ?, ?, ?) 
-		ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url
+		ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url, job = excluded.job
 		`
 		ndb.insertOrReplaceStoryStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
@@ -234,6 +237,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			, last.penalty
 			, topRank
 			, qnRank
+			, rawRank
 			, last.flagged
 			, last.dupe
 			-- use latest information from the last available datapoint for this story (even if it is not in the latest crawl) *except* for rank information.
@@ -338,7 +342,7 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	var s Story
 	priorWeight := defaultFrontPageParams.PriorWeight
 
-	err := ndb.selectStoryDetailsStatement.QueryRow(priorWeight, priorWeight, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank, &s.Flagged, &s.Dupe)
+	err := ndb.selectStoryDetailsStatement.QueryRow(priorWeight, priorWeight, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe)
 	if err != nil {
 		return s, err
 	}

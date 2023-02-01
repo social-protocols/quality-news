@@ -47,7 +47,7 @@ func (d StatsPageData) IsShowPage() bool {
 	return false
 }
 
-func (d StatsPageData) IsUnadjustedPage() bool {
+func (d StatsPageData) IsRawPage() bool {
 	return false
 }
 
