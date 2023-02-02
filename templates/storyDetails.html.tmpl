@@ -10,13 +10,13 @@
     {{if .Dupe}}[dupe]{{end}}
     <a href="/stats?id={{.ID}}">
       <span 
-        title="estimated true upvote rate: ratio of how more or less likely users are to upvote this story compared to the average story"
+        title="Estimated True Upvote Rate:&#013;Ratio of how more or less likely users are to upvote this story compared to the average story."
         {{if ge .QualityString "1"}} class="quality-string" {{end}}
         {{if ge .QualityString "2"}} style="font-weight:bold;" {{end}}>
         ×{{.QualityString}}</span> 
 
       {{if ne .RankDiff 0}}
-        <span class={{if lt .RankDiff 0}}"penalty"{{else}}"boost"{{end}} title="rank delta: difference between story's actual rank and the raw rank based on the HN ranking formula">
+        <span class={{if lt .RankDiff 0}}"penalty"{{else}}"boost"{{end}} title="Rank Delta:&#013;Difference between story's actual rank and the raw rank based on the HN ranking formula.">
           {{if gt .RankDiff 0}}+{{end}}{{.RankDiff}}
         </span>
       {{end}}
