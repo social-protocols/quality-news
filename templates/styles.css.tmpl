@@ -3,31 +3,29 @@
   --red: #d4214b;
 }
 
-
 html {
   scroll-padding-top: 80%;
 }
 
-
 body {
-  background-color: #F6F6EF;
-  font-size:13px;
-  color:#223355;
-  font-family:Verdana, Geneva, sans-serif;
+  background-color: #f6f6ef;
+  font-size: 13px;
+  color: #223355;
+  font-family: Verdana, Geneva, sans-serif;
   margin: 0;
 }
 
 .key {
   margin-top: 6px;
   margin-bottom: 6px;
-  margin-left:  44px;
+  margin-left: 44px;
 }
 
 .introduction {
   color: #223344;
   font-size: 15px;
-  margin-left:  44px;
-  margin-right:  7px;
+  margin-left: 44px;
+  margin-right: 7px;
   margin-bottom: 8px;
 }
 
@@ -42,27 +40,26 @@ body {
 
 .stories {
   margin-top: 0px;
-  margin-left:  5px;
-  margin-right:  7px;
+  margin-left: 5px;
+  margin-right: 7px;
 }
 
 #storyplots {
-  height:  auto;
-  min-width: 400px; 
-  max-width: 650px; 
-  border: background-color: red;
+  height: auto;
+  min-width: 400px;
+  max-width: 650px;
 }
 
 .plot-description {
   margin-top: 2px;
   margin-bottom: 14px;
-  margin-left: 50px; 
+  margin-left: 50px;
   color: #303040;
 }
 
 a:link.upvote-button,
 a:visited.upvote-button {
-  color: #9A9A9A;
+  color: #9a9a9a;
   margin-right: 0.5rem;
   font-size: 13px;
   align-self: flex-start;
@@ -71,7 +68,7 @@ a:visited.upvote-button {
   width: 15px;
 }
 
-@media (max-width:480px)  {
+@media (max-width: 480px) {
   .stories {
     margin-left: 0;
     margin-right: 3px;
@@ -103,24 +100,23 @@ a:visited.upvote-button {
   color: #0089f4;
 }
 
-
 .rank-icon {
   display: inline-block;
   text-align: center;
   min-width: 2em;
-  padding-left:  2px;
+  padding-left: 2px;
   padding-right: 3px;
   padding-top: 1px;
   padding-bottom: 1px;
-  border-radius:  6px;
+  border-radius: 6px;
 }
 
 .rank-icon.hn {
-  background-color:  rgba(255,102,00,.2);
+  background-color: rgba(255, 102, 00, 0.2);
 }
 
 .rank-icon.qn {
-  background-color:  #cae2f4;
+  background-color: #cae2f4;
   color: #5a6266;
 }
 
@@ -129,7 +125,6 @@ a:visited.upvote-button {
 .story-details a:visited.penalty {
   color: var(--red);
 }
-
 
 .story-details .boost,
 .story-details a:link.boost,
@@ -152,22 +147,33 @@ a:visited.question-mark {
   color: var(--green);
 }
 
-.header a:link    { color:#000000; text-decoration:none; }
-.header a:visited { color:#828282; text-decoration:none; }
+.header a:link {
+  color: #000000;
+  text-decoration: none;
+}
+.header a:visited {
+  color: #828282;
+  text-decoration: none;
+}
 
-
-.story-item a:link    { color:#000000; text-decoration:none; }
-.story-item a:visited { color:#828282; text-decoration:none; }
-
+.story-item a:link {
+  color: #000000;
+  text-decoration: none;
+}
+.story-item a:visited {
+  color: #828282;
+  text-decoration: none;
+}
 
 .story-details a:link,
-.story-domain, .story-domain a:link {
-  color:#828282;
-  text-decoration:none; 
+.story-domain,
+.story-domain a:link {
+  color: #828282;
+  text-decoration: none;
 }
 .story-details a:hover,
 .story-domain a:hover {
-  text-decoration:underline; 
+  text-decoration: underline;
 }
 
 .header {
@@ -175,15 +181,17 @@ a:visited.question-mark {
   color: #000000;
   font-size: 12px;
   padding: 6px 10px;
-  display:flex;
+  display: flex;
   align-items: center;
 }
 
-.header a:link, .header a:visited {
+.header a:link,
+.header a:visited {
   color: #000000;
 }
 
-a:link.header-title, a:visited.header-title {
+a:link.header-title,
+a:visited.header-title {
   margin-left: 0.5rem;
   margin-right: 1rem;
   font-weight: bold;
@@ -196,8 +204,8 @@ a:link.header-title, a:visited.header-title {
 }
 
 .stats {
-  margin-left:  5px;
-  margin-right:  7px;
+  margin-left: 5px;
+  margin-right: 7px;
 }
 
 a:link.nav-link {
@@ -208,22 +216,19 @@ a:link.nav-link {
 
 a:link.nav-link.active,
 a:visited.nav-link.active {
-  background:  white;
+  background: white;
   color: black;
 }
 
-
-
 @keyframes highlight {
-    0% {
-        background: lightblue;
-    }
-    100% {
-        background: none;
-    }
+  0% {
+    background: lightblue;
+  }
+  100% {
+    background: none;
+  }
 }
 
 :target {
-    animation: highlight 2s;
+  animation: highlight 2s;
 }
-
