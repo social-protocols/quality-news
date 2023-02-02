@@ -5,10 +5,19 @@
   <div class="story-details">
     {{if .Flagged}}[flagged]{{end}}
     {{if .Dupe}}[dupe]{{end}}
-    <span {{if ge .QualityString "1"}} class="quality-string" {{end}}{{if ge .QualityString "2"}} style="font-weight:bold;" {{end}}>×{{.QualityString}}</span> 
-    {{if lt .RankDiff 0}}<span class="penalty">{{.RankDiff}}</span>{{end}}
-    {{if gt .RankDiff 0}}<span class="boost">+{{.RankDiff}}</span>{{end}}
-    {{if (not .IsStatsPage)}} <a href="/stats?id={{.ID}}"><img src="/static/chart-646.png" height="12px"/></a> {{end}}
+    <a href="/stats?id={{.ID}}">
+      <span 
+        title="estimated true upvote rate: ratio of how more or less likely users are to upvote this story compared to the average story"
+        {{if ge .QualityString "1"}} class="quality-string" {{end}}
+        {{if ge .QualityString "2"}} style="font-weight:bold;" {{end}}>
+        ×{{.QualityString}}</span> 
+
+      {{if ne .RankDiff 0}}
+        <span class={{if lt .RankDiff 0}}"penalty"{{else}}"boost"{{end}} title="rank difference: difference between story's actual rank and the raw rank based on the HN ranking formula">
+          {{if gt .RankDiff 0}}+{{end}}{{.RankDiff}}
+        </span>
+      {{end}}
+    </a>
     <span class="comparative-rank">
       {{if and .TopRank.Valid (not .IsHNTopPage)}}<a href="/#{{.ID}}"><span class="rank-icon hn">#{{.TopRank.Value}}</span></a> {{end}}
 
@@ -16,7 +25,8 @@
     </span>
     | 
     {{.Score}} points by <a href="https://news.ycombinator.com/user?id={{.By}}">{{.By}}</a> 
-    {{if .IsResubmitted}}<span class="original-age" title="{{.OriginalISOTimestamp}}">{{.OriginalAgeString}}</span>{{end}} <a href="https://news.ycombinator.com/item?id={{.ID}}" title="{{.ISOTimestamp}}">{{.AgeString}}</a> |
+    {{if .IsResubmitted}}<span class="original-age" title="Original submission time: {{.OriginalISOTimestamp}}">{{.OriginalAgeString}}</span>{{end}} 
+    <a href="https://news.ycombinator.com/item?id={{.ID}}" title="2nd-Chance submission time: {{.ISOTimestamp}}"{{if .IsResubmitted}} class="resubmitted-age"{{end}}>{{.AgeString}}</a> |
     <a href="https://news.ycombinator.com/item?id={{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> 
 
   </div>
