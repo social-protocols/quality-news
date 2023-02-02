@@ -1,7 +1,10 @@
 <div class="story-item">
 <!--<a class="upvote-button" href="https://news.ycombinator.com/item?id={{.ID}}" target="_blank" rel="noopener noreferrer">▲</a>//-->
 <div>
-  <div><a class="story-title" href="{{.URL}}">{{.Title}}</a>{{if ne .Domain ""}} (<a class="story-domain" href="https://news.ycombinator.com/from?site={{.Domain}}">{{.Domain}}</a>){{end}}</div>
+  <div>
+    <a class="story-title" href="{{.URL}}">{{.Title}}</a>
+    {{if ne .Domain ""}} <span class="story-domain">(<a href="https://news.ycombinator.com/from?site={{.Domain}}">{{.Domain}}</a>)</span>{{end}}
+  </div>
   <div class="story-details">
     {{if .Flagged}}[flagged]{{end}}
     {{if .Dupe}}[dupe]{{end}}
