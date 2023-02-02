@@ -13,13 +13,13 @@
         ×{{.QualityString}}</span> 
 
       {{if ne .RankDiff 0}}
-        <span class={{if lt .RankDiff 0}}"penalty"{{else}}"boost"{{end}} title="rank difference: difference between story's actual rank and the raw rank based on the HN ranking formula">
+        <span class={{if lt .RankDiff 0}}"penalty"{{else}}"boost"{{end}} title="rank delta: difference between story's actual rank and the raw rank based on the HN ranking formula">
           {{if gt .RankDiff 0}}+{{end}}{{.RankDiff}}
         </span>
       {{end}}
     </a>
     <span class="comparative-rank">
-      {{if and .TopRank.Valid (not .IsHNTopPage)}}<a href="/#{{.ID}}"><span class="rank-icon hn">#{{.TopRank.Value}}</span></a> {{end}}
+      {{if and .TopRank.Valid (not .IsHNTopPage)}}<a href="/#{{.ID}}"><span title="Rank on Hacker News Front Page" class="rank-icon hn">#{{.TopRank.Value}}</span></a> {{end}}
 
 {{/*      {{if and .QNRank.Valid (le .QNRank.Int32 90) (not .IsQualityPage) }}<a href="/#{{.ID}}"><span class="rank-icon qn">#{{.QNRank.Value}}</span> on QN</a> |{{end}} */}}
     </span>
