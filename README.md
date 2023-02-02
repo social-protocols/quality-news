@@ -15,25 +15,18 @@
 
 </div>
 
+[Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that provides additional data and insights on the **upvoteRate** of Hacker News stories.
 
 
-## About
+The `upvoteRate` quantifies how much more or less likely users are to upvote a story compared to the average story. `upvoteRate` is a more stable and comparable metric than raw upvotes. Two similar stories should have a similar `upvoteRate` regardless of:
 
-[Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that shows a new metric for stories called **upvoteRate**, which reflects the intent of the community.
+- whether one of the stories got caught in a positive rank-upvote feedback loop (see Motivation below)
+- the time/day of week a story was submitted
+- overall amount of traffic to the site
 
-**upvoteRate** is a measure of how much more or less likely users are to upvote a story than the average story. This makes the measure stable and comparable, regardless of of whether a story got caught in a feedback loop, was submitted at a different time or had a different number of users look at.
+The `upvoteRate` should thus better represent the aggregate intent of Hacker News community-members revealed by their upvotes.
 
-The **upvoteRate** calculation uses live minute-by-minute rank and upvote data collected from Hacker News.
-
-It provides the following benefits compared to the raw upvote count:
-- It's comparable, regardless of whether a story got caught in the feedback loop
-- It's comparable across the time/day of week a story was submitted
-- It's comparable across community sizes
-- It reflects the intent of the community
-
-With this project, we provide a frontpage, which looks and behaves very similar to the original Hacker News frontpage, but shows a few more metrics to better estimate voting behavior of the community. For now, the ranking is identical to Hacker News.
-
-It's a fast, lightweight, server-side rendered page written in [go](https://go.dev) and hosted on [fly.io](https://fly.io).
+Quality News uses live minute-by-minute rank and upvote data collected from Hacker News. It looks and behaves very similar to the original Hacker News site except it shows `upvoteRate` and other metrics next to each story, and charts with the history of each story's rank, upvotes, and estimated upvote rates. It is a lightweight, server-side rendered page written in [go](https://go.dev) and hosted on [fly.io](https://fly.io).
 
 ## Motivation
 
@@ -61,7 +54,7 @@ This doesn't guarantee that some high quality stories won't sometimes be overloo
 
 ## Upvote Share by Rank
 
-We start by looking at historical upvote data on Hacker News for each rank and page type: `top` (front page), `new`, `best`, `ask`, and `show`. We obtained this data by [crawling the hacker news API](https://github.com/social-protocols/hacker-news-data) every minute for several months, and recording each story's rank and score (upvote count). The change in score tells us approximately how many upvotes occured at that rank.
+We start by looking at historical upvote data on Hacker News for each rank and page type: `top` (front page), `new`, `best`, `ask`, and `show`. We obtained this data by [crawling the hacker news API](https://github.com/social-protocols/hacker-news-data) every minute for several months, and recording each story's rank and score (upvote count). The change in score tells us approximately how many upvotes occured at that rank during that time interval.
 
 We then calculated the *share* of overall site-wide upvotes that occur at each rank. For example, the first story on the `top` page receives on average about 10.2% of all upvotes (about 1.169 upvotes per minute), whereas the 40th story on the `new` page receives about 0.05% (about 0.0055 upvotes per minute). Upvote shares for the `top` page is summarized in the chart below.
 
@@ -135,55 +128,42 @@ A more sophisticated approach uses Bayesian inference: given our prior knowledge
 
 Since there are infinitely many possible true upvote rates, we can't use a trivial application of Bayes rule. But we can estimate the most likely true upvote rate using a technique called Bayesian Averaging. Here is good explanation of this technique from [Evan Miller](https://www.evanmiller.org/bayesian-average-ratings.html).
 
-The Bayesian Average will be weighted average of the observed upvote rate (the data) and the average upvote rate of 1.0 (the prior). We weigh the observed upvote rate by the number of expected upvotes (which is roughly proportional to the number of people who have *paid attention* to a story and thus can be thought of as a proxy for sample size). We weigh the prior by a constant representing the strength of the prior (which can be thought of as the sample size necessary for the data to have more weight than the prior), which we estimated using an MCMC simulation.
+The Bayesian Averaging formula in our case is:
 
-The exact formula is shown below.
+    estimatedUpvoteRate ≈ (totalUpvotes + strengthOfPrior) / (totalExpectedUpvotes + strengthOfPrior)
 
-    U = totalUpvotes
-    E = totalExpectedUpvotes
-    W = weight of prior
-                        
-                             data     prior
-                              ↓        ↓
-     estimatedUpvoteRate ≈ ( U/E * E + 1 * W ) / (E + W)
-                                   ↑       ↑        ↑
-                                 weight  weight   total
-                                   of      of     weight
-                                  data   prior
-                                                
-                         ≈ (U + W) / (E + W)
+Where `strengthOfPrior` is a constant we have estimated to be about 2.3 using an MCMC simulation. 
+
+## A Proposed New Formula
+
+The following is a proposed alternative Hacker News ranking formula based on the estimated true upvote rate.
+
+    newRankingScore
+        = pow(age * estimatedUpvoteRate, 0.8) / pow(age + 2, 1.8)
+
+This formula simply substitutes `age * estimatedUpvoteRate` for `upvotes` in the original Hacker News ranking formula. Since, in general, `upvotes` is roughly proportional to `age * estimatedUpvoteRate`, this approximates the ranking score a story *should have* given its upvote rate and age.
+
+## Problem: Penalties and Bonuses
+
+Unfortunately, the actual Hacker News ranking score is further adjusted based on various factors including flags, moderator penalties and bonuses, URL, and number of comments. Although we know or can guess about some of these factors, data on flags and moderator actions are not publicly available. This means we can't actually reproduce the Hacker News ranking score, and therefore cannot modify it to show what the Hacker News front page would look like using our new formula.
+
+Although we have made some attempts to automatically infer penalties and bonuses based on differences between a story's actual rank and raw rank, the results have been questionable so far. 
 
 
 ## Possible Improvements
 
 
-### The Causal Model
-
-One improvement would be to properly account for **causality**. The formula for `estimatedUpvoteRate` makes some implicit assumptions about the causal relationship between the rank a story is shown at, and the number of upvotes it receives. These assumptions are not quite correct. As a result there are systematic errors in our upvote rate estimates that could be corrected by making appropriate statistical adjustments.
-
-Just as more deaths occur in hospitals because society sends sick people to hospitals, and not necessarily because hospitals cause people to die, more upvotes occur at higher ranks because the HN ranking algorithm sends the highest-scoring stories to higher ranks. So when we look at the number of upvotes that historically occur at different ranks, we need to consider that this is due to the *combined* effect of the algorithm and the actual effect of rank on upvotes.
-
-This is a problem because our upvote rate calculation depends on an estimate of the number of upvotes we would expect *the average story* to receive at each rank. But the data in our `upvoteShare`  table don't tell us this. Instead it tells us how many upvotes actually occured at each rank. But the *average* story was not shown at each rank. Above-average stories are generally shown at higher ranks, and below-average stories are generally shown at lower ranks.
-
-So we don't know how many many more upvotes the average story *should* receive at rank 1 than at rank 90, just by looking at the historical averages.
-
-Fortunately, there are statistical techniques for adjusting for these sorts of [confounding](https://en.wikipedia.org/wiki/Confounding) variables and estimating the direct effect of rank on upvotes. Applying these is tricky in this case, but we hope to update our algorithm with an updated `expectedUpvoteRate` table soon.
-
-<!--
-A story's upvote rate is by definition a factor of how many more or fewer upvotes a story gets than an average story would have gotten if shown at the same rank. For example, if a story received 3 upvotes during a minute at rank 1, then we need to divide 3 by the number of upvotes we would expect the average story to receive during a minute at rank 1. But we don't how many upvotes the average story gets during a minute at rank 1! Because the average story never makes it to rank 1; the historical upvotes at rank 1 only include data for above-average stories.
--->
-
 ### Fatigue
 
 In general, upvote rates decrease as a story receives more attention. The more attention a story has received, the more likely it is that users have already seen it. So if a story spends a lot of time on  home page the upvote rate will eventually start to drop.
 
-But we'd like a true upvote rate estimate that measures the tendency of the story itself to attract upvotes, and not the amount of attention it has received on Hacker News. We can do this by building a fatigue factor into the expected upvote calculation.
+But we'd like a true upvote rate estimate that measures the tendency of the story itself to attract upvotes, and not the amount of attention it has received on Hacker News. We can do this by building a fatigue factor into the expected upvote model.
 
 ### Moving Averages
 
 Looking only at more recent data could make vote manipulation even harder: it would require a constant supply of new votes as the moving average window moves.
 
-The moving average window would be based on expected upvotes, not time, since expected upvotes can be thought of a proxy for sample size (as discussed in the [Bayesian Averaging](#bayesian-averaging) section above).
+The moving average window would be based on expected upvotes, not time, since expected upvotes is roughly proportional to the number of people who have *paid attention* to a story and thus can be thought of as a proxy for sample size
 
 # Development
 
