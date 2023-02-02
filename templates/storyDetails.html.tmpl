@@ -26,10 +26,20 @@
 
 {{/*      {{if and .QNRank.Valid (le .QNRank.Int32 90) (not .IsQualityPage) }}<a href="/#{{.ID}}"><span class="rank-icon qn">#{{.QNRank.Value}}</span> on QN</a> |{{end}} */}}
     </span>
-    | 
+
+    |
+
     {{.Score}} points by <a href="https://news.ycombinator.com/user?id={{.By}}">{{.By}}</a> 
-    {{if .IsResubmitted}}<span class="original-age" title="Original submission time: {{.OriginalISOTimestamp}}">{{.OriginalAgeString}}</span>{{end}} 
-    <a href="https://news.ycombinator.com/item?id={{.ID}}" title="2nd-Chance submission time: {{.ISOTimestamp}}"{{if .IsResubmitted}} class="resubmitted-age"{{end}}>{{.AgeString}}</a> |
+
+    {{if .IsResubmitted}}
+    <span class="original-age" title="{{.OriginalISOTimestamp}}">{{.OriginalAgeString}}</span>
+    <a href="https://news.ycombinator.com/item?id={{.ID}}" title="2nd-Chance Pool submission time: {{.ISOTimestamp}}" class="resubmitted-age">{{.AgeString}}</a>
+    {{else}}
+    <a href="https://news.ycombinator.com/item?id={{.ID}}" title="{{.ISOTimestamp}}">{{.AgeString}}</a>
+    {{end}}
+
+    |
+
     <a href="https://news.ycombinator.com/item?id={{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> 
 
   </div>

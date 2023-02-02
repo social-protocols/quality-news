@@ -1,3 +1,9 @@
+:root {
+  --green: #05851e;
+  --red: #d4214b;
+}
+
+
 html {
   scroll-padding-top: 80%;
 }
@@ -121,14 +127,14 @@ a:visited.upvote-button {
 .story-details .penalty,
 .story-details a:link.penalty,
 .story-details a:visited.penalty {
-  color: #d4214b;
+  color: var(--red);
 }
 
 
 .story-details .boost,
 .story-details a:link.boost,
 .story-details a:visited.boost {
-  color: #05851e;
+  color: var(--green);
 }
 
 .original-age {
@@ -143,7 +149,7 @@ a:visited.question-mark {
 .resubmitted-age,
 .story-details a:link.resubmitted-age,
 .story-details a:visited.resubmitted-age {
-  color: darkgreen;
+  color: var(--green);
 }
 
 .header a:link    { color:#000000; text-decoration:none; }
