@@ -99,23 +99,7 @@ func (ndb newsDatabase) init() error {
 		}
 	}
 
-	alterStatements := []string{
-		`
-		alter table dataset rename column expectedRank to rawRank;
-		`,
-		`
-		alter table stories add column job boolean not null default false;
-		`,
-		`
-		update stories set job=true where id in (select distinct(id) from dataset where job=true);
-		`,
-		`
-		alter table dataset drop column job;
-		`,
-		`
-		alter table dataset add column dupe boolean not null default false
-		`,
-	}
+	alterStatements := []string{}
 
 	for _, s := range alterStatements {
 		_, _ = ndb.db.Exec(s)
