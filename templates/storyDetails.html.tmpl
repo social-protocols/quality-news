@@ -15,10 +15,12 @@
         {{if ge .QualityString "2"}} style="font-weight:bold;" {{end}}>
         ×{{.QualityString}}</span> 
 
-      {{if ne .RankDiff 0}}
-        <span class={{if lt .RankDiff 0}}"penalty"{{else}}"boost"{{end}} title="Rank Delta:&#013;Difference between story's actual rank and the raw rank based on the HN ranking formula.">
-          {{if gt .RankDiff 0}}+{{end}}{{.RankDiff}}
-        </span>
+      {{if .IsHNTopPage}}
+        {{if ne .RankDiff 0}}
+          <span class={{if lt .RankDiff 0}}"penalty"{{else}}"boost"{{end}} title="Rank Delta:&#013;Difference between story's actual rank and the raw rank based on the HN ranking formula.">
+            {{if gt .RankDiff 0}}+{{end}}{{.RankDiff}}
+          </span>
+        {{end}}
       {{end}}
     </a>
     <span class="comparative-rank">
