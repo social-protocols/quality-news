@@ -53,6 +53,7 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.GET("/show", middleware("show", l, onPanic, app.frontpageHandler("show")))
 	router.GET("/raw", middleware("raw", l, onPanic, app.frontpageHandler("raw")))
 	router.GET("/stats", middleware("stats", l, onPanic, app.statsHandler()))
+	router.GET("/about", middleware("about", l, onPanic, app.aboutHandler()))
 
 	server.Handler = app.cacheAndCompressMiddleware(router)
 

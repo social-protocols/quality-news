@@ -16,39 +16,12 @@ type StatsPageParams struct {
 
 type StatsPageData struct {
 	StatsPageParams
+	DefaultPageHeaderData
 	EstimatedUpvoteRate int
 	Story               Story
 	RanksPlotData       [][]any
 	UpvotesPlotData     [][]any
 	PenaltyPlotData     [][]any
-}
-
-func (d StatsPageData) IsQualityPage() bool {
-	return false
-}
-
-func (d StatsPageData) IsHNTopPage() bool {
-	return false
-}
-
-func (d StatsPageData) IsNewPage() bool {
-	return false
-}
-
-func (d StatsPageData) IsBestPage() bool {
-	return false
-}
-
-func (d StatsPageData) IsAskPage() bool {
-	return false
-}
-
-func (d StatsPageData) IsShowPage() bool {
-	return false
-}
-
-func (d StatsPageData) IsRawPage() bool {
-	return false
 }
 
 var ErrStoryIDNotFound = httperror.New(404, "Story ID not found")

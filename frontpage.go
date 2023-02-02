@@ -60,6 +60,10 @@ func (d frontPageData) IsRawPage() bool {
 	return d.Ranking == "raw"
 }
 
+func (d frontPageData) IsAboutPage() bool {
+	return false
+}
+
 func (d frontPageData) GravityString() string {
 	return fmt.Sprintf("%.2f", d.Params.Gravity)
 }
