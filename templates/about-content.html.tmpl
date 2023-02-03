@@ -1,11 +1,6 @@
 <p>Quality News is a Hacker News client that provides additional charts
 and data about the performance of stories. For an in-depth explanation, see the <a href="https://github.com/social-protocols/news#readme">Readme</a> on
 GitHub.</p>
-<!--
-To Generate This HTML:
-
-pandoc --from gfm --to html about.md > templates/about-content.html.tmpl
--->
 
 <h2 id="upvote-rate">Upvote Rate</h2>
 <p>The <strong>upvoteRate</strong> quantifies how much more or less
@@ -22,18 +17,16 @@ received if it were shown at the same times at the same ranks.</p>
 <p>The <strong>raw rank</strong> is the rank that a story would have
 according to the "raw" Hacker News ranking formula:</p>
 <pre><code>upvotes^0.8 / (ageHours+2)^1.8</code></pre>
-<p>The actual Hacker News ranking formula applies additional adjustments
-to the ranking score based on a variety of factors: penalties for
-flagged stories, bonuses for stories in the 2nd-chance queue, and other
-factors which are not entirely known.</p>
+
+<p>This formula produces a certain ranking that you can see on the (<a href="https://news.social-protocols.org/raw">raw page</a>).
+
+But HN ranking is further influenced by moderator actions, user flags, and other factors which boost or penalize stories. 
+
+</p>
 
 <h2 id="rank-delta">Rank Delta</h2>
 <p>The <strong>rank delta</strong> is the difference between the story's
-actual rank and it's <strong>raw rank</strong>.</p>
-
-<p>
-If you only apply the HN formula, a certain ranking will be produced (<a href="https://news.social-protocols.org/raw">see it on the raw page</a>). But there is a lot of moderation and other factors on HN, which boost or penalise stories. This makes the ranking on the frontpage different from what the formula alone would produce. This difference is indicated by the rank delta.
-</p>
+actual rank and it's <strong>raw rank</strong> (described above).</p>
 
 <p>
 A value of +1 means that a story is ranked 1 position higher on the front page than if it were ranked using the raw formula only.
