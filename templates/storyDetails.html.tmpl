@@ -17,7 +17,7 @@
 
       {{if .IsHNTopPage}}
         {{if ne .RankDiff 0}}
-          <span class={{if lt .RankDiff 0}}"penalty"{{else}}"boost"{{end}} title="Rank Delta:&#013;Difference between story's actual rank and the raw rank based on the HN ranking formula.">
+          <span class={{if lt .RankDiff 0}}"penalty"{{else}}"boost"{{end}} title="Rank Delta:&#013;Difference in ranking caused by Hacker News moderation and other factors compared to using the raw formula. {{if gt .RankDiff 0}}+{{end}}{{.RankDiff}} means that it is ranked {{if gt .RankDiff 0}}higher{{else}}lower{{end}} on the front page than if it were ranked using the raw formula only. Have a look at the 'raw' page to see the raw ranking.">
             {{if gt .RankDiff 0}}+{{end}}{{.RankDiff}}
           </span>
         {{end}}
