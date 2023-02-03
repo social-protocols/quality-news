@@ -17,7 +17,7 @@
 
 [Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that provides additional data and insights on submissions, notably, the **upvoteRate** metric.
 
-As shown in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html), the upvotes metric is neither stable nor comparable. Therefore, it can only provide a tendency of the community intents, The same story submitted multiple times receives vastly different amounts of upvotes every time. And this inaccuracy is reflected in the ranking.
+As shown in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html), the upvotes metric is neither stable nor comparable. Therefore, it can only provide a tendency of the community intents. The same story submitted multiple times receives vastly different amounts of upvotes every time. And this inaccuracy is reflected in the ranking.
 
 Quality News aims to solve this problem with a new metric: `upvoteRate`. `upvoteRate` quantifies how much more or less likely users are to upvote a story compared to the average story, and should thus be roughly the same regardless of:
 
