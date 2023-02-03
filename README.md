@@ -94,7 +94,6 @@ If we multiply the average upvote share for a rank by the total site-wide upvote
         = avgUpvoteShare[rank] * sidewideUpvotes[timeInterval]
 
 
-
 Given **a history of the story's rank over time**, we can compute its total expected upvotes:
 
     totalExpectedUpvotes
@@ -114,6 +113,10 @@ We assume that each story has some "true" upvote rate, which is a factor of how 
 
     upvotes[timeInterval]
         ≈ upvoteRate * expectedUpvotes[rank[timeInterval], timeInterval]
+
+##### Sample Chart
+<img alt="sample upvote rate chart" src="static/upvote-rate.png" width="550"/>
+<br/><span style="margin-left: 60px;">History of the estimated true upvote rate of a sample story</span>
 
 The relationship `upvotes ≈ upvoteRate * expectedUpvotes` holds even in the aggregate, independently of the ranks at which upvotes actually occurred. This can be seen by taking the sum of a story's upvotes across all time intervals:
 
@@ -142,10 +145,6 @@ The Bayesian Averaging formula in our case is:
 
 Where `strengthOfPrior` is a constant we have estimated to be about 2.3 using an MCMC simulation. 
 
-
-##### Sample Chart
-<img alt="sample upvote rate chart" src="static/upvote-rate.png" width="550"/>
-<br/><span style="margin-left: 60px;">History of the estimated true upvote rate of a sample story</span>
 
 
 
