@@ -116,7 +116,7 @@ We assume that each story has some "true" upvote rate, which is a factor of how 
 
 ##### Sample Chart
 <img alt="sample upvote rate chart" src="static/upvote-rate.png" width="550"/>
-<br/><span style="margin-left: 60px;">History of the estimated true upvote rate of a sample story</span>
+<br/><span style="margin-left: 60px;">History of the estimated true upvote rate of a sample story</span><br/>
 
 The relationship `upvotes ≈ upvoteRate * expectedUpvotes` holds even in the aggregate, independently of the ranks at which upvotes actually occurred. This can be seen by taking the sum of a story's upvotes across all time intervals:
 
