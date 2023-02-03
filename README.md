@@ -17,13 +17,13 @@
 
 [Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that provides additional data and insights on the **upvoteRate** of Hacker News stories.
 
-As shown in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html), the number of upvotes alone is neither a comparable nor stable metric. The same story submitted multiple times receives vastly different amounts of upvotes every time.
+As shown in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html), the upvotes metric is neither stable nor comparable. The same story submitted multiple times receives vastly different amounts of upvotes every time.
 
-In this work, we introduce a new metric, called `upvoteRate`, which aims to solve many of the problems of upvote counts. The `upvoteRate` quantifies how much more or less likely users are to upvote a story compared to the average story. `upvoteRate` is a more stable and comparable metric than raw upvotes. Two submissions that attract similar interest from the community should have a similar `upvoteRate`, regardless of:
+Quality News aims to solve this problem with a new metric: `upvoteRate`. `upvoteRate` quantifies how much more or less likely users are to upvote a story compared to the average story, and should thus be roughly the same regardless of:
 
-- whether one of the stories got caught in a positive rank-upvote feedback loop (see Motivation below)
 - the time/day of week a story was submitted
 - overall amount of traffic to the site
+- whether the story gets caught in a positive rank-upvote feedback loop (see Motivation below)
 
 The `upvoteRate` should thus better represent the aggregate intent of Hacker News community-members revealed by their upvotes.
 
@@ -41,15 +41,13 @@ graph LR
     U --> R
 ```
 
-It is not always the best submissions that get caught in this feedback loop. We discussed some of our earlier thoughts on this problem in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html).
-
-This is the current Hacker News ranking formula:
+It is not always the best submissions that get caught in this feedback loop discussed in our [previous article](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html). This is the current Hacker News ranking formula:
 
      rankingScore = pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
 
-The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **rank** or 4) **timing**. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30, even though a story on rank 1 receives more attention. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night. This makes upvotes an unreliable metric for ranking.
+The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **rank** or 4) **timing**. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30, even though a story on rank 1 receives more attention. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night. This makes upvotes an unreliable measure of the popularity of a story.
 
-Our goal is to provide a metric that can replace the raw upvote count in the HN Ranking formula, that vies upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
+Our goal is to provide a metric that can replace the raw upvote count in the HN ranking formula, that gives upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
 
 This wouldn't guarantee that some high quality stories won't sometimes be overlooked completely because nobody notices them on the new page. For those, we simply don't have enough data. We plan to approach this problem in the future.
 
