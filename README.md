@@ -96,9 +96,8 @@ If we multiply the average upvote share for a rank by the total site-wide upvote
 
 Given **a history of the story's rank over time**, we can compute its total expected upvotes:
 
-    totalExpectedUpvotes
-        = sum{for each timeInterval} expectedUpvotes[rank[timeInterval], timeInterval]
-
+    totalExpectedUpvotes(for some story)
+        = sum(for each timeInterval in the history of that story) expectedUpvotes[rank of story at that timeInterval]
 
 ##### Sample Charts
 
