@@ -17,8 +17,9 @@
 
 [Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that provides additional data and insights on the **upvoteRate** of Hacker News stories.
 
+As shown in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html), the number of upvotes alone is neither a comparable nor stable metric. The same story submitted multiple times receives vastly different amounts of upvotes every time.
 
-The `upvoteRate` quantifies how much more or less likely users are to upvote a story compared to the average story. `upvoteRate` is a more stable and comparable metric than raw upvotes. Two similar stories should have a similar `upvoteRate` regardless of:
+In this work, we introduce a new metric, called `upvoteRate`, which aims to solve many of the problems of upvote counts. The `upvoteRate` quantifies how much more or less likely users are to upvote a story compared to the average story. `upvoteRate` is a more stable and comparable metric than raw upvotes. Two submissions that attract similar interest from the community should have a similar `upvoteRate`, regardless of:
 
 - whether one of the stories got caught in a positive rank-upvote feedback loop (see Motivation below)
 - the time/day of week a story was submitted
@@ -40,13 +41,13 @@ graph LR
     U --> R
 ```
 
-It is not always the best submissions that get caught in this feedback loop. We discussed some of our earlier thoughts on this problem in our article on [Improving the Hacker News Ranking Algorithm](https://news.ycombinator.com/item?id=28391659).
+It is not always the best submissions that get caught in this feedback loop. We discussed some of our earlier thoughts on this problem in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html).
 
-This is the current hacker news ranking formula:
+This is the current Hacker News ranking formula:
 
      rankingScore = pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
 
-The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **rank** or 4) **timing**. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night.
+The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **rank** or 4) **timing**. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30, even though a story on rank 1 receives more attention. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night. This makes upvotes an unreliable metric for ranking.
 
 Our goal is to provide a metric that can replace the raw upvote count in the HN Ranking formula, that vies upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
 
@@ -54,7 +55,7 @@ This wouldn't guarantee that some high quality stories won't sometimes be overlo
 
 ## Upvote Share by Rank
 
-We start by looking at historical upvote data on Hacker News for each rank and page type: `top` (front page), `new`, `best`, `ask`, and `show`. We obtained this data by [crawling the hacker news API](https://github.com/social-protocols/hacker-news-data) every minute for several months, and recording each story's rank and score (upvote count). The change in score tells us approximately how many upvotes occured at that rank during that time interval.
+We start by looking at historical upvote data on Hacker News for each rank and page type: `top` (front page), `new`, `best`, `ask`, and `show`. We obtained this data by [crawling the Hacker News API](https://github.com/social-protocols/hacker-news-data) every minute for several months, and recording each story's rank and score (upvote count). The change in score tells us approximately how many upvotes occured at that rank during that time interval.
 
 We then calculated the *share* of overall site-wide upvotes that occur at each rank. For example, the first story on the `top` page receives on average about 10.2% of all upvotes (about 1.169 upvotes per minute), whereas the 40th story on the `new` page receives about 0.05% (about 0.0055 upvotes per minute). Upvote shares for the `top` page is summarized in the chart below.
 
@@ -66,33 +67,33 @@ We then calculated the *share* of overall site-wide upvotes that occur at each r
     select 
         rank as topRank
         , round(avgUpvotes, 3) as avgUpvotes
-        , round(avgUpvotes/(select sum(avgUpvotes) from upvotesByRank),3) as upvoteShare 
+        , round(avgUpvotes/(select sum(avgUpvotes) from upvotesByRank),3) as avgUpvoteShare 
     from upvotesByRank 
     where rank in (1,2,3,10,40,80) and pageType = 'top';
 -->
 
 
-| topRank  | avgUpvotes   | upvoteShare |
-| -------- | ------------ | ----------- |
-| 1        | 1.169        | 10.2%       |
-| 2        | 0.698        |  6.1%       |
-| 3        | 0.538        |  4.7%       |
-| ...      |              | ...         |
-| 10       | 0.274        |  2.4%       |
-| ...      |              | ...         |
-| 40       | 0.043        |  0.4%       |
-| ...      |              | ...         |
-| 80       | 0.013        |  0.1%       |
-| **TOTAL**| **11.493**   |  **100%**   |
+| topRank   | avgUpvotes   | avgUpvoteShare |
+| --------  | ------------ | -------------- |
+| 1         | 1.169        | 10.2%          |
+| 2         | 0.698        | 6.1%           |
+| 3         | 0.538        | 4.7%           |
+| ...       |              | ...            |
+| 10        | 0.274        | 2.4%           |
+| ...       |              | ...            |
+| 40        | 0.043        | 0.4%           |
+| ...       |              | ...            |
+| 80        | 0.013        | 0.1%           |
+| **TOTAL** | **11.493**   | **100%**       |
 
 
 ## Expected Upvotes Over Time
 
 
-If we multiply the upvote share for a rank by the total site-wide upvotes during some time interval, we get the number of expected upvotes for that rank and time interval. Or to be more precise, we get the number of upvotes **we would expect the average story to receive** at that rank during that time interval.
+If we multiply the average upvote share for a rank by the total site-wide upvotes during some specific time interval, we get the number of expected upvotes for that rank and time interval. Or to be more precise, we get the number of upvotes **we would expect the average story to receive** at that rank during that time interval.
 
     expectedUpvotes[rank, timeInterval]
-        = upvoteShare[rank] * sidewideUpvotes[timeInterval]
+        = avgUpvoteShare[rank] * sidewideUpvotes[timeInterval]
 
 
 
