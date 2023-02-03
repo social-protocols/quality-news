@@ -41,15 +41,15 @@ graph LR
     U --> R
 ```
 
-It is not always the best submissions that get caught in this feedback loop discussed in our [previous article](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html). This is the current Hacker News ranking formula:
+It is not always the best submissions that get caught in this feedback loop, as discussed in our [previous article](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html). This is the current Hacker News ranking formula:
 
      rankingScore = pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
 
-The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **rank** or 4) **timing**. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30, even though a story on rank 1 receives more attention. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night. This makes upvotes an unreliable measure of the popularity of a story.
+The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **rank** or 4) **timing** of individual upvotes. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30, even though a story on rank 1 is seen by more users than a story on rank 30. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night. This makes upvotes an unreliable measure of the popularity of a story.
 
 Our goal is to provide a metric that can replace the raw upvote count in the HN ranking formula, that gives upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
 
-This wouldn't guarantee that some high quality stories won't sometimes be overlooked completely because nobody notices them on the new page. For those, we simply don't have enough data. We plan to approach this problem in the future.
+The new metric obviously can't do anything about overlooked stories on the new-page. For those, we simply don't have enough data. We plan to approach this problem in the future.
 
 ## Upvote Share by Rank
 
