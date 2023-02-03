@@ -55,7 +55,7 @@ This wouldn't guarantee that some high quality stories won't sometimes be overlo
 
 We start by looking at historical upvote data on Hacker News for each rank and page type: `top` (front page), `new`, `best`, `ask`, and `show`. We obtained this data by [crawling the Hacker News API](https://github.com/social-protocols/hacker-news-data) every minute for several months, and recording each story's rank and score (upvote count). The change in score tells us approximately how many upvotes occured at that rank during that time interval.
 
-We then calculated the *share* of overall site-wide upvotes that occur at each rank. For example, the first story on the `top` page receives on average about 10.2% of all upvotes (about 1.169 upvotes per minute), whereas the 40th story on the `new` page receives about 0.05% (about 0.0055 upvotes per minute). Upvote shares for the `top` page is summarized in the chart below.
+We then calculated the *share* of overall site-wide upvotes that occur at each rank. For example, the first story on the `top` page receives on average about 10.2% of all upvotes (about 1.169 upvotes per minute), whereas the 40th story on the `new` page receives about 0.05% (about 0.0055 upvotes per minute). Upvote shares for the `top` page are summarized in the chart below.
 
 
 <img src="static/upvote-share-by-rank.png" width="500" height="500"/>
@@ -92,12 +92,13 @@ If we multiply the average upvote share for a rank by the total site-wide upvote
 
     expectedUpvotes[rank, timeInterval]
         = avgUpvoteShare[rank] * sidewideUpvotes[timeInterval]
-
+    TODO: EXAMPLE WITH NUMBERS
 
 Given **a history of the story's rank over time**, we can compute its total expected upvotes:
 
-    totalExpectedUpvotes
-        = sum{for each timeInterval} expectedUpvotes[rank[timeInterval], timeInterval]
+    totalExpectedUpvotes for a story =
+      sum{for each timeInterval in the history of that story} expectedUpvotes[rank of story at timeInterval]
+    TODO: EXAMPLE WITH NUMBERS
 
 
 ##### Sample Charts
