@@ -86,7 +86,7 @@ We then calculated the *share* of overall site-wide upvotes that occur at each r
 | **TOTAL**| **11.493**   |  **100%**   |
 
 
-## Expected Upvotes
+## Expected Upvotes Over Time
 
 
 If we multiply the upvote share for a rank by the total site-wide upvotes during some time interval, we get the number of expected upvotes for that rank and time interval. Or to be more precise, we get the number of upvotes **we would expect the average story to receive** at that rank during that time interval.
@@ -94,11 +94,15 @@ If we multiply the upvote share for a rank by the total site-wide upvotes during
     expectedUpvotes[rank, timeInterval]
         = upvoteShare[rank] * sidewideUpvotes[timeInterval]
 
-Given a history of the story's rank over time, we can compute its total expected upvotes:
+
+![a stories rank history](static/rank-history.png)
+
+Given **a history of the story's rank over time**, we can compute its total expected upvotes:
 
     totalExpectedUpvotes
         = sum{for each timeInterval} expectedUpvotes[rank[timeInterval], timeInterval]
 
+![expected upvotes](static/expected-upvotes.png)
 
 ## The "True" Upvote Rate
 
@@ -119,6 +123,8 @@ This means we can estimate the true upvote rate simply by dividing the story's t
     upvoteRate ≈ totalUpvotes / totalExpectedUpvotes
 
 We call this estimate the **observed upvote rate**.
+
+![observed upvote rate](static/upvote-rate.png)
 
 ## Bayesian Averaging
 
