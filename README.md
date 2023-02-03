@@ -49,9 +49,9 @@ This is the current Hacker News ranking formula:
 
 The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **rank** or 4) **timing**. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30, even though a story on rank 1 receives more attention. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night. This makes upvotes an unreliable metric for ranking.
 
-Our goal is to provide a reliable metric, which can be used in the formula, replacing the raw upvote count. It accounts for the effects of rank and timing by giving upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
+Our goal is to provide a metric that can replace the raw upvote count in the HN Ranking formula, that vies upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
 
-This doesn't guarantee that some high quality stories won't sometimes be overlooked completely because nobody notices them on the new page. For those, we simply don't have enough data. We plan to approach this problem in the future.
+This wouldn't guarantee that some high quality stories won't sometimes be overlooked completely because nobody notices them on the new page. For those, we simply don't have enough data. We plan to approach this problem in the future.
 
 ## Upvote Share by Rank
 
@@ -60,7 +60,7 @@ We start by looking at historical upvote data on Hacker News for each rank and p
 We then calculated the *share* of overall site-wide upvotes that occur at each rank. For example, the first story on the `top` page receives on average about 10.2% of all upvotes (about 1.169 upvotes per minute), whereas the 40th story on the `new` page receives about 0.05% (about 0.0055 upvotes per minute). Upvote shares for the `top` page is summarized in the chart below.
 
 
-<img src="static/upvote-share-by-rank.png" width="500" height="500">
+<img src="static/upvote-share-by-rank.png" width="500" height="500"/>
 
 
 <!--from the hacker-news-data database: 
@@ -96,14 +96,19 @@ If we multiply the average upvote share for a rank by the total site-wide upvote
         = avgUpvoteShare[rank] * sidewideUpvotes[timeInterval]
 
 
-![a stories rank history](static/rank-history.png)
 
 Given **a history of the story's rank over time**, we can compute its total expected upvotes:
 
     totalExpectedUpvotes
         = sum{for each timeInterval} expectedUpvotes[rank[timeInterval], timeInterval]
 
-![expected upvotes](static/expected-upvotes.png)
+
+##### Sample Charts
+
+<img alt="sample stories rank history chart" src="static/rank-history.png" width="550"/>
+<img alt="sample expected upvotes chart" src="static/expected-upvotes.png" width="550"/>
+<br/><span style="margin-left: 60px;">History of rank, upvotes, and expected upvotes for a sample story</span>
+
 
 ## The "True" Upvote Rate
 
@@ -125,8 +130,6 @@ This means we can estimate the true upvote rate simply by dividing the story's t
 
 We call this estimate the **observed upvote rate**.
 
-![observed upvote rate](static/upvote-rate.png)
-
 ## Bayesian Averaging
 
 If we don't have a lot of data for a story, the observed upvote rate may not be a very accurate estimate of the true upvote rate.
@@ -140,6 +143,13 @@ The Bayesian Averaging formula in our case is:
     estimatedUpvoteRate ≈ (totalUpvotes + strengthOfPrior) / (totalExpectedUpvotes + strengthOfPrior)
 
 Where `strengthOfPrior` is a constant we have estimated to be about 2.3 using an MCMC simulation. 
+
+
+##### Sample Chart
+<img alt="sample upvote rate chart" src="static/upvote-rate.png" width="550"/>
+<br/><span style="margin-left: 60px;">History of the estimated true upvote rate of a sample story</span>
+
+
 
 ## A Proposed New Formula
 

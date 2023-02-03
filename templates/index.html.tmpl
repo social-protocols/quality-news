@@ -31,15 +31,15 @@
 	<div class="key">
 		<span style="color: #0089f4;">×UpvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a>
     {{if .IsHNTopPage}}&nbsp; <span style="color: #05851e">+</span>/<span style="color: #d4214b">-</span> <span style="color: #223344">rank delta</span> <a class="question-mark" href="/about#rank-delta">(?)</a>{{end}}
-		&nbsp; <span class="original-age">original</span> <span class="resubmitted-age">2nd-chance</span> age <a class="question-mark" href="/about#second-chance-age">(?)</a>
 		{{if (not .IsHNTopPage)}}
 		&nbsp; <span class="rank-icon hn">#rank</span> on front page
 		{{end}}
+		&nbsp; <span class="original-age">original</span> <span class="resubmitted-age">2nd-chance</span> age <a class="question-mark" href="/about#second-chance-age">(?)</a>
 	</div>	
 
 	<div class="introduction">
 		{{if .IsRawPage}}
-				Stories ordered by raw ranking score (no penalties or bonuses)
+				Stories ranked by the raw score produced by the HN formula. There are no moderation penalties or bonuses applied. It makes the impact of moderation on the HN frontpage visible, e.g. off-topic/non-tech stories are ranked higher.
 		{{end}}
 	</div>
 

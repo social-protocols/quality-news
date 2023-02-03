@@ -1,5 +1,6 @@
 <p>Quality News is a Hacker News client that provides additional charts
-and data about the performance of stories.</p>
+and data about the performance of stories. For an in-depth explanation, see the <a href="https://github.com/social-protocols/news#readme">Readme</a> on
+GitHub.</p>
 <!--
 To Generate This HTML:
 
@@ -11,13 +12,12 @@ pandoc --from gfm --to html about.md > templates/about-content.html.tmpl
 likely users are to upvote this story compared to the average story. It
 is calculated as the story's total upvotes divided by total
 <strong>expected upvotes</strong>.</p>
+
 <h2 id="expected-upvotes">Expected Upvotes</h2>
 <p>The <strong>expected upvotes</strong> for a story is an estimate of
 the number of upvotes the <strong>average story</strong> would have
 received if it were shown at the same times at the same ranks.</p>
-<h2 id="rank-delta">Rank Delta</h2>
-<p>The <strong>rank delta</strong> is the difference between the story's
-actual rank and it's <strong>raw rank</strong></p>
+
 <h2 id="raw-rank">Raw Rank</h2>
 <p>The <strong>raw rank</strong> is the rank that a story would have
 according to the "raw" Hacker News ranking formula:</p>
@@ -26,12 +26,26 @@ according to the "raw" Hacker News ranking formula:</p>
 to the ranking score based on a variety of factors: penalties for
 flagged stories, bonuses for stories in the 2nd-chance queue, and other
 factors which are not entirely known.</p>
+
+<h2 id="rank-delta">Rank Delta</h2>
+<p>The <strong>rank delta</strong> is the difference between the story's
+actual rank and it's <strong>raw rank</strong>.</p>
+
+<p>
+If you only apply the HN formula, a certain ranking will be produced (<a href="https://news.social-protocols.org/raw">see it on the raw page</a>). But there is a lot of moderation and other factors on HN, which boost or penalise stories. This makes the ranking on the frontpage different from what the formula alone would produce. This difference is indicated by the rank delta.
+</p>
+
+<p>
+A value of +1 means that a story is ranked 1 position higher on the front page than if it were ranked using the raw formula only.
+</p>
+
 <h2 id="second-chance-age">Second-Chance Age</h2>
 <p>The <strong>second-chance age</strong> is the story's revised age
 after being re-posted from the the <a
 href="https://news.ycombinator.com/item?id=19774614">second-chance
 queue</a>.</p>
+
 <h2 id="more-details">More Details</h2>
 <p>See the
 <a href="https://github.com/social-protocols/news#readme">Readme</a> on
-Github for more details.</p>
+GitHub for more details.</p>
