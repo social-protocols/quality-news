@@ -119,7 +119,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	// Register some extension functions from go-sqlite3-stdlib so we can actually do math in sqlite3.
 	stdlib.Register("sqlite3_ext")
-	ndb.db, err = sql.Open("sqlite3_ext", frontpageDatabaseFilename)
+	ndb.db, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", frontpageDatabaseFilename))
 
 	if err != nil {
 		return ndb, err
