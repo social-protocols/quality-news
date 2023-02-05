@@ -15,21 +15,21 @@
 
 </div>
 
-[Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that provides additional data and insights on the **upvoteRate** of Hacker News stories.
+[Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that provides additional data and insights on submissions, notably, the **upvoteRate** metric.
 
-As shown in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html), the upvotes metric is neither stable nor comparable. The same story submitted multiple times receives vastly different amounts of upvotes every time.
+As shown in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html), the upvotes metric is neither stable nor comparable. Therefore, it can only provide a tendency of the community intents. The same story submitted multiple times receives vastly different amounts of upvotes every time. And this inaccuracy is reflected in the ranking.
 
 Quality News aims to solve this problem with a new metric: `upvoteRate`. `upvoteRate` quantifies how much more or less likely users are to upvote a story compared to the average story, and should thus be roughly the same regardless of:
 
 - the time/day of week a story was submitted
 - overall amount of traffic to the site
-- whether the story gets caught in a positive rank-upvote feedback loop (see Motivation below)
+- whether the story gets caught in a positive rank-upvote feedback loop (see Introduction below)
 
-The `upvoteRate` should thus better represent the aggregate intent of Hacker News community-members revealed by their upvotes.
+The `upvoteRate` should better represent the aggregate intent of Hacker News community-members revealed by their upvote behavior.
 
-Quality News uses live minute-by-minute rank and upvote data collected from Hacker News. It looks and behaves very similar to the original Hacker News site except it shows `upvoteRate` and other metrics next to each story, and charts with the history of each story's rank, upvotes, and estimated upvote rates. It is a lightweight, server-side rendered page written in [go](https://go.dev) and hosted on [fly.io](https://fly.io).
+Quality News uses live minute-by-minute rank and upvote data collected from Hacker News. It looks and behaves very similar to the original Hacker News site except it shows `upvoteRate` and other metrics next to each story. The site also provides charts with the history of each story's rank, upvotes, and estimated upvote rates. It is a lightweight, server-side rendered page written in [go](https://go.dev) and hosted on [fly.io](https://fly.io).
 
-## Motivation
+## Introduction
 
 The success of a story on HN is partly a matter of timing and luck. A few early upvotes can catapult a new story to the front page where it can get caught in a feedback loop of even more upvotes. 
 
@@ -55,7 +55,7 @@ The new metric obviously can't do anything about overlooked stories on the new-p
 
 We start by looking at historical upvote data on Hacker News for each rank and page type: `top` (front page), `new`, `best`, `ask`, and `show`. We obtained this data by [crawling the Hacker News API](https://github.com/social-protocols/hacker-news-data) every minute for several months, and recording each story's rank and score (upvote count). The change in score tells us approximately how many upvotes occured at that rank during that time interval.
 
-We then calculated the *share* of overall site-wide upvotes that occur at each rank. For example, the first story on the `top` page receives on average about 10.2% of all upvotes (about 1.169 upvotes per minute), whereas the 40th story on the `new` page receives about 0.05% (about 0.0055 upvotes per minute). Upvote shares for the `top` page is summarized in the chart below.
+We then calculated the *share* of overall site-wide upvotes that occur at each rank. For example, the first story on the `top` page receives on average about 10.2% of all upvotes (about 1.169 upvotes per minute), whereas the 40th story on the `new` page receives about 0.05% (about 0.0055 upvotes per minute). Upvote shares for the `top` page are summarized in the chart below.
 
 
 <img src="static/upvote-share-by-rank.png" width="500" height="500"/>
@@ -92,12 +92,13 @@ If we multiply the average upvote share for a rank by the total site-wide upvote
 
     expectedUpvotes[rank, timeInterval]
         = avgUpvoteShare[rank] * sidewideUpvotes[timeInterval]
-
+    TODO: EXAMPLE WITH NUMBERS
 
 Given **a history of the story's rank over time**, we can compute its total expected upvotes:
 
-    totalExpectedUpvotes
-        = sum{for each timeInterval} expectedUpvotes[rank[timeInterval], timeInterval]
+    totalExpectedUpvotes for a story =
+      sum{for each timeInterval in the history of that story} expectedUpvotes[rank of story at timeInterval]
+    TODO: EXAMPLE WITH NUMBERS
 
 
 ##### Sample Charts
@@ -109,7 +110,7 @@ Given **a history of the story's rank over time**, we can compute its total expe
 
 ## The "True" Upvote Rate
 
-We assume that each story has some "true" upvote rate, which is a factor of how much more or less likely users are to upvote that story than the average story. During each time interval, each story should receive, on average, the expected upvotes for the rank it was shown at times the story's true upvote rate:
+We assume that each story has some "true" upvote rate, which is a factor of how much more or less likely users are to upvote that story than the average story. During each time interval, each story should receive, on average, the expected upvotes for the rank it was shown at *times* the story's true upvote rate:
 
     upvotes[timeInterval]
         ≈ upvoteRate * expectedUpvotes[rank[timeInterval], timeInterval]
@@ -137,7 +138,7 @@ If we don't have a lot of data for a story, the observed upvote rate may not be 
 
 A more sophisticated approach uses Bayesian inference: given our prior knowledge about the distribution of upvote rates, plus the evidence we have observed about this particular story, what does Bayes' rule tell us is the most probable true upvote rate?
 
-Since there are infinitely many possible true upvote rates, we can't use a trivial application of Bayes rule. But we can estimate the most likely true upvote rate using a technique called Bayesian Averaging. Here is good explanation of this technique from [Evan Miller](https://www.evanmiller.org/bayesian-average-ratings.html).
+Since there are infinitely many possible true upvote rates, we can't use a trivial application of Bayes rule. But we can estimate the most likely true upvote rate using a technique called Bayesian Averaging. Here is a good explanation of this technique from [Evan Miller](https://www.evanmiller.org/bayesian-average-ratings.html).
 
 The Bayesian Averaging formula in our case is:
 
@@ -157,11 +158,15 @@ The following is a proposed alternative Hacker News ranking formula based on the
 
 This formula simply substitutes `age * estimatedUpvoteRate` for `upvotes` in the original Hacker News ranking formula. Since, in general, `upvotes` is roughly proportional to `age * estimatedUpvoteRate`, this approximates the ranking score a story *should have* given its upvote rate and age.
 
-## Problem: Penalties and Bonuses
 
-Unfortunately, the actual Hacker News ranking score is further adjusted based on various factors including flags, moderator penalties and bonuses, URL, and number of comments. Although we know or can guess about some of these factors, data on flags and moderator actions are not publicly available. This means we can't actually reproduce the Hacker News ranking score, and therefore cannot modify it to show what the Hacker News front page would look like using our new formula.
 
-Although we have made some attempts to automatically infer penalties and bonuses based on differences between a story's actual rank and raw rank, the results have been questionable so far. 
+Unfortunately, the actual Hacker News ranking score is further adjusted based on various factors including flags, moderator penalties and bonuses, domain, and number of comments. Although we know or can guess about some of these factors, data on flags and moderator actions are not publicly available. This means we can't actually reproduce the Hacker News ranking score, and therefore cannot modify it to show what the Hacker News front page would look like using our new formula.
+
+Although we have made some attempts to automatically infer penalties and bonuses based on differences between a story's actual rank and raw rank, the results have been questionable so far.
+
+We hope for further experiments and support from Hacker News in this regard.
+
+
 
 
 ## Possible Improvements
@@ -183,7 +188,7 @@ The moving average window would be based on expected upvotes, not time, since ex
 
 The application is a single Go process that crawls the [Hacker News API](https://github.com/HackerNews/API) every minute. For each story, it records the current rank and page (top, new, best, etc.), and how many upvotes it has received, computes the expected upvotes share for that rank and updates the accumulated expected upvotes for that story. The data is stored in a Sqlite database.
 
-The frontpage generator queries the database and calculates the Bayesian average upvote rate in the SQL query. It then uses the Go templating library to generate HTML that mimics the original HN site. The frontpage is regenerated every minute and served compressed directly from memory.
+The frontpage generator queries the database and calculates the Bayesian average upvote rate in the SQL query. It then uses the Go templating library to generate HTML that mimics the original HN site. The frontpage is regenerated every minute and served directly from memory.
 
 ## Running it locally
 
@@ -197,8 +202,7 @@ Make sure, you have:
 Run:
 
 ```sh
-git clone github.com/social-protocols/news
-cd news
+
 
 source .envrc # if you don't have direnv installed
 
@@ -224,8 +228,7 @@ There is also a [shell.nix](shell.nix) available, which provides all required de
 Install nix on your system, enter the news directory, and run:      
 
 ```sh 
-git clone github.com/social-protocols/news
-cd news
+
 nix-channel --update
 nix-shell
 ./watch.sh
