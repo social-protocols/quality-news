@@ -55,9 +55,9 @@ This is the current Hacker News ranking formula:
 
      rankingScore = pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
 
-This formula only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **rank** or 4) **timing** of individual upvotes. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30, even though a story on rank 1 is seen by more users than a story on rank 30. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night. This makes upvotes an unreliable measure of the popularity of a story.
+The ranking on the front page is created by evaluating the formula for each story and arranging the stories according to their `rankingScore`. Note that this formula does not take the rank or timing of individual upvotes into account. So a story that receives 100 upvotes at rank 1 is valued the same as one that receives 100 upvotes at rank 30, even though a story on rank 1 is seen by more users than a story on rank 30. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night. This makes upvotes an unreliable measure of the community interest in a story.
 
-To solve this problem, the `upvoteRate` metric should be adjusted for rank and timing, effectively giving upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
+To solve this problem, the new `upvoteRate` metric should be adjusted for rank and timing, effectively giving upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
 
 ## Upvote Share by Rank
 
