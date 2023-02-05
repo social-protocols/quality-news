@@ -15,21 +15,13 @@
 
 </div>
 
-[Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that provides additional data and insights on submissions, notably, the **upvoteRate** metric.
+[Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that provides additional data and insights on submissions, notably, the **upvoteRate** metric. We propose that this metric could be used to improve the Hacker News ranking algorithm.
 
-As shown in our article on [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html), the upvotes metric is neither stable nor comparable. Therefore, it can only provide a tendency of the community intents. The same story submitted multiple times receives vastly different amounts of upvotes every time. And this inaccuracy is reflected in the ranking.
-
-Quality News aims to solve this problem with a new metric: `upvoteRate`. `upvoteRate` quantifies how much more or less likely users are to upvote a story compared to the average story, and should thus be roughly the same regardless of:
-
-- the time/day of week a story was submitted
-- overall amount of traffic to the site
-- whether the story gets caught in a positive rank-upvote feedback loop (see Introduction below)
-
-The `upvoteRate` should better represent the aggregate intent of Hacker News community-members revealed by their upvote behavior.
-
-Quality News uses live minute-by-minute rank and upvote data collected from Hacker News. It looks and behaves very similar to the original Hacker News site except it shows `upvoteRate` and other metrics next to each story. The site also provides charts with the history of each story's rank, upvotes, and estimated upvote rates. It is a lightweight, server-side rendered page written in [go](https://go.dev) and hosted on [fly.io](https://fly.io).
+Quality News uses live minute-by-minute rank and upvote data collected from Hacker News. It looks and behaves very similar to the original Hacker News site except it shows `upvoteRate` and other metrics next to each story. It also provides charts with the history of each story's rank, upvotes, and estimated upvote rates. It is a lightweight, server-side rendered page written in [go](https://go.dev) and hosted on [fly.io](https://fly.io).
 
 ## Introduction
+
+### The Problem
 
 The success of a story on HN is partly a matter of timing and luck. A few early upvotes can catapult a new story to the front page where it can get caught in a feedback loop of even more upvotes. 
 
@@ -41,15 +33,29 @@ graph LR
     U --> R
 ```
 
-It is not always the best submissions that get caught in this feedback loop, as discussed in our [previous article](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html). This is the current Hacker News ranking formula:
+As a result, the HN ranking algorithm is not **consistent**: the same story submitted multiple times receives vastly different amounts of upvotes every time. Nor is it **comparable**: the best submissions don't always get caught in this feedback loop. 
+
+As a result, the stories on the front page do not always reflect the aggregate intent of Hacker News community-members as revealed by their upvote behavior. We discuss this problem further in our article [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html).
+
+### The Solution
+
+Quality News aims to solve this problem with a new metric: `upvoteRate`. `upvoteRate` quantifies how much more or less likely users are to upvote a story compared to the average story, and should thus be roughly the same regardless of:
+
+- the time/day of week a story was submitted
+- overall amount of traffic to the site
+- whether the story gets caught in a positive rank-upvote feedback loop (see Introduction below)
+
+We believe that if the HN Ranking Formula were based on upvote rate instead of upvotes, the stories on the front page might better reflect the intent of the community. This metric obviously can't do anything about overlooked stories on the new-page. For those, we simply don't have enough data. We plan to approach this problem in the future.
+
+## The Current Ranking Formula
+
+This is the current Hacker News ranking formula:
 
      rankingScore = pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
 
-The problem is that it only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **rank** or 4) **timing** of individual upvotes. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30, even though a story on rank 1 is seen by more users than a story on rank 30. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night. This makes upvotes an unreliable measure of the popularity of a story.
+This formula only considers 1) **upvotes** and 2) **age**. It doesn't consider 3) **rank** or 4) **timing** of individual upvotes. So a story that receives 100 upvotes at rank 1 is treated the same as one that receives 100 upvotes at rank 30, even though a story on rank 1 is seen by more users than a story on rank 30. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night. This makes upvotes an unreliable measure of the popularity of a story.
 
-Our goal is to provide a metric that can replace the raw upvote count in the HN ranking formula, that gives upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
-
-The new metric obviously can't do anything about overlooked stories on the new-page. For those, we simply don't have enough data. We plan to approach this problem in the future.
+To solve this problem, the `upvoteRate` metric should be adjusted for rank and timing, effectively giving upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
 
 ## Upvote Share by Rank
 
