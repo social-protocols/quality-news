@@ -19,6 +19,8 @@
 
 Quality News uses live minute-by-minute rank and upvote data collected from Hacker News. It looks and behaves very similar to the original Hacker News site except it shows `upvoteRate` and other metrics next to each story. It also provides charts with the history of each story's rank, upvotes, and estimated upvote rates. It is a lightweight, server-side rendered page written in [go](https://go.dev) and hosted on [fly.io](https://fly.io).
 
+We hope for interest and support from the Hacker News community to encourage official ranking experiments on the Hacker News frontpage. We're happy to help where we can in this regard.
+
 ## Introduction
 
 ### The Problem
@@ -170,25 +172,8 @@ Unfortunately, the actual Hacker News ranking score is further adjusted based on
 
 Although we have made some attempts to automatically infer penalties and bonuses based on differences between a story's actual rank and raw rank, the results have been questionable so far.
 
-We hope for further experiments and support from Hacker News in this regard.
+**As a logical next step, we suggest that the Hacker News team experiments with the new formula on an alternative front page. This will allow the community to evaluate whether the new ranking formula is an improvement over the current one.**
 
-
-
-
-## Possible Improvements
-
-
-### Fatigue
-
-In general, upvote rates decrease as a story receives more attention. The more attention a story has received, the more likely it is that users have already seen it. So if a story spends a lot of time on  home page the upvote rate will eventually start to drop.
-
-But we'd like a true upvote rate estimate that measures the tendency of the story itself to attract upvotes, and not the amount of attention it has received on Hacker News. We can do this by building a fatigue factor into the expected upvote model.
-
-### Moving Averages
-
-Looking only at more recent data could make vote manipulation even harder: it would require a constant supply of new votes as the moving average window moves.
-
-The moving average window would be based on expected upvotes, not time, since expected upvotes is roughly proportional to the number of people who have *paid attention* to a story and thus can be thought of as a proxy for sample size
 
 # Development
 
@@ -243,3 +228,20 @@ nix-shell
 # Contributions
 
 All contributions are welcome! Please open issues and PRs.
+
+
+
+## Appendix: Possible Improvements
+
+### Fatigue
+
+In general, upvote rates decrease as a story receives more attention. The more attention a story has received, the more likely it is that users have already seen it. So if a story spends a lot of time on  home page the upvote rate will eventually start to drop.
+
+But we'd like a true upvote rate estimate that measures the tendency of the story itself to attract upvotes, and not the amount of attention it has received on Hacker News. We can do this by building a fatigue factor into the expected upvote model.
+
+### Moving Averages
+
+Looking only at more recent data could make vote manipulation even harder: it would require a constant supply of new votes as the moving average window moves.
+
+The moving average window would be based on expected upvotes, not time, since expected upvotes is roughly proportional to the number of people who have *paid attention* to a story and thus can be thought of as a proxy for sample size
+
