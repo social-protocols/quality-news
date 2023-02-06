@@ -64,6 +64,10 @@ func (d frontPageData) IsAboutPage() bool {
 	return false
 }
 
+func (d frontPageData) IsDeltaPage() bool {
+	return d.Ranking == "highdelta" || d.Ranking == "lowdelta"
+}
+
 func (d frontPageData) GravityString() string {
 	return fmt.Sprintf("%.2f", d.Params.Gravity)
 }
@@ -244,6 +248,10 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 				orderBy = "topRank nulls last"
 			case "unadjusted":
 				orderBy = hnRankFormulaSQL
+			case "lowdelta":
+				orderBy = "case when rawRank is null or (topRank is null and rawRank > 90) then null else ifnull(topRank,91) - rawRank end desc nulls last"
+			case "highdelta":
+				orderBy = "case when rawRank is null or (topRank is null and rawRank > 90) then null else ifnull(topRank,91) - rawRank end nulls last"
 			default:
 				orderBy = fmt.Sprintf("%sRank nulls last", ranking)
 			}
@@ -278,6 +286,9 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 
 		if ranking == "hntop" {
 			s.IsHNTopPage = true
+		}
+		if ranking == "highdelta" || ranking == "lowdelta" {
+			s.IsDeltaPage = true
 		}
 
 		if err != nil {

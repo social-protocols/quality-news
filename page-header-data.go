@@ -33,3 +33,7 @@ func (d DefaultPageHeaderData) IsRawPage() bool {
 func (d DefaultPageHeaderData) IsAboutPage() bool {
 	return false
 }
+
+func (d DefaultPageHeaderData) IsDeltaPage() bool {
+	return false
+}
