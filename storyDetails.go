@@ -32,6 +32,7 @@ type Story struct {
 	Dupe                   bool
 	IsHNTopPage            bool
 	IsStatsPage            bool
+	IsDeltaPage            bool
 }
 
 func (s Story) AgeString() string {
