@@ -72,6 +72,8 @@ func (ndb newsDatabase) init() error {
 			, penalty real not null default 0
 			, currentPenalty real
 			, rawRank int
+			, upvoteRate float not null
+			, upvoteRateWindow int
 		);
 		`,
 		`
@@ -99,7 +101,11 @@ func (ndb newsDatabase) init() error {
 		}
 	}
 
-	alterStatements := []string{}
+	alterStatements := []string{
+		`alter table dataset add column upvoteRateWindow int`,
+		`alter table dataset add column upvoteRate float default 0 not null`,
+		`update dataset set upvoteRate = ( cumulativeUpvotes + 2.3 ) / ( cumulativeExpectedUpvotes + 2.3) where upvoteRate = 0`,
+	}
 
 	for _, s := range alterStatements {
 		_, _ = ndb.db.Exec(s)
