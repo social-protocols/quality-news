@@ -102,16 +102,29 @@ If we multiply the average upvote share for a rank by the total site-wide upvote
 
     expectedUpvotes[rank, timeInterval]
         = avgUpvoteShare[rank] * sidewideUpvotes[timeInterval]
-    TODO: EXAMPLE WITH NUMBERS
+
+For example, during the minute starting 2023-02-07 11:08:00Z, there were a total of 9 upvotes on Hacker News. Rank 1 is expected to receive 10.2% of sitewide upvotes. So, regardless of how many upvotes the story at rank 1 actually received during that minute, the *expected* upvotes for a story at rank 1 during that minute is:
+
+
+    expectedUpvotes[1, 2023-02-07 11:08]
+        = avgUpvoteShare[1] * sidewideUpvotes[2023-02-07 11:08]
+        = .102 * 9
+        = .918
 
 Given **a history of the story's rank over time**, we can compute its total expected upvotes:
 
     totalExpectedUpvotes for a story =
-      sum{for each timeInterval in the history of that story} expectedUpvotes[rank of story at timeInterval]
-    TODO: EXAMPLE WITH NUMBERS
+      sum{for each timeInterval in the history of that story} expectedUpvotes[rank of story, timeInterval]
 
+For example, suppose the story at rank 1 also spent the following minute there, during which time interval there were an additional 5 site-wide upvotes. So far, `totalExpectedUpvotes` for the story is:
 
-##### Sample Charts
+      expectedUpvotes[1, 2023-02-07 11:08] + expectedUpvotes[1, time 2023-02-07 11:09] + ...
+      = .102 * 9 + .102 * 5
+      = 1.428
+
+Computing this sum over the story's entire history on Hacker News gives the story's `totalExpectedUpvotes`. Below is a sample chart showing the actual rank history for one story, and the corresponding values of `totalExpectedUpvotes` vs actual upvotes. Note that this particular story consistently received far more upvotes than expected. You can see these charts for any story by clocking on the **`×upvoteRate`** next to the story on [Quality News](https://social-protocols-news.fly.dev/). 
+
+##### Chart of Rank, Upvotes and Expected Upvotes for a Sample Story
 
 <img alt="sample stories rank history chart" src="static/rank-history.png" width="550"/>
 <img alt="sample expected upvotes chart" src="static/expected-upvotes.png" width="550"/>
@@ -125,7 +138,8 @@ We assume that each story has some "true" upvote rate, which is a factor of how 
     upvotes[timeInterval]
         ≈ upvoteRate * expectedUpvotes[rank[timeInterval], timeInterval]
 
-##### Sample Chart
+##### Chart of Upvote Rate for a Sample Story
+
 <img alt="sample upvote rate chart" src="static/upvote-rate.png" width="550"/>
 <br/><span style="margin-left: 60px;">History of the estimated true upvote rate of a sample story</span>
 
