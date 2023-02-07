@@ -17,7 +17,7 @@
 
 [Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that provides additional data and insights on submissions, notably, the **upvoteRate** metric. We propose that this metric could be used to improve the Hacker News ranking algorithm.
 
-Quality News uses live minute-by-minute rank and upvote data collected from Hacker News. It looks and behaves very similar to the original Hacker News site except it shows `upvoteRate` and other metrics next to each story. It also provides charts with the history of each story's rank, upvotes, and estimated upvote rates. It is a lightweight, server-side rendered page written in [go](https://go.dev) and hosted on [fly.io](https://fly.io).
+Quality News uses live minute-by-minute rank and upvote data collected from Hacker News. It looks and behaves very similar to the original Hacker News site except it shows `upvoteRate` and other metrics next to each story. It also provides charts with the history of each story's rank, upvotes, and upvote rate. It is a lightweight, server-side rendered page written in [go](https://go.dev) and hosted on [fly.io](https://fly.io).
 
 We hope for interest and support from the Hacker News community to encourage official ranking experiments on the Hacker News frontpage. We're happy to help where we can in this regard.
 
@@ -43,11 +43,11 @@ So the stories that make the front page may not reflect the aggregate intent of 
 
 ### The Solution
 
-Quality News aims to solve this problem with a new metric: `upvoteRate`. `upvoteRate` quantifies how much more or less likely users are to upvote a story compared to the average story, and should thus be roughly the same regardless of:
+Quality News aims to solve this problem with a new metric: `upvoteRate`. `upvoteRate` quantifies how much more or less likely users are to upvote a story compared to the average story regardless of:
 
 - the time/day of week a story was submitted
 - overall amount of traffic to the site
-- whether the story gets caught in a positive rank-upvote feedback loop (see Introduction below)
+- whether the story gets caught in a positive rank-upvote feedback loop
 
 We believe that if the HN Ranking Formula were based on upvote rate instead of upvotes, the stories on the front page might better reflect the intent of the community. This metric obviously can't do anything about overlooked stories on the new-page. For those, we simply don't have enough data. We plan to approach this problem in the future.
 
@@ -57,7 +57,7 @@ This is the current Hacker News ranking formula:
 
      rankingScore = pow(upvotes, 0.8) / pow(ageHours + 2, 1.8)
 
-The ranking on the front page is created by evaluating the formula for each story and arranging the stories according to their `rankingScore`. Note that this formula does not take the rank or timing of individual upvotes into account. So a story that receives 100 upvotes at rank 1 is valued the same as one that receives 100 upvotes at rank 30, even though a story on rank 1 is seen by more users than a story on rank 30. And upvotes received during peak hours are treated the same as upvotes received in the middle of the night. This makes upvotes an unreliable measure of the community interest in a story.
+The ranking on the front page is created by evaluating the formula for each story and arranging the stories according to their `rankingScore`. Note that this formula does not take the rank or timing of individual upvotes into account. So a story that receives 100 upvotes at rank 1 is valued the same as one that receives 100 upvotes at rank 30, even though a story on rank 1 is seen by more users than a story on rank 30. And upvotes received during peak hours are treated the same as upvotes received during period of low traffic. This makes upvotes an unreliable measure of the community interest in a story.
 
 To solve this problem, the new `upvoteRate` metric should be adjusted for rank and timing, effectively giving upvotes received at high ranks and peak times less weight, eliminating the positive feedback loop.
 
