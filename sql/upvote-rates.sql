@@ -7,7 +7,8 @@
   within the window. So we save the samleTime of the start of the window in
   the database, so the query only needs to scan rows within this window.
 */
-with parameters as ( select 20 as windowSize
+with parameters as (
+    select 50 as windowSize
     , 2.3 as priorWeight
 ), latest as (
   select 
