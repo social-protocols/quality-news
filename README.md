@@ -122,7 +122,7 @@ For example, suppose the story at rank 1 also spent the following minute there, 
       = .102 * 9 + .102 * 5
       = 1.428
 
-Computing this sum over the story's entire history on Hacker News gives the story's `totalExpectedUpvotes`. Below is a sample chart showing the actual rank history for one story, and the corresponding values of `totalExpectedUpvotes` vs actual upvotes. Note that this particular story consistently received far more upvotes than expected. You can see these charts for any story by clocking on the **`×upvoteRate`** next to the story on [Quality News](https://social-protocols-news.fly.dev/). 
+Computing this sum over the story's entire history on Hacker News gives the story's `totalExpectedUpvotes`. Below is a sample chart showing the actual rank history for one story, and the corresponding values of `totalExpectedUpvotes` vs actual upvotes. Note that this particular story consistently received far more upvotes than expected. You can see these charts for any story by clicking on the **`×upvoteRate`** next to the story on [Quality News](https://news.social-protocols.org/). 
 
 ##### Chart of Rank, Upvotes and Expected Upvotes for a Sample Story
 
