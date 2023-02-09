@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -58,7 +59,7 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 				http.Redirect(w, r, url, 301)
 				return
 			}
-			handleError(w, httperror.NotFound)
+			handleError(w, fmt.Errorf("Invalid request host: %s", r.Host))
 			return
 		}
 
