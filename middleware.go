@@ -50,9 +50,10 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 		// Handle redirects from non-canonical domains (namely, our fly.dev instance) to
 		// the canonical domain.
 		if r.Host != canonicalDomain+":443" && r.Host != "localhost:8080" {
+			logger.Info("Non-canonical domain", "host", r.Host, "uri", r.RequestURI)
 			if _, found := nonCanonicalDomains[r.Host]; found {
 				url := "https://" + canonicalDomain + r.RequestURI
-				logger.Debug("Redirecting to", "url", url)
+				logger.Info("Redirecting to", "url", url)
 				http.Redirect(w, r, url, 301)
 				return
 			}
