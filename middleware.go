@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -49,7 +50,7 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 		// Handle redirects from non-canonical domains (namely, our fly.dev instance) to
 		// the canonical domain.
-		if r.Host != canonicalDomain+":443" && r.Host != "localhost:8080" {
+		if !strings.HasPrefix(r.Host, canonicalDomain) && r.Host != "localhost:8080" {
 			logger.Info("Non-canonical domain", "host", r.Host, "uri", r.RequestURI)
 			if _, found := nonCanonicalDomains[r.Host]; found {
 				url := "https://" + canonicalDomain + r.RequestURI
