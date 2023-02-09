@@ -27,6 +27,26 @@
 
 {{template "header.html.tmpl"  .}}
 
+	<div class="introduction">
+    {{if .IsNewPage}}
+        Identical ranking as on <a href="https://news.ycombinator.com/newest">Hacker News New</a>.
+    {{end}}
+		{{if .IsHNTopPage}}
+				Identical ranking as on the <a href="https://news.ycombinator.com/">Hacker News Frontpage</a>.
+		{{end}}
+    {{if .IsAskPage}}
+        Identical ranking as on <a href="https://news.ycombinator.com/ask">Hacker News Ask</a>.
+    {{end}}
+    {{if .IsShowPage}}
+        Identical ranking as on <a href="https://news.ycombinator.com/show">Hacker News Show</a>.
+    {{end}}
+    {{if .IsBestPage}}
+        Identical ranking as on <a href="https://news.ycombinator.com/best">Hacker News Best</a>.
+    {{end}}
+		{{if .IsRawPage}}
+				Stories ranked by the raw score produced by the HN formula. There are no moderation penalties or bonuses applied. It makes the impact of moderation on the HN frontpage visible, e.g. off-topic/non-tech stories are ranked higher.
+		{{end}}
+	</div>
 
 	<div class="key">
 		<span style="color: #0089f4;">×UpvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a>
@@ -37,11 +57,6 @@
 		&nbsp; <span class="original-age">original</span> <span class="resubmitted-age">2nd-chance</span> age <a class="question-mark" href="/about#second-chance-age">(?)</a>
 	</div>	
 
-	<div class="introduction">
-		{{if .IsRawPage}}
-				Stories ranked by the raw score produced by the HN formula. There are no moderation penalties or bonuses applied. It makes the impact of moderation on the HN frontpage visible, e.g. off-topic/non-tech stories are ranked higher.
-		{{end}}
-	</div>
 
 
 
