@@ -21,6 +21,8 @@ Quality News uses live minute-by-minute rank and upvote data collected from Hack
 
 We hope for interest and support from the Hacker News community to encourage official ranking experiments on the Hacker News frontpage. We're happy to help where we can in this regard.
 
+This is a collective intelligence experiment by [Social Protocols](https://social-protocols.org). Follow us on [Mastodon](https://mas.to/@SocialProtocols) or [Twitter](https://twitter.com/socialprotocols), or send a [mail](mailto:mail@social-protocols.org).
+
 ## Introduction
 
 ### The Problem
