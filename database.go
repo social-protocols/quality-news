@@ -72,7 +72,7 @@ func (ndb newsDatabase) init() error {
 			, penalty real not null default 0
 			, currentPenalty real
 			, rawRank int
-			, upvoteRate float not null
+			, upvoteRate float not null default 1
 			, upvoteRateWindow int
 		);
 		`,
