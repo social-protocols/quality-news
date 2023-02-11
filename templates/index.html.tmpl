@@ -49,12 +49,12 @@
 	</div>
 
 	<div class="key">
-		<span style="color: #0089f4;">×UpvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a>
-    {{/*if (or .IsHNTopPage .IsDeltaPage)}}&nbsp; <span style="color: #05851e">+</span>/<span style="color: #d4214b">-</span> <span style="color: #223344">rank delta</span> <a class="question-mark" href="/about#rank-delta">(?)</a>{{end*/}}
+		<span class="upvoterate">×UpvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a>
+    {{/*if (or .IsHNTopPage .IsDeltaPage)}}&nbsp; <span class="boost">+</span>/<span class="penalty">-</span> <span style="color: #223344">rank delta</span> <a class="question-mark" href="/about#rank-delta">(?)</a>{{end*/}}
 		{{if (not .IsHNTopPage)}}
 		&nbsp; <span class="rank-icon hn">#rank</span> on front page
 		{{end}}
-		&nbsp; <span class="original-age">original</span> <span class="resubmitted-age">2nd-chance</span> age <a class="question-mark" href="/about#second-chance-age">(?)</a>
+		{{/*&nbsp; <span class="original-age">original</span> <span class="resubmitted-age">2nd-chance</span> age <a class="question-mark" href="/about#second-chance-age">(?)</a>*/}}
 	</div>	
 
 

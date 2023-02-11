@@ -10,7 +10,7 @@
     {{if .Dupe}}[dupe]{{end}}
     <a href="/stats?id={{.ID}}">
       <span 
-        title="Estimated True Upvote Rate:&#013;Ratio of how more or less likely users are to upvote this story compared to the average story."
+        title="Estimated True Upvote Rate:&#013;Ratio of how more or less likely users are to upvote this story compared to the average story (x1.00)."
         {{if ge .UpvoteRateString "1"}} class="upvoterate" {{end}}
         {{if ge .UpvoteRateString "2"}} style="font-weight:bold;" {{end}}>
         ×{{.UpvoteRateString}}</span> 
@@ -33,12 +33,11 @@
 
     {{.Score}} points by <a href="https://news.ycombinator.com/user?id={{.By}}">{{.By}}</a> 
 
-    {{if .IsResubmitted}}
+    {{/*if .IsResubmitted}}
     <span class="original-age" title="{{.OriginalISOTimestamp}}">{{.OriginalAgeString}}</span>
     <a href="https://news.ycombinator.com/item?id={{.ID}}" title="2nd-Chance Pool submission time: {{.ISOTimestamp}}" class="resubmitted-age">{{.AgeString}}</a>
-    {{else}}
+    {{else*/}}
     <a href="https://news.ycombinator.com/item?id={{.ID}}" title="{{.ISOTimestamp}}">{{.AgeString}}</a>
-    {{end}}
 
     |
 
