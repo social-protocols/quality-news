@@ -1,6 +1,10 @@
 :root {
-  --green: #05851e;
-  --red: #d4214b;
+  --background: #f6f6ef;
+  --text: #000000;
+  --text-dimmed: #828282;
+  --text-red: #d4214b;
+  --text-green: #05851e;
+  --text-blue: #0089f4;
 }
 
 html {
@@ -8,31 +12,96 @@ html {
 }
 
 body {
-  background-color: #f6f6ef;
-  font-size: 13px;
-  color: #223355;
+  background-color: var(--background);
+  color: var(--text);
   font-family: Verdana, Geneva, sans-serif;
+  font-size: 15px;
   margin: 0;
 }
 
-.key {
-  margin-top: 6px;
-  margin-bottom: 10px;
-  margin-left: 44px;
+body a:link,
+body a:visited {
+  color: var(--text);
 }
 
-.introduction {
-  color: #223344;
+@keyframes highlight {
+  0% {
+    background: lightblue;
+  }
+  100% {
+    background: none;
+  }
+}
+
+:target {
+  animation: highlight 2s;
+}
+
+/* HEADER */
+
+.header {
+  background-color: #86bdf3;
+  color: #000000;
+  font-size: 12px;
+  padding: 6px 10px;
+
+  display: flex;
+  align-items: center;
+}
+
+.header .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.header a:link.header-title,
+.header a:visited.header-title {
+  margin-left: 0.5rem;
+  margin-right: 1rem;
+  font-weight: bold;
   font-size: 15px;
+}
+
+.header a:link,
+.header a:visited {
+  color: #000000;
+  text-decoration: none;
+}
+
+.header a:link.nav-link {
+  margin: 0px;
+  padding: 2px 3px;
+  border-radius: 2px;
+}
+
+.header a:link.nav-link.active,
+.header a:visited.nav-link.active {
+  background: #ffffff;
+  color: #000000;
+}
+
+/* CONTENT */
+
+.introduction {
   margin-left: 44px;
   margin-right: 7px;
   margin-top: 8px;
 }
 
-.introduction a:link,
-.introduction a:visited {
-  color: #000000;
+.key {
+  font-size: 13px;
+  margin-top: 6px;
+  margin-bottom: 10px;
+  margin-left: 44px;
 }
+
+.key a:link.question-mark,
+.key a:visited.question-mark {
+  color: var(--text-dimmed);
+  text-decoration: none;
+}
+
+/* STORY LIST */
 
 .stories li {
   margin-bottom: 6px;
@@ -40,37 +109,13 @@ body {
 
 .stories li::marker {
   font-size: 15px;
-  color: #828282;
+  color: var(--text-dimmed);
 }
 
 .stories {
   margin-top: 0px;
   margin-left: 5px;
   margin-right: 7px;
-}
-
-#storyplots {
-  height: auto;
-  min-width: 400px;
-  max-width: 650px;
-}
-
-.plot-description {
-  margin-top: 2px;
-  margin-bottom: 14px;
-  margin-left: 50px;
-  color: #303040;
-}
-
-a:link.upvote-button,
-a:visited.upvote-button {
-  color: #9a9a9a;
-  margin-right: 0.5rem;
-  font-size: 13px;
-  align-self: flex-start;
-  flex-shrink: 0;
-  flex-grow: 0;
-  width: 15px;
 }
 
 @media (max-width: 480px) {
@@ -85,35 +130,94 @@ a:visited.upvote-button {
   }
 }
 
+/* STORY DETAILS */
+
+/*
 .story-item {
   display: flex;
   align-items: baseline;
 }
 
-.story-title {
-  font-size: 15px;
+a:link.upvote-button,
+a:visited.upvote-button {
+  color: #9a9a9a;
+  margin-right: 0.5rem;
+  font-size: 13px;
+  align-self: flex-start;
+  flex-shrink: 0;
+  flex-grow: 0;
+  width: 15px;
+}
+*/
+
+a.story-title {
+  text-decoration: none;
+}
+
+a:link.story-title {
+  color: var(--text);
+}
+
+a:visited.story-title {
+  color: var(--text-dimmed);
+}
+
+.story-domain {
+  font-size: 13px;
+}
+.story-domain,
+.story-domain a:link,
+.story-domain a:visited {
+  color: var(--text-dimmed);
+  text-decoration: none;
+}
+.story-domain a:hover {
+  text-decoration: underline;
 }
 
 .story-details {
   font-size: 12px;
-  color: #828282;
+  color: var(--text-dimmed);
+}
+.story-details a:link,
+.story-details a:visited {
+  color: var(--text-dimmed);
+  text-decoration: none;
+}
+.story-details a:hover {
+  text-decoration: underline;
 }
 
-.story-details .quality-string,
-.story-details a:link.quality-string,
-.story-details a:visited.quality-string {
-  color: #0089f4;
+.story-details .upvoterate,
+.story-details a:link.upvoterate,
+.story-details a:visited.upvoterate {
+  color: var(--text-blue);
+}
+
+.story-details .penalty,
+.story-details a:link.penalty,
+.story-details a:visited.penalty {
+  color: var(--text-red);
+}
+
+.story-details .boost,
+.story-details a:link.boost,
+.story-details a:visited.boost {
+  color: var(--text-green);
 }
 
 .rank-icon {
   display: inline-block;
   text-align: center;
   min-width: 2em;
+  border-radius: 6px;
   padding-left: 2px;
   padding-right: 3px;
   padding-top: 1px;
   padding-bottom: 1px;
-  border-radius: 6px;
+  /* negative margin reverts the height increase by the padding */
+  margin-top: -1px;
+  margin-bottom: -1px;
 }
 
 .rank-icon.hn {
@@ -126,116 +230,34 @@ a:visited.upvote-button {
   color: #5a6266;
 }
 
-.story-details .penalty,
-.story-details a:link.penalty,
-.story-details a:visited.penalty {
-  color: var(--red);
-}
-
-.story-details .boost,
-.story-details a:link.boost,
-.story-details a:visited.boost {
-  color: var(--green);
-}
-
 .original-age {
   text-decoration: line-through;
 }
 
-a:link.question-mark,
-a:visited.question-mark {
-  color: #828282;
-  text-decoration: none;
-}
-
 .resubmitted-age,
-.story-details a:link.resubmitted-age,
-.story-details a:visited.resubmitted-age {
-  color: var(--green);
+a:link.resubmitted-age,
+a:visited.resubmitted-age {
+  color: var(--text-green);
 }
 
-.header a:link {
-  color: #000000;
-  text-decoration: none;
-}
-.header a:visited {
-  color: #828282;
-  text-decoration: none;
-}
-
-.story-item a:link {
-  color: #000000;
-  text-decoration: none;
-}
-.story-item a:visited {
-  color: #828282;
-  text-decoration: none;
-}
-
-.story-details a:link,
-.story-domain,
-.story-domain a:link {
-  color: #828282;
-  text-decoration: none;
-}
-.story-details a:hover,
-.story-domain a:hover {
-  text-decoration: underline;
-}
-
-.header {
-  background-color: #86bdf3;
-  color: #000000;
-  font-size: 12px;
-  padding: 6px 10px;
-  display: flex;
-  align-items: center;
-}
-
-.header a:link,
-.header a:visited {
-  color: #000000;
-}
-
-a:link.header-title,
-a:visited.header-title {
-  margin-left: 0.5rem;
-  margin-right: 1rem;
-  font-weight: bold;
-  font-size: 15px;
-}
-
-.icon {
-  width: 20px;
-  height: 20px;
-}
+/* STATS */
 
 .stats {
   margin-left: 5px;
   margin-right: 7px;
 }
 
-a:link.nav-link {
-  margin: 0px;
-  padding: 2px 3px;
-  border-radius: 2px;
+/* PLOTS */
+
+#storyplots {
+  height: auto;
+  min-width: 400px;
+  max-width: 650px;
 }
 
-a:link.nav-link.active,
-a:visited.nav-link.active {
-  background: white;
-  color: black;
-}
-
-@keyframes highlight {
-  0% {
-    background: lightblue;
-  }
-  100% {
-    background: none;
-  }
-}
-
-:target {
-  animation: highlight 2s;
+.plot-description {
+  margin-top: 2px;
+  margin-bottom: 14px;
+  margin-left: 50px;
+  color: #303040;
 }

@@ -210,7 +210,7 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 	var totalUpvotes int
 	for zeroBasedRank, s := range stories {
 		totalAgeSeconds += (sampleTime - s.SubmissionTime)
-		weightedAverageQuality += expectedUpvoteShare(0, zeroBasedRank+1) * s.Quality
+		weightedAverageQuality += expectedUpvoteShare(0, zeroBasedRank+1) * s.UpvoteRate
 		totalUpvotes += s.Score - 1
 	}
 
@@ -282,7 +282,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		var s Story
 
 		var ageHours int
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.Quality, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &ageHours, &s.Flagged, &s.Dupe)
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.UpvoteRate, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &ageHours, &s.Flagged, &s.Dupe)
 
 		if ranking == "hntop" {
 			s.IsHNTopPage = true

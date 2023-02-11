@@ -22,7 +22,7 @@ type Story struct {
 	AgeApprox              int64
 	Score                  int
 	Comments               int
-	Quality                float64
+	UpvoteRate             float64
 	Penalty                float64
 	TopRank                sql.NullInt32
 	QNRank                 sql.NullInt32
@@ -47,8 +47,8 @@ func (s Story) IsResubmitted() bool {
 	return s.SubmissionTime != s.OriginalSubmissionTime
 }
 
-func (s Story) QualityString() string {
-	return fmt.Sprintf("%.2f", s.Quality)
+func (s Story) UpvoteRateString() string {
+	return fmt.Sprintf("%.2f", s.UpvoteRate)
 }
 
 func (s Story) RankDiff() int32 {

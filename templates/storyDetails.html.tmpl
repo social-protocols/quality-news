@@ -11,9 +11,9 @@
     <a href="/stats?id={{.ID}}">
       <span 
         title="Estimated True Upvote Rate:&#013;Ratio of how more or less likely users are to upvote this story compared to the average story."
-        {{if ge .QualityString "1"}} class="quality-string" {{end}}
-        {{if ge .QualityString "2"}} style="font-weight:bold;" {{end}}>
-        ×{{.QualityString}}</span> 
+        {{if ge .UpvoteRateString "1"}} class="upvoterate" {{end}}
+        {{if ge .UpvoteRateString "2"}} style="font-weight:bold;" {{end}}>
+        ×{{.UpvoteRateString}}</span> 
 
       {{/*if (or .IsHNTopPage .IsDeltaPage) }}
         {{if ne .RankDiff 0}}
