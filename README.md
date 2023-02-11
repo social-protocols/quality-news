@@ -35,9 +35,9 @@ graph LR
     U --> R
 ```
 
-As a result, the HN ranking algorithm is not **consistent**: the same story submitted multiple times can receive vastly different numbers of upvotes every time. For example, [this story](https://hn.algolia.com/?query=The%20Expanding%20Dark%20Forest%20and%20Generative%20AI&type=story&dateRange=all&sort=byDate&storyText=false&prefix&page=0) was submitted 3 times over the course of two days, receiving 6 upvotes in total for the first two submissions, and 437 upvotes for the third. 
+As a result, the HN ranking algorithm is not **consistent**: the same story submitted multiple times can receive vastly different numbers of upvotes every time. For example, [this story](https://hn.algolia.com/?query=The%20Expanding%20Dark%20Forest%20and%20Generative%20AI&type=story&dateRange=all&sort=byDate&storyText=false&prefix&page=0) was submitted 3 times over the course of two days, receiving 6 upvotes in total for the first two submissions, and 437 upvotes for the third.
 
-Nor are upvote counts are necessarily **comparable**: the best submissions don't always get caught in the positive feedback loop.
+Nor are upvote counts necessarily **comparable**: the best submissions don't always get caught in the positive feedback loop.
 
 So the stories that make the front page may not reflect the aggregate intent of Hacker News community-members as revealed by their upvote behavior. We discuss this problem further in our article [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html).
 
@@ -49,7 +49,7 @@ Quality News aims to solve this problem with a new metric: `upvoteRate`. `upvote
 - overall amount of traffic to the site
 - whether the story gets caught in a positive rank-upvote feedback loop
 
-We believe that if the HN Ranking Formula were based on upvote rate instead of upvotes, the stories on the front page might better reflect the intent of the community. This metric obviously can't do anything about overlooked stories on the new-page. For those, we simply don't have enough data. We plan to approach this problem in the future.
+We believe that if the HN Ranking Formula were based on `upvoteRate` instead of upvotes, the stories on the front page might better reflect the intent of the community. This metric obviously can't do anything about overlooked stories on the new-page. For those, we simply don't have enough data. We plan to approach this problem in the future.
 
 ## The Current Ranking Formula
 
