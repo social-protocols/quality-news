@@ -15,13 +15,13 @@
         {{if ge .QualityString "2"}} style="font-weight:bold;" {{end}}>
         ×{{.QualityString}}</span> 
 
-      {{if (or .IsHNTopPage .IsDeltaPage) }}
+      {{/*if (or .IsHNTopPage .IsDeltaPage) }}
         {{if ne .RankDiff 0}}
           <span class={{if lt .RankDiff 0}}"penalty"{{else}}"boost"{{end}} title="Rank Delta:&#013;Difference in ranking caused by Hacker News moderation and other factors compared to using the raw formula. {{if gt .RankDiff 0}}+{{end}}{{.RankDiff}} means that it is ranked {{if gt .RankDiff 0}}higher{{else}}lower{{end}} on the front page than if it were ranked using the raw formula only. Have a look at the 'raw' page to see the raw ranking.">
             {{if gt .RankDiff 0}}+{{end}}{{.RankDiff}}
           </span>
         {{end}}
-      {{end}}
+      {{end*/}}
     </a>
     <span class="comparative-rank">
       {{if and .TopRank.Valid (not .IsHNTopPage)}}<a href="/#{{.ID}}"><span title="Rank on Hacker News Front Page" class="rank-icon hn">#{{.TopRank.Value}}</span></a> {{end}}
