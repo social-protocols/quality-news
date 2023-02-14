@@ -1,5 +1,6 @@
 function prepareUpvoteRatePlotData(dataPoints, submissionTime) {
-  return dataPoints.map((dataPoint, i) => [(dataPoints[i][0] - submissionTime)/3600, dataPoints[i][3], 1, dataPoints[i][4]])
+//  return dataPoints.map((dataPoint, i) => [(dataPoints[i][0] - submissionTime)/3600, dataPoints[i][3], 1, dataPoints[i][4]])
+  return dataPoints.map((dataPoint, i) => [(dataPoints[i][0] - submissionTime)/3600, dataPoints[i][3], 1])
 }
 
 function upvoteRatePlot(upvoteRatePlotData, submissionTime, startTime, endTime) {
@@ -10,7 +11,7 @@ function upvoteRatePlot(upvoteRatePlotData, submissionTime, startTime, endTime) 
   data.addColumn('number', 'Age');
   data.addColumn('number', 'Estimated True Upvote Rate');
   data.addColumn('number', 'Expected Upvote Rate');
-  data.addColumn('number', 'Moving-Average Upvote Rate');
+//  data.addColumn('number', 'Moving-Average Upvote Rate');
 
   data.addRows(prepareUpvoteRatePlotData(upvoteRatePlotData, submissionTime));
 
