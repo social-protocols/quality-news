@@ -27,25 +27,12 @@
 
 {{template "header.html.tmpl"  .}}
 
+
+	{{if .IsRawPage}}
+
 	<div class="introduction">
-    {{if .IsNewPage}}
-        Identical ranking as on <a href="https://news.ycombinator.com/newest">Hacker News New</a>.
-    {{end}}
-		{{if .IsHNTopPage}}
-				Identical ranking as on the <a href="https://news.ycombinator.com/">Hacker News Frontpage</a>.
-		{{end}}
-    {{if .IsAskPage}}
-        Identical ranking as on <a href="https://news.ycombinator.com/ask">Hacker News Ask</a>.
-    {{end}}
-    {{if .IsShowPage}}
-        Identical ranking as on <a href="https://news.ycombinator.com/show">Hacker News Show</a>.
-    {{end}}
-    {{if .IsBestPage}}
-        Identical ranking as on <a href="https://news.ycombinator.com/best">Hacker News Best</a>.
-    {{end}}
-		{{if .IsRawPage}}
-				Stories ranked by the raw score produced by the HN formula. There are no moderation penalties or bonuses applied. It makes the impact of moderation on the HN frontpage visible, e.g. off-topic/non-tech stories are ranked higher.
-		{{end}}
+		These are the current stories on the Hacker News Front page ranked by the raw score produced by the HN formula, with no moderation penalties or bonuses applied. This makes the impact of moderation on the HN frontpage visible (e.g. off-topic/non-tech stories are ranked higher).
+
 	</div>
 
 	<div class="key">
@@ -59,6 +46,31 @@
 
 
 
+	{{else}}
+		<div class="introduction">
+
+
+		This is current Hacker News 
+
+		{{if .IsHNTopPage}}
+			<a href="https://news.ycombinator.com/">Front</a>
+		{{end}}
+	    {{if .IsNewPage}}
+	        <a href="https://news.ycombinator.com/newest">"New"</a>.
+	    {{end}}
+	    {{if .IsAskPage}}
+	        <a href="https://news.ycombinator.com/ask">"Ask HN"</a>.
+	    {{end}}
+	    {{if .IsShowPage}}
+	        <a href="https://news.ycombinator.com/show">"Show HN"</a>
+	    {{end}}
+	    {{if .IsBestPage}}
+	        <a href="https://news.ycombinator.com/best">"Best" Page</a>.
+	    {{end}} Page. The estimated <span class="upvoterate">×upvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a> is shown next to each story: click on it to see charts of the story's rank, upvotes, and upvoteRate history.
+
+		</div>
+
+	{{end}}
 
 
 <ol class="stories">
