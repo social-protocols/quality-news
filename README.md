@@ -179,9 +179,7 @@ The following is a proposed alternative Hacker News ranking formula based on `es
     newRankingScore
         = pow(age * estimatedUpvoteRate, 0.8) / pow(age + 2, 1.8)
 
-This formula simply substitutes `age * estimatedUpvoteRate` for `upvotes` in the original Hacker News ranking formula. Since, in general, `upvotes` is roughly proportional to `age * estimatedUpvoteRate`, this approximates the ranking score a story *should have* given its upvote rate and age.
-
-
+This formula simply substitutes `age * estimatedUpvoteRate` for `upvotes` in the original Hacker News ranking formula. In general, `upvotes` is roughly proportional to `age * estimatedUpvoteRate`, and the rankings are not effected by multiplying upvotes by a constant factor, so this formula approximates the ranking a story *should have* given its upvote rate and age.
 
 Unfortunately, the actual Hacker News ranking score is further adjusted based on various factors including flags, moderator penalties and bonuses, domain, and number of comments. Although we know or can guess about some of these factors, data on flags and moderator actions are not publicly available. This means we can't actually reproduce the Hacker News ranking score, and therefore cannot modify it to show what the Hacker News front page would look like using our new formula.
 
