@@ -114,7 +114,7 @@ For example, during the minute starting 2023-02-07 11:08:00Z, there were a total
 Given **a history of the story's rank over time**, we can compute its total expected upvotes:
 
     totalExpectedUpvotes for a story =
-      sum{for each timeInterval in the history of that story} expectedUpvotes[rank of story, timeInterval]
+      sum(for each timeInterval in the history of that story) expectedUpvotes[rank of story at that timeInterval, timeInterval]
 
 For example, suppose the story at rank 1 also spent the following minute there, during which time interval there were an additional 5 site-wide upvotes. So far, `totalExpectedUpvotes` for the story is:
 
