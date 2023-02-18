@@ -131,9 +131,11 @@ Computing this sum over the story's entire history on Hacker News gives the stor
 <br/><span style="margin-left: 60px;">History of rank, upvotes, and expected upvotes for a sample story</span>
 
 
-## The "True" Upvote Rate
+## The Upvote Rate
 
-We assume that each story has some "true" upvote rate, which is a factor of how much more or less likely users are to upvote that story than the average story. During each time interval, each story should receive, on average, the expected upvotes for the rank it was shown at *times* the story's true upvote rate:
+The above story consistently received more upvotes than expected. Other stories consistently receive less.
+
+The factor of how many more or fewer upvotes a story receives than expected is called its `upvoteRate`. During each time interval, each story should receive, on average, the `expectedUpvotes` for the rank it was shown at *times* the story's `upvoteRate`:
 
     upvotes[timeInterval]
         ≈ upvoteRate * expectedUpvotes[rank[timeInterval], timeInterval]
@@ -141,7 +143,7 @@ We assume that each story has some "true" upvote rate, which is a factor of how 
 ##### Chart of Upvote Rate for a Sample Story
 
 <img alt="sample upvote rate chart" src="static/upvote-rate.png" width="550"/>
-<br/><span style="margin-left: 60px;">History of the estimated true upvote rate of a sample story</span>
+<br/><span style="margin-left: 60px;">History of the estimated upvote rate of a sample story</span><br/>
 
 The relationship `upvotes ≈ upvoteRate * expectedUpvotes` holds even in the aggregate, independently of the ranks at which upvotes actually occurred. This can be seen by taking the sum of a story's upvotes across all time intervals:
 
@@ -150,7 +152,7 @@ The relationship `upvotes ≈ upvoteRate * expectedUpvotes` holds even in the ag
                  ≈ upvoteRate * sum{for each timeInterval} expectedUpvotes[rank[timeInterval], timeInterval]
                  ≈ upvoteRate * totalExpectedUpvotes
 
-This means we can estimate the true upvote rate simply by dividing the story's total upvotes by its total expected upvotes:
+This means we can estimate `upvoteRate` simply by dividing the story's total upvotes by its total expected upvotes:
 
     upvoteRate ≈ totalUpvotes / totalExpectedUpvotes
 
@@ -158,7 +160,7 @@ We call this estimate the **observed upvote rate**.
 
 ## Bayesian Averaging
 
-If we don't have a lot of data for a story, the observed upvote rate may not be a very accurate estimate of the true upvote rate.
+If we don't have a lot of data for a story, the observed upvote rate may not be a very accurate estimate of the **true** upvote rate.
 
 A more sophisticated approach uses Bayesian inference: given our prior knowledge about the distribution of upvote rates, plus the evidence we have observed about this particular story, what does Bayes' rule tell us is the most probable true upvote rate?
 
@@ -170,12 +172,9 @@ The Bayesian Averaging formula in our case is:
 
 Where `strengthOfPrior` is a constant we have estimated to be about 2.3 using an MCMC simulation. 
 
-
-
-
 ## A Proposed New Formula
 
-The following is a proposed alternative Hacker News ranking formula based on the estimated true upvote rate.
+The following is a proposed alternative Hacker News ranking formula based on `estimatedUpvoteRate`.
 
     newRankingScore
         = pow(age * estimatedUpvoteRate, 0.8) / pow(age + 2, 1.8)
