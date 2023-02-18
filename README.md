@@ -39,9 +39,7 @@ graph LR
 
 As a result, the HN ranking algorithm is not **consistent**: the same story submitted multiple times can receive vastly different numbers of upvotes every time. For example, [this story](https://hn.algolia.com/?query=The%20Expanding%20Dark%20Forest%20and%20Generative%20AI&type=story&dateRange=all&sort=byDate&storyText=false&prefix&page=0) was submitted 3 times over the course of two days, receiving 6 upvotes in total for the first two submissions, and 437 upvotes for the third.
 
-Nor are upvote counts necessarily **comparable**: the best submissions don't always get caught in the positive feedback loop.
-
-So the stories that make the front page may not reflect the aggregate intent of Hacker News community-members as revealed by their upvote behavior. We discuss this problem further in our article [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html).
+Nor are upvote counts necessarily **comparable**. The best submissions don't always get caught in the positive feedback loop. So the stories that make the front page may not reflect the aggregate intent of Hacker News community-members as revealed by their upvote behavior. We discuss this problem further in our article [Improving the Hacker News Ranking Algorithm](https://felx.me/2021/08/29/improving-the-hacker-news-ranking-algorithm.html).
 
 ### The Solution
 
