@@ -49,7 +49,7 @@ Quality News aims to solve this problem with a new metric: `upvoteRate`. `upvote
 - overall amount of traffic to the site
 - whether the story gets caught in a positive rank-upvote feedback loop
 
-We believe that if the HN Ranking Formula were based on `upvoteRate` instead of upvotes, the stories on the front page might better reflect the intent of the community. This metric obviously can't do anything about overlooked stories on the new-page. For those, we simply don't have enough data. We plan to approach this problem in the future.
+We believe that if the HN Ranking Formula were based on `upvoteRate` instead of upvotes, the stories on the front page might better reflect the intent of the community.
 
 ## The Current Ranking Formula
 
