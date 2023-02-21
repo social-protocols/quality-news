@@ -239,6 +239,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			, rawRank
 			, last.flagged
 			, last.dupe
+			, last.job
 			-- use latest information from the last available datapoint for this story (even if it is not in the latest crawl) *except* for rank information.
 			FROM last
 			LEFT JOIN dataset on (
@@ -341,7 +342,7 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	var s Story
 	priorWeight := defaultFrontPageParams.PriorWeight
 
-	err := ndb.selectStoryDetailsStatement.QueryRow(priorWeight, priorWeight, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.UpvoteRate, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe)
+	err := ndb.selectStoryDetailsStatement.QueryRow(priorWeight, priorWeight, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.UpvoteRate, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job)
 	if err != nil {
 		return s, err
 	}

@@ -144,6 +144,7 @@ const frontPageSQL = `
 		, cast((sampleTime-submissionTime)/3600 as real) as ageHours
 		, flagged
 		, dupe
+		, job
 	from unadjustedRanks
 	order by %s
 	limit 90;
@@ -169,6 +170,7 @@ const hnPageSQL = `
 		, cast((sampleTime-submissionTime)/3600 as real) as ageHours
 		, flagged
 		, dupe
+		, job
 	from dataset join stories using (id) join parameters
 	where sampleTime = case when pastTime > 0 then pastTime else (select max(sampleTime) from dataset) end
 	order by %s
@@ -282,7 +284,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		var s Story
 
 		var ageHours int
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.UpvoteRate, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &ageHours, &s.Flagged, &s.Dupe)
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.UpvoteRate, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &ageHours, &s.Flagged, &s.Dupe, &s.Job)
 
 		if ranking == "hntop" {
 			s.IsHNTopPage = true

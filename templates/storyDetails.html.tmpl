@@ -8,6 +8,9 @@
   <div class="story-details">
     {{if .Flagged}}[flagged]{{end}}
     {{if .Dupe}}[dupe]{{end}}
+
+  {{if (not .Job)}}
+
     <a href="/stats?id={{.ID}}">
       <span 
         title="Estimated True Upvote Rate:&#013;Ratio of how more or less likely users are to upvote this story compared to the average story (x1.00)."
@@ -32,6 +35,8 @@
     |
 
     {{.Score}} points by <a href="https://news.ycombinator.com/user?id={{.By}}">{{.By}}</a> 
+
+  {{end}}
 
     {{/*if .IsResubmitted}}
     <span class="original-age" title="{{.OriginalISOTimestamp}}">{{.OriginalAgeString}}</span>
