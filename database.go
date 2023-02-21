@@ -230,7 +230,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			, last.submissionTime
 			, timestamp as originalSubmissionTime
 			, coalesce(dataset.ageApprox, (unixepoch() - last.submissionTime), 0)
-			, last.score-1
+			, last.score
 			, last.descendants
 			, last.quality 
 			, last.penalty
