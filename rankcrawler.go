@@ -306,7 +306,7 @@ STORY:
 					exUpvoteShare = expectedUpvoteShare(pageType, rank)
 				}
 
-				deltaExpectedUpvotes := exUpvoteShare * float64(sitewideUpvotes-deltaUpvotes[i])
+				deltaExpectedUpvotes := exUpvoteShare * float64(sitewideUpvotes)
 
 				cumulativeExpectedUpvotes += deltaExpectedUpvotes
 				sitewideDeltaExpectedUpvotes += deltaExpectedUpvotes
