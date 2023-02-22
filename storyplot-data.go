@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"math"
 
 	"github.com/pkg/errors"
 )
@@ -107,7 +108,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 			sampleTime,
 			int32(upvotes),
 			expectedUpvotes,
-			(float64(upvotes) + priorWeight) / float64(expectedUpvotes+priorWeight),
+			(float64(upvotes) + priorWeight) / float64((1-math.Exp(-fatigueFactor*expectedUpvotes))/fatigueFactor+priorWeight),
 			upvoteRate,
 		}
 		i++

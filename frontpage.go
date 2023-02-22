@@ -107,12 +107,12 @@ func (p FrontPageParams) String() string {
 var defaultFrontPageParams = FrontPageParams{2.2956, 5.0, 1.4, 2.5, 0}
 
 const frontPageSQL = `
-	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %f as penaltyWeight, %d as pastTime)
+	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %f as penaltyWeight, %f as fatigueFactor, %d as pastTime)
 	, rankedStories as (
 		select
 			*
 			, timestamp as OriginalSubmissionTime
-			, (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality
+			, (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
 			, cast((sampleTime-submissionTime) as real)/3600 as ageHours
 	  from stories
 	  join dataset using(id)
@@ -136,7 +136,7 @@ const frontPageSQL = `
 		, ageApprox
 		, score
 		, descendants
-		, (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality
+		, (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
 		, penalty
 		, topRank
 		, dense_rank() over(order by unadjustedRank + penalty*penaltyWeight) as qnRank
@@ -151,7 +151,7 @@ const frontPageSQL = `
 `
 
 const hnPageSQL = `
-	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %d as pastTime)
+	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %f as fatigueFactor, %d as pastTime)
 	select
 		id
 		, by
@@ -162,7 +162,7 @@ const hnPageSQL = `
 		, ageApprox
 		, score
 		, descendants
-		, (cumulativeUpvotes + priorWeight)/(cumulativeExpectedUpvotes + priorWeight) as quality 
+		, (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
 		, penalty
 		, topRank
 		, qnRank
@@ -242,7 +242,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		var sql string
 		if ranking == "quality" {
 			orderBy := "qnRank nulls last"
-			sql = fmt.Sprintf(frontPageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.PenaltyWeight, params.PastTime, qnRankFormulaSQL, orderBy)
+			sql = fmt.Sprintf(frontPageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.PenaltyWeight, fatigueFactor, params.PastTime, qnRankFormulaSQL, orderBy)
 		} else {
 			orderBy := ""
 			switch ranking {
@@ -258,7 +258,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 				orderBy = fmt.Sprintf("%sRank nulls last", ranking)
 			}
 
-			sql = fmt.Sprintf(hnPageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.PastTime, orderBy)
+			sql = fmt.Sprintf(hnPageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, fatigueFactor, params.PastTime, orderBy)
 		}
 
 		s, err = ndb.db.Prepare(sql)

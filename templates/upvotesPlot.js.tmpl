@@ -1,5 +1,6 @@
 function prepareUpvotesPlotData(dataPoints, submissionTime) {
 
+   var fatigueFactor = 0.003462767
    var results = []
 
    // Modify our dataset so that we only plot points immediately
@@ -15,7 +16,7 @@ function prepareUpvotesPlotData(dataPoints, submissionTime) {
      } else {
        upvotes = null
      }
-     results[i] = [(p[0] - submissionTime)/3600, upvotes, p[2]]
+     results[i] = [(p[0] - submissionTime)/3600, upvotes, (1-Math.exp(-fatigueFactor*p[2]))/fatigueFactor]
    }
    return results;
 }
@@ -52,6 +53,7 @@ function upvotesPlot(upvotesData, submissionTime, startTime, endTime) {
     series: {
       0: {lineWidth: 3},
       1: {lineWidth: 2, lineDashStyle: [5,5]},
+      2: {lineWidth: 2, lineDashStyle: [5,5]},
     },
 
     // we want a line to be drawn over intervals where the upvotes is null

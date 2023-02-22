@@ -204,20 +204,26 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	{
 		sql := `
-		with last as (
+		with parameters as (
+			select
+			? as priorWeight
+			, ? as fatigueFactor
+		)
+		, last as (
 			SELECT
 				stories.*
 				, submissionTime
 				, timestamp
 				, score
 				, descendants
-				, (cumulativeUpvotes + ?)/(cumulativeExpectedUpvotes + ?) as quality 
+				, (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
 				, penalty
 				, dupe
 				, flagged
 			FROM stories
 			JOIN dataset
 			USING (id)
+			JOIN parameters
 			WHERE id = ?
 			ORDER BY sampleTime DESC
 			LIMIT 1
@@ -342,7 +348,7 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	var s Story
 	priorWeight := defaultFrontPageParams.PriorWeight
 
-	err := ndb.selectStoryDetailsStatement.QueryRow(priorWeight, priorWeight, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.UpvoteRate, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job)
+	err := ndb.selectStoryDetailsStatement.QueryRow(priorWeight, fatigueFactor, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.UpvoteRate, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job)
 	if err != nil {
 		return s, err
 	}

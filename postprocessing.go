@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	qnRankFormulaSQL = "pow(ageHours, (cumulativeUpvotes + overallPriorWeight)/(cumulativeExpectedUpvotes + overallPriorWeight)) / pow(ageHours + 2, gravity/0.8) desc"
+	qnRankFormulaSQL = "pow(ageHours, (cumulativeUpvotes + overallPriorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + overallPriorWeight)) / pow(ageHours + 2, gravity/0.8) desc"
 	hnRankFormulaSQL = "(score-1) / pow(ageHours + 2, gravity/0.8) desc"
 )
 
@@ -47,7 +47,7 @@ func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
 	t := time.Now()
 
 	d := defaultFrontPageParams
-	sql := fmt.Sprintf(qnRanksSQL, d.PriorWeight, d.OverallPriorWeight, d.Gravity, d.PenaltyWeight, qnRankFormulaSQL)
+	sql := fmt.Sprintf(qnRanksSQL, d.PriorWeight, d.OverallPriorWeight, d.Gravity, d.PenaltyWeight, fatigueFactor, qnRankFormulaSQL)
 
 	stmt, err := tx.Prepare(sql)
 	if err != nil {
