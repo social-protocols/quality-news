@@ -158,19 +158,7 @@ This means we can estimate `upvoteRate` simply by dividing the story's total upv
 
 We call this estimate the **observed upvote rate**.
 
-## Bayesian Averaging
-
-If we don't have a lot of data for a story, the observed upvote rate may not be a very accurate estimate of the **true** upvote rate.
-
-A more sophisticated approach uses Bayesian inference: given our prior knowledge about the distribution of upvote rates, plus the evidence we have observed about this particular story, what does Bayes' rule tell us is the most probable true upvote rate?
-
-Since there are infinitely many possible true upvote rates, we can't use a trivial application of Bayes rule. But we can estimate the most likely true upvote rate using a technique called Bayesian Averaging. Here is a good explanation of this technique from [Evan Miller](https://www.evanmiller.org/bayesian-average-ratings.html).
-
-The Bayesian Averaging formula in our case is:
-
-    estimatedUpvoteRate ≈ (totalUpvotes + strengthOfPrior) / (totalExpectedUpvotes + strengthOfPrior)
-
-Where `strengthOfPrior` is a constant we have estimated to be about 2.3 using an MCMC simulation. 
+We can better estimate the true upvote rate by adjusting the observed upvote rate to account for small sample sizes, and a phenomenon we call **fatigue**. See more details under [Bayesian Averaging](#bayesian-averaging) and [Fatigue](#fatigue) below.
 
 ## A Proposed New Formula
 
@@ -243,14 +231,38 @@ nix-shell
 All contributions are welcome! Please open issues and PRs.
 
 
+## Appendix: Refinements to Expected Upvotes Estimate
 
-## Appendix: Possible Improvements
+### Bayesian Averaging
+
+If we don't have a lot of data for a story, the observed upvote rate may not be a very accurate estimate of the **true** upvote rate.
+
+A more sophisticated approach uses Bayesian inference: given our prior knowledge about the distribution of upvote rates, plus the evidence we have observed about this particular story, what does Bayes' rule tell us is the most probable true upvote rate?
+
+Since there are infinitely many possible true upvote rates, we can't use a trivial application of Bayes rule. But we can estimate the most likely true upvote rate using a technique called Bayesian Averaging. Here is a good explanation of this technique from [Evan Miller](https://www.evanmiller.org/bayesian-average-ratings.html).
+
+The Bayesian Averaging formula in our case is:
+
+    estimatedUpvoteRate ≈ (totalUpvotes + strengthOfPrior) / (totalExpectedUpvotes + strengthOfPrior)
+
+Where `strengthOfPrior` is a constant we have estimated to be about 2.3 using an MCMC simulation. 
 
 ### Fatigue
 
-In general, upvote rates decrease as a story receives more attention. The more attention a story has received, the more likely it is that users have already seen it. So if a story spends a lot of time on  home page the upvote rate will eventually start to drop.
+In general, upvote rates decrease as a story receives more attention. The more attention a story has received, the more likely it is that users have already seen it. So if a story spends a lot of time on the home page the upvote rate will eventually start to drop noticeably.
 
-But we'd like a true upvote rate estimate that measures the tendency of the story itself to attract upvotes, and not the amount of attention it has received on Hacker News. We can do this by building a fatigue factor into the expected upvote model.
+But we'd like a true upvote rate estimate that measures the tendency of the story itself to attract upvotes, and not the amount of attention it has received on Hacker News. To do this we build a fatigue factor into the expected upvote model. In the formula below, the rate of growth of `adjustedExpectedUpvotes` decays exponentially as expected upvotes grows:
+
+    adjustedExpectedUpvotes = (1 - exp(-fatigueFactor * totalExpectedUpvotes)) / fatigueFactor 
+
+We have used the MCMC simulation to estimate a `fatigueFactor` of about 0.007435115. Plugging in this estimate into the Bayesian Averaging formula, we get our final formula for `estimatedUpvoteRate`:
+
+    estimatedUpvoteRate ≈
+        (totalUpvotes + strengthOfPrior)
+        / ( (1 - exp(-fatigueFactor * totalExpectedUpvotes)) / fatigueFactor + strengthOfPrior)
+
+## Appendix: Possible Improvements
+
 
 ### Moving Averages
 
