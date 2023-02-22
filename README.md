@@ -128,7 +128,7 @@ Computing this sum over the story's entire history on Hacker News gives the stor
 
 <img alt="sample stories rank history chart" src="static/rank-history.png" width="550"/>
 <img alt="sample expected upvotes chart" src="static/expected-upvotes.png" width="550"/>
-<br/><span style="margin-left: 60px;">History of rank, upvotes, and expected upvotes for a sample story</span>
+<br/><span style="margin-left: 60px;">History of rank, upvotes, and expected upvotes for a sample story</span><br/>
 
 
 ## The Upvote Rate
