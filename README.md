@@ -6,7 +6,7 @@
             Quality News
         </a>
     </div>
-    Towards a fair ranking algorithm for Hacker News
+    Towards a fairer ranking formula for Hacker News
 </h1>
 
 <div align="center">
