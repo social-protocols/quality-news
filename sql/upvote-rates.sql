@@ -10,6 +10,7 @@
 with parameters as (
     select 50 as windowSize
     , 2.3 as priorWeight
+    , 0.003462767 as fatigueFactor
 ), latest as (
   select 
     latest.id
@@ -43,8 +44,22 @@ with parameters as (
 update dataset
   set
     upvoteRate = case 
-      when upvotesInWindow is null then ( dataset.cumulativeUpvotes + priorWeight ) / ( dataset.cumulativeExpectedUpvotes + priorWeight)
-      else ( upvotesInWindow + priorWeight ) / ( expectedUpvotesInWindow + priorWeight)
+      when upvotesInWindow is null then ( dataset.cumulativeUpvotes + priorWeight ) / ( (1-exp(-fatigueFactor*dataset.cumulativeExpectedUpvotes))/fatigueFactor + priorWeight)
+      else ( upvotesInWindow + priorWeight ) / (
+          -- The formula for adjusting expected upvotes for fatigue comes from the assumption that expected upvote rate decays
+          -- exponentially: fatigueAdjustedExpectedUpvoteRate = exp(-fatigueFactor*cumulativeExpectedUpvotes).
+          -- So fatigueAdjustedExpectedUpvotes is the total area under this curve, or the integral of
+          -- fatigueAdjustedExpectedUpvoteRate from 0 to max(cumulativeExpectedUpvotes), which is:
+          --   ( 1-exp(-fatigueFactor*max(cumulativeExpectedUpvotes)) ) / fatigueFactor
+          -- But no we want the area under the curve within the moving average window,
+          -- So we integrate from max(cumulativeExpectedUpvotes) - expectedUpvotesInWindow to max(cumulativeExpectedUpvotes),
+          -- which gives us the below formula.
+
+          (
+              exp(-fatigueFactor*(dataset.cumulativeExpectedUpvotes - expectedUpvotesInWindow))
+              -exp(-fatigueFactor*dataset.cumulativeExpectedUpvotes)
+          )/fatigueFactor
+          + priorWeight)
     end
     , upvoteRateWindow = newWindow
 from windows
