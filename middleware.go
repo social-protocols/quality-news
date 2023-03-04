@@ -97,6 +97,14 @@ func unmarshalRouterRequest(r *http.Request, ps httprouter.Params, params any) e
 	return nil
 }
 
+// preRouterMiddleware wraps the router itself. It is for middleware that does
+// not need to know anything about the route (params, name, etc)
+func (app app) preRouterMiddleware(handler http.Handler) http.Handler {
+	handler = app.cacheAndCompressMiddleware(handler)
+	handler = app.canonicalDomainMiddleware(handler) // redirects must happen before caching!
+	return handler
+}
+
 // We could improve this middleware. Currently we cache before we
 // compress, because the cache middleware we use here doesn't recognize the
 // accept-encoding header, and if we compressed before we cache, cache
