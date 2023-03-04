@@ -115,8 +115,8 @@ func (app app) serveFiles(root http.FileSystem) func(w http.ResponseWriter, r *h
 }
 
 var nonCanonicalDomains = map[string]string{
-	"social-protocols-news.fly.dev:443": "news.social-protocols.org",
-	"127.0.0.1:8080":                    "localhost:8080", // just for testing
+	"social-protocols-news.fly.dev": "news.social-protocols.org",
+	"127.0.0.1:8080":                "localhost:8080", // just for testing
 }
 
 var canonicalDomains = getValues(nonCanonicalDomains)
