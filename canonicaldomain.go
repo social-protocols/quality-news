@@ -41,10 +41,3 @@ func (app app) canonicalDomainMiddleware(handler http.Handler) http.Handler {
 		handler.ServeHTTP(w, r)
 	})
 }
-
-func (app app) testRedirectHandler() func(http.ResponseWriter, *http.Request, struct{}) error {
-	return func(w http.ResponseWriter, r *http.Request, _ struct{}) error {
-		_, _ = w.Write([]byte("Hello, World!\n"))
-		return nil
-	}
-}

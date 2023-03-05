@@ -57,8 +57,6 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.GET("/stats", middleware("stats", l, onPanic, app.statsHandler()))
 	router.GET("/about", middleware("about", l, onPanic, app.aboutHandler()))
 
-	router.GET("/test-redirect", middleware("test-redirect", l, onPanic, app.testRedirectHandler()))
-
 	server.Handler = app.preRouterMiddleware(router)
 
 	return server
