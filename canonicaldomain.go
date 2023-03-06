@@ -17,7 +17,6 @@ var canonicalDomains = getValues(nonCanonicalDomains)
 
 func (app app) canonicalDomainMiddleware(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		app.logger.Debug("redirectNonCanonicalURLs", "host", r.Host)
 		// Redirect any non-canonical domain to the corresponding canonical domain.
 		for nonCanonicalDomain, canonicalDomain := range nonCanonicalDomains {
 			if r.Host == nonCanonicalDomain {
