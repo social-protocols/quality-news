@@ -1,17 +1,22 @@
-function prepareUpvotesPlotData(dataPoints, submissionTime) {
+function prepareUpvotesPlotData(dataPoints, submissionTime, endTime) {
 
-   var fatigueFactor = 0.003462767
-   var results = []
+  var fatigueFactor = 0.003462767
+  var results = []
+
+  var length
+  for (var i = 0; i < dataPoints.length && dataPoints[i][0] <= endTime; i++) { 
+    length = i+1
+  }
 
    // Modify our dataset so that we only plot points immediately
    // before or after a change. This way the plot looks more like a staircase
    // where the line is horizontal until there is an upvote then jumps up. Then we
    // only have diagonal lines where there is missing data.
    var lastValue = null
-   for (var i = 0; i < dataPoints.length; i++) { 
+   for (var i = 0; i < length; i++) { 
      var p = dataPoints[i]
      var upvotes = p[1]
-     if ( upvotes != lastValue || i+1 == dataPoints.length || upvotes != dataPoints[i+1][1] )  {
+     if ( upvotes != lastValue || i+1 == length || upvotes != dataPoints[i+1][1] )  {
        lastValue = upvotes
      } else {
        upvotes = null
@@ -30,7 +35,7 @@ function upvotesPlot(upvotesData, submissionTime, startTime, endTime) {
   data.addColumn('number', 'Upvotes');
   data.addColumn('number', 'Expected Upvotes');
 
-  data.addRows(prepareUpvotesPlotData(upvotesData, submissionTime));
+  data.addRows(prepareUpvotesPlotData(upvotesData, submissionTime, endTime));
 
   var ageFormatter = new ageFormat()
   ageFormatter.format(data, 0);

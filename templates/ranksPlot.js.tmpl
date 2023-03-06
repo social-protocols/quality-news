@@ -1,5 +1,10 @@
 
-function prepareRanksPlotData(dataPoints, submissionTime) {
+function prepareRanksPlotData(dataPoints, submissionTime, endTime) {
+
+  var length
+  for (var i = 0; i < dataPoints.length && dataPoints[i][0] <= endTime; i++) { 
+    length = i+1
+  }
 
   var results = []
 
@@ -7,7 +12,7 @@ function prepareRanksPlotData(dataPoints, submissionTime) {
   // so 5 columns of data (x axis plus 4 ranks) 
   var n = 5 
   var lastValue = [null,null,null,null,null]
-  for (var i = 0; i < dataPoints.length; i++) { 
+  for (var i = 0; i < length; i++) {
 
     var p = dataPoints[i].slice(0, n)
 
@@ -17,7 +22,7 @@ function prepareRanksPlotData(dataPoints, submissionTime) {
     // only plot a single point when a line leaves/exits the chart from below rank 91
     for (var j = 1; j < n; j++) {
       var lastValueIsOffChart = ( lastValue[j] == 91 || lastValue[j] == null )
-      var nextValueIsOnChart = ( i+1 < dataPoints.length && dataPoints[i+1][j] != null && dataPoints[i+1][j] != 91)
+      var nextValueIsOnChart = ( i+1 < length && dataPoints[i+1][j] != null && dataPoints[i+1][j] != 91)
 
       if ( p[j] == 91 && (lastValueIsOffChart && !nextValueIsOnChart) ) {
         p[j] = null
@@ -41,7 +46,7 @@ function ranksPlot(dataPoints, submissionTime, startTime, endTime) {
   data.addColumn('number', '"New" Rank');
   data.addColumn('number', '"Best" Rank');
 
-  data.addRows(prepareRanksPlotData(dataPoints, submissionTime));
+  data.addRows(prepareRanksPlotData(dataPoints, submissionTime, endTime));
 
   var ageFormatter = new ageFormat();
   

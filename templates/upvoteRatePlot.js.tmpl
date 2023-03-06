@@ -1,6 +1,6 @@
-function prepareUpvoteRatePlotData(dataPoints, submissionTime) {
+function prepareUpvoteRatePlotData(dataPoints, submissionTime, endTime) {
 //  return dataPoints.map((dataPoint, i) => [(dataPoints[i][0] - submissionTime)/3600, dataPoints[i][3], 1, dataPoints[i][4]])
-  return dataPoints.map((dataPoint, i) => [(dataPoints[i][0] - submissionTime)/3600, dataPoints[i][3], 1])
+  return dataPoints.filter((dataPoint, i) => dataPoints[i][0] <= endTime).map((dataPoint, i) => [(dataPoints[i][0] - submissionTime)/3600, dataPoints[i][3], 1])
 }
 
 function upvoteRatePlot(upvoteRatePlotData, submissionTime, startTime, endTime) {
@@ -13,7 +13,7 @@ function upvoteRatePlot(upvoteRatePlotData, submissionTime, startTime, endTime) 
   data.addColumn('number', 'Expected Upvote Rate');
 //  data.addColumn('number', 'Moving-Average Upvote Rate');
 
-  data.addRows(prepareUpvoteRatePlotData(upvoteRatePlotData, submissionTime));
+  data.addRows(prepareUpvoteRatePlotData(upvoteRatePlotData, submissionTime, endTime));
 
   var ageFormatter = new ageFormat()
   ageFormatter.format(data, 0);

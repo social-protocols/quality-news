@@ -39,7 +39,7 @@
 
 
 
-<title>Hacker News Story Stats: {{.Story.Title}}</title>
+<title>Hacker News Story Stats: {{.Title}}</title>
 </head>
 <body>
 
@@ -51,7 +51,44 @@
 
 {{template "storyDetails.html.tmpl" .Story}}
 
-<h2> Story Stats </h2>
+<div class="storyplot-header">
+  <h2> Story Stats </h2>
+  <span class="storyplot-date-selector">
+
+    <!-- Time picker that selects a date range (not a timestamp). Easily increment
+    days/hours/minutes. -->
+
+    <select id="storyplot-date-selector" onchange="changeRelativeDate(this)">
+      {{if (ge .MaxAgeHours 1)}}<option value="1">first hour</option>{{end}}
+      {{if (ge .MaxAgeHours 3)}}<option value="3">first 3 hours</option>{{end}}
+      {{if (ge .MaxAgeHours 6)}}<option value="6">first 6 hours</option>{{end}}
+      {{if (ge .MaxAgeHours 12)}}<option value="12">first 12 hours</option>{{end}}
+      {{if (ge .MaxAgeHours 24)}}<option value="24">first day</option>{{end}}
+      {{if (ge .MaxAgeHours 48)}}<option value="48">first 2 days</option>{{end}}
+      {{if (ge .MaxAgeHours 72)}}<option value="72">first 3 days</option>{{end}}
+      {{if (ge .MaxAgeHours 96)}}<option value="96">first 4 days</option>{{end}}
+      {{if (ge .MaxAgeHours 120)}}<option value="120">first 5 days</option>{{end}}
+      {{if (ge .MaxAgeHours 144)}}<option value="144">first 6 days</option>{{end}}
+      {{if (ge .MaxAgeHours 168)}}<option value="168">first week</option>{{end}}
+      <option selected value="100000">all time</option>
+    </select>
+
+    <!-- Alternative date selector. But I like the above a bit better. -->
+    <!--
+      <label for="storyplot-date-selector">Max Timestamp</label>
+      <input 
+        type="datetime-local" 
+        name="storyplot-date-selector"
+        id="storyplot-date-selector"
+        onchange="changeDate(this)" 
+        value="{{.MaxSampleTimeISOString}}"
+        min="{{.OriginalSubmissionTimeISOString}}" 
+        max="{{.MaxSampleTimeISOString}}"
+      > 
+    -->
+
+  </span>
+</div>
 
 <div id="storyplots">
 

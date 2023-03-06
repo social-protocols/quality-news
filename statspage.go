@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -18,10 +19,23 @@ type StatsPageData struct {
 	StatsPageParams
 	DefaultPageHeaderData
 	EstimatedUpvoteRate int
-	Story               Story
-	RanksPlotData       [][]any
-	UpvotesPlotData     [][]any
-	PenaltyPlotData     [][]any
+	Story
+	RanksPlotData   [][]any
+	UpvotesPlotData [][]any
+	PenaltyPlotData [][]any
+	MaxSampleTime   int
+}
+
+func (s StatsPageData) MaxSampleTimeISOString() string {
+	return time.Unix(int64(s.MaxSampleTime), 0).UTC().Format("2006-01-02T15:04")
+}
+
+func (s StatsPageData) OriginalSubmissionTimeISOString() string {
+	return time.Unix(s.OriginalSubmissionTime, 0).UTC().Format("2006-01-02T15:04")
+}
+
+func (s StatsPageData) MaxAgeHours() int {
+	return (s.MaxSampleTime - int(s.OriginalSubmissionTime)) / 3600
 }
 
 var ErrStoryIDNotFound = httperror.New(404, "Story ID not found")
@@ -42,6 +56,12 @@ func statsPage(ndb newsDatabase, w io.Writer, r *http.Request, params StatsPageP
 		EstimatedUpvoteRate: 1.0,
 		Story:               s,
 	}
+
+	maxSampleTime, err := maxSampleTime(ndb, params.StoryID)
+	if err != nil {
+		return errors.Wrap(err, "maxSampleTime")
+	}
+	d.MaxSampleTime = maxSampleTime
 
 	ranks, err := rankDatapoints(ndb, params.StoryID)
 	if err != nil {

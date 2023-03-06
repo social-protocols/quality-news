@@ -7,6 +7,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+func maxSampleTime(ndb newsDatabase, storyID int) (int, error) {
+	var n int
+	err := ndb.db.QueryRow(`
+			select max(sampleTime) from dataset
+			where id = ?
+		`, storyID).Scan(&n)
+
+	return n, errors.Wrap(err, "QueryRow count: select max(sampleTime)")
+}
+
 func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
