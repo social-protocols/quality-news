@@ -47,6 +47,12 @@ type dataPoint struct {
 	dupe                      bool
 }
 
+// only accumulate upvotes if we haven't gone more than 2
+// minutes since last crawl. Otherwise our assumption that the
+// story has been at this rank since the last crawl starts to
+// become less and less reasonable
+const maxElapsedTime = 120
+
 func (app app) crawlAndPostprocess(ctx context.Context) (err error) {
 	// this function is called every minute. It crawls the hacker news
 	// website, collects all stories which appear on a rank < 90 and stores
@@ -85,7 +91,7 @@ func (app app) crawlAndPostprocess(ctx context.Context) (err error) {
 		}
 
 		submissionsTotal.Add(finalStoryCount - initialStoryCount)
-		upvotesTotal.Add(sitewideUpvotes)
+		upvotesTotal.Add(int(sitewideUpvotes))
 	}()
 
 	initialStoryCount, err = ndb.storyCount(tx)
@@ -205,7 +211,7 @@ func (app app) crawl(ctx context.Context, tx *sql.Tx) (int, error) {
 	}
 
 	// for every story, calculate metrics used for ranking per story:
-	var sitewideUpvotes int
+	var sitewideUpvotes float64
 	deltaUpvotes := make([]int, len(uniqueStoryIds))          // number of upvotes (since last sample point)
 	lastCumulativeUpvotes := make([]int, len(uniqueStoryIds)) // last number of upvotes tracked by our crawler
 	lastCumulativeExpectedUpvotes := make([]float64, len(uniqueStoryIds))
@@ -249,10 +255,12 @@ STORY:
 			lastCumulativeUpvotes[i] = lastSeenUpvotes
 			lastCumulativeExpectedUpvotes[i] = lastSeenExpectedUpvotes
 			lastSeenTimes[i] = lastSeenTime
+			elapsedTime := int(sampleTime) - lastSeenTime
 
-			deltaUpvotes[i] = story.Score - lastSeenScore
-			sitewideUpvotes += deltaUpvotes[i]
-
+			if elapsedTime < maxElapsedTime {
+				deltaUpvotes[i] = story.Score - lastSeenScore
+				sitewideUpvotes += float64(deltaUpvotes[i]*60) / float64(elapsedTime)
+			}
 		}
 
 		// save story details in database
@@ -280,14 +288,9 @@ STORY:
 		ranks := storyRanks[id]
 		cumulativeUpvotes := lastCumulativeUpvotes[i]
 		cumulativeExpectedUpvotes := lastCumulativeExpectedUpvotes[i]
-
 		elapsedTime := int(sampleTime) - lastSeenTimes[i]
 
-		if elapsedTime < 120 {
-			// only accumulate upvotes if we haven't gone more than 2
-			// minutes since last crawl. Otherwise our assumption that the
-			// story has been at this rank since the last crawl starts to
-			// become less and less reasonable
+		if elapsedTime < maxElapsedTime {
 
 			cumulativeUpvotes += deltaUpvotes[i]
 
@@ -329,7 +332,7 @@ STORY:
 		}
 
 		if err := ndb.insertDataPoint(tx, datapoint); err != nil {
-			return sitewideUpvotes, errors.Wrap(err, "insertDataPoint")
+			return int(sitewideUpvotes), errors.Wrap(err, "insertDataPoint")
 		}
 	}
 
@@ -340,7 +343,7 @@ STORY:
 		"sitewideExpectedUpvotesShare", sitewideExpectedUpvotesShare,
 		"dataPoints", len(stories))
 
-	return sitewideUpvotes, nil
+	return int(sitewideUpvotes), nil
 }
 
 // getRanksFromAPI gets all ranks for all page types from the API and puts them into
