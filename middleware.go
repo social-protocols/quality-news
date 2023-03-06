@@ -1,7 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	"net/http"
+	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -61,6 +64,29 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 }
 
 var decoder = schema.NewDecoder()
+
+func nullInt64Converter(value string) reflect.Value {
+	var result sql.NullInt64
+	if value != "" {
+		v, _ := strconv.ParseInt(value, 10, 64)
+		result = sql.NullInt64{Int64: v, Valid: true}
+	}
+	return reflect.ValueOf(result)
+}
+
+func nullFloat64Converter(value string) reflect.Value {
+	var result sql.NullFloat64
+	if value != "" {
+		v, _ := strconv.ParseFloat(value, 64)
+		result = sql.NullFloat64{Float64: v, Valid: true}
+	}
+	return reflect.ValueOf(result)
+}
+
+func init() {
+	decoder.RegisterConverter(sql.NullInt64{}, nullInt64Converter)
+	decoder.RegisterConverter(sql.NullFloat64{}, nullFloat64Converter)
+}
 
 // unmarshalRouterRequest is a generic request URL unmarshaler for use with
 // httprouter. It unmarshals the request parameters parsed by httprouter, as
