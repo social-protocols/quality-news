@@ -64,8 +64,8 @@ func (ndb newsDatabase) init() error {
 			, askRank integer
 			, showRank integer
 			, qnRank integer
-			, cumulativeUpvotes integer
-			, cumulativeExpectedUpvotes real
+			, cumulativeUpvotes integer not null default 0
+			, cumulativeExpectedUpvotes real not null default 0
 			, flagged boolean not null default false
 			, dupe boolean not null default false
 			, ageApprox int not null
