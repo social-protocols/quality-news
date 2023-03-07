@@ -58,7 +58,7 @@
     <!-- Time picker that selects a date range (not a timestamp). Easily increment
     days/hours/minutes. -->
 
-    <select id="storyplot-date-selector" onchange="changeRelativeDate(this)">
+    <select name="storyplot-date-selector" onchange="changeRelativeDate(this)">
       {{if (ge .MaxAgeHours 1)}}<option value="1">first hour</option>{{end}}
       {{if (ge .MaxAgeHours 3)}}<option value="3">first 3 hours</option>{{end}}
       {{if (ge .MaxAgeHours 6)}}<option value="6">first 6 hours</option>{{end}}

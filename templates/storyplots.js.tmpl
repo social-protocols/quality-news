@@ -12,13 +12,14 @@ var upvotesPlotData = {{.UpvotesPlotData}};
 var upvoteRatePlotData = upvotesPlotData; //same data
 //var penaltyPlotData = {{.PenaltyPlotData}};
 
-function drawCharts(overrideEndTime) {
-
+function drawCharts() {
   // make all charts have the same x-axis range as the ranks plot chart
   var startTime = ranksPlotData[0][0]
-  var endTime = ranksPlotData[ranksPlotData.length - 1][0]
-  if (overrideEndTime !== undefined) {
-    endTime = overrideEndTime
+
+  date = document.getElementsByName("storyplot-date-selector")[0]
+  var endTime = {{.Story.SubmissionTime}} + date.value*3600
+  if (endTime > {{.MaxSampleTime}}) {
+    endTime = {{.MaxSampleTime}}
   }
 
   ranksPlot(ranksPlotData, submissionTime, startTime, endTime)
@@ -78,12 +79,8 @@ var getJSON = function(url, callback) {
 //   drawCharts(unixEpoch)
 // }
 
-var changeRelativeDate = function(date) {
-  var unixEpoch = {{.Story.SubmissionTime}} + date.value*3600
-  if (unixEpoch > {{.MaxSampleTime}}) {
-    unixEpoch = {{.MaxSampleTime}}
-  }
-  drawCharts(unixEpoch)
+var changeRelativeDate = function() {
+  drawCharts()
 }
 
 {{template "ranksPlot.js.tmpl" .}}
