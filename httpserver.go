@@ -48,6 +48,7 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.GET("/", middleware("hntop", l, onPanic, app.frontpageHandler("hntop")))
 	// router.GET("/hntop", middleware("hntop", l, onPanic, app.frontpageHandler("hntop")))
 	router.GET("/new", middleware("new", l, onPanic, app.frontpageHandler("new")))
+	router.GET("/top", middleware("top", l, onPanic, app.frontpageHandler("hntop")))
 	router.GET("/best", middleware("best", l, onPanic, app.frontpageHandler("best")))
 	router.GET("/ask", middleware("ask", l, onPanic, app.frontpageHandler("ask")))
 	router.GET("/show", middleware("show", l, onPanic, app.frontpageHandler("show")))
