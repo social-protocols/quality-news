@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -117,7 +118,10 @@ func unmarshalRouterRequest(r *http.Request, ps httprouter.Params, params any) e
 	// Then unmarshal.
 	err := decoder.Decode(params, m)
 	if err != nil {
-		return errors.Wrap(err, "decode parameters")
+		if !strings.HasPrefix(err.Error(), "schema: invalid path") {
+			// ignore errors due to unrecognized parameters
+			return errors.Wrap(err, "decode parameters")
+		}
 	}
 
 	return nil
