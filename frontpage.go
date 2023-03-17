@@ -48,6 +48,10 @@ func (d frontPageData) IsBestPage() bool {
 	return d.Ranking == "best"
 }
 
+func (d frontPageData) IsBestUpvoteRatePage() bool {
+	return d.Ranking == "best-upvoterate"
+}
+
 func (d frontPageData) IsAskPage() bool {
 	return d.Ranking == "ask"
 }
