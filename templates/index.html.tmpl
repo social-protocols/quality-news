@@ -44,7 +44,11 @@
 		{{/*&nbsp; <span class="original-age">original</span> <span class="resubmitted-age">2nd-chance</span> age <a class="question-mark" href="/about#second-chance-age">(?)</a>*/}}
 	</div>	
 
+{{else if .IsBestUpvoteRatePage}}
 
+<div class="introduction">
+  Similar to the Hacker News <a href="https://news.ycombinator.com/best">"Best" Page</a>, these are the current stories on the Hacker News Front page ranked by their <a class="question-mark" href="/about#upvote-rate"><span class="upvoterate">×upvoteRate (?)</span></a>. This makes the impact of moderation on the HN frontpage visible (e.g. off-topic/non-tech stories are ranked higher).
+</div>
 
 	{{else}}
 		<div class="introduction">
@@ -52,9 +56,9 @@
 
 		This is the current Hacker News 
 
-		{{if .IsHNTopPage}}
-			<a href="https://news.ycombinator.com/">Front</a>
-		{{end}}
+      {{if .IsHNTopPage}}
+        <a href="https://news.ycombinator.com/">Front</a>
+      {{end}}
 	    {{if .IsNewPage}}
 	        <a href="https://news.ycombinator.com/newest">"New"</a>.
 	    {{end}}

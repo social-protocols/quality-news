@@ -48,6 +48,10 @@ func (d frontPageData) IsBestPage() bool {
 	return d.Ranking == "best"
 }
 
+func (d frontPageData) IsBestUpvoteRatePage() bool {
+	return d.Ranking == "best-upvoterate"
+}
+
 func (d frontPageData) IsAskPage() bool {
 	return d.Ranking == "ask"
 }
@@ -254,6 +258,8 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 				orderBy = "case when rawRank is null or (topRank is null and rawRank > 90) then null else ifnull(topRank,91) - rawRank end desc nulls last"
 			case "highdelta":
 				orderBy = "case when rawRank is null or (topRank is null and rawRank > 90) then null else ifnull(topRank,91) - rawRank end nulls last"
+			case "best-upvoterate":
+				orderBy = "(cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) desc nulls last"
 			default:
 				orderBy = fmt.Sprintf("%sRank nulls last", ranking)
 			}
