@@ -102,7 +102,7 @@ func (ndb newsDatabase) init() error {
 	for _, s := range seedStatements {
 		_, err := ndb.db.Exec(s)
 		if err != nil {
-			return errors.Wrap(err, "seeding database")
+			return errors.Wrapf(err, "seeding database: %s", s)
 		}
 	}
 
