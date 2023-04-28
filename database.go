@@ -92,6 +92,8 @@ func (ndb newsDatabase) init() error {
 		`
 		drop view if exists previousCrawl
 		`,
+
+		`PRAGMA auto_vacuum=FULL`,
 	}
 
 	for _, s := range seedStatements {
