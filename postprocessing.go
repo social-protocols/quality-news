@@ -24,7 +24,12 @@ func (app app) crawlPostprocess(ctx context.Context, tx *sql.Tx) error {
 	var err error
 
 	// for _, filename := range []string{"previous-crawl.sql", "resubmissions.sql", "raw-ranks.sql", "upvote-rates.sql"} {
-	for _, filename := range []string{"previous-crawl.sql", "resubmissions.sql", "raw-ranks.sql"} {
+	for _, filename := range []string{
+		"previous-crawl.sql",
+		"resubmissions.sql",
+		"raw-ranks.sql",
+		"delete-old-data.sql",
+	} {
 		err = app.ndb.executeSQLFile(ctx, tx, filename)
 		if err != nil {
 			return err
