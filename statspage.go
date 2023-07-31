@@ -40,7 +40,8 @@ func (s StatsPageData) MaxAgeHours() int {
 
 var ErrStoryIDNotFound = httperror.New(404, "Story ID not found")
 
-func statsPage(ndb newsDatabase, w io.Writer, r *http.Request, params StatsPageParams) error {
+func (app app) statsPage(w io.Writer, r *http.Request, params StatsPageParams, userID sql.NullInt64) error {
+	ndb := app.ndb
 	s, err := ndb.selectStoryDetails(params.StoryID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -55,6 +56,7 @@ func statsPage(ndb newsDatabase, w io.Writer, r *http.Request, params StatsPageP
 		StatsPageParams:     params, // pass through any and all URL parameters to the template
 		EstimatedUpvoteRate: 1.0,
 		Story:               s,
+		DefaultPageHeaderData: DefaultPageHeaderData{UserID: userID},
 	}
 
 	maxSampleTime, err := maxSampleTime(ndb, params.StoryID)

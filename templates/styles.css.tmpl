@@ -47,6 +47,11 @@ body a:visited {
 
   display: flex;
   align-items: center;
+
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+
 }
 
 .header .icon {
@@ -277,3 +282,103 @@ a:visited.resubmitted-age {
   margin-left: 50px;
   color: #303040;
 }
+
+
+/* UPVOTES */
+
+.vote {
+//  display: inline-block;
+//  width: 240px;
+}
+
+.vote span.showifvoted
+{
+  visibility: hidden;
+  width: 0px;
+}
+
+.vote.upvoted span.showifvoted, 
+.vote.downvoted span.showifvoted 
+{
+  visibility: visible;
+}
+
+.vote.upvoted a.upvote {
+  color: green;
+}
+
+.vote.downvoted a.downvote {
+  color: darkred;
+}
+
+.vote.upvoted .price::before {
+  content: "upvoted @×"
+}
+
+.vote.downvoted .price::before {
+  content: "downvoted @×"
+}
+
+
+
+.vote.upvoted .price::before {
+  color: green;
+}
+
+.vote.upvoted .price::before {
+  content: "upvoted @"
+}
+
+.vote.downvoted .price::before {
+  color: darkred;
+}
+
+.vote.downvoted .price::before {
+  content: "downvoted @"
+}
+
+.vote a:link,
+.vote a:visited {
+  text-decoration: none;
+} 
+
+.vote.closed a.downvote,
+.vote.closed a.upvote
+{
+  visibility: hidden;
+}
+
+
+
+
+.gainorloss {
+}
+
+.vote .gainorloss.gain {
+  color: darkgreen;
+}
+
+.vote .gainorloss.loss {
+  color: red;
+}
+
+
+
+.vote .relativetime {
+  font-size: 12px;
+}
+
+
+/* SCORE PAGE */
+
+#scoreplots {
+  height: auto;
+  min-width: 400px;
+  max-width: 650px;
+}
+
+
+
+
+
+

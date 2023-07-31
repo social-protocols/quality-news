@@ -2,11 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -17,8 +17,6 @@ import (
 	"github.com/gorilla/schema"
 
 	"github.com/NYTimes/gziphandler"
-	cache "github.com/victorspringer/http-cache"
-	"github.com/victorspringer/http-cache/adapter/memory"
 )
 
 // middleware converts a handler of type httperror.XHandlerFunc[P] into an
@@ -94,6 +92,14 @@ func init() {
 // well as any URL parameters, into a struct of any type, matching query
 // names to struct field names.
 func unmarshalRouterRequest(r *http.Request, ps httprouter.Params, params any) error {
+	if r.Method == "POST" {
+		err := json.NewDecoder(r.Body).Decode(params)
+		if err != nil {
+			return errors.Wrap(err, "decode json")
+		}
+		return nil
+	}
+
 	m := make(map[string][]string)
 
 	// First convert the httprouter.Params into a map
@@ -146,32 +152,33 @@ func (app app) preRouterMiddleware(handler http.Handler) http.Handler {
 // what we have here is simple and probably good enough.
 
 func (app app) cacheAndCompressMiddleware(handler http.Handler) http.Handler {
-	if app.cacheSize == 0 {
-		return handler
-	}
-	memorycached, err := memory.NewAdapter(
-		memory.AdapterWithAlgorithm(memory.LRU),
-		memory.AdapterWithCapacity(app.cacheSize),
-	)
-	if err != nil {
-		LogFatal(app.logger, "memory.NewAdapater", err)
-	}
+	// if app.cacheSize >  0 {
 
-	cacheClient, err := cache.NewClient(
-		cache.ClientWithAdapter(memorycached),
-		cache.ClientWithTTL(1*time.Minute),
-		cache.ClientWithRefreshKey("opn"),
-	)
-	if err != nil {
-		LogFatal(app.logger, "cache.NewClient", err)
-	}
+	// 	memorycached, err := memory.NewAdapter(
+	// 		memory.AdapterWithAlgorithm(memory.LRU),
+	// 		memory.AdapterWithCapacity(app.cacheSize),
+	// 	)
+	// 	if err != nil {
+	// 		LogFatal(app.logger, "memory.NewAdapater", err)
+	// 	}
 
-	var h http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// since we update data only every minute, tell browsers to cache for one minute
-		handler.ServeHTTP(w, r)
-	})
+	// 	cacheClient, err := cache.NewClient(
+	// 		cache.ClientWithAdapter(memorycached),
+	// 		cache.ClientWithTTL(1*time.Minute),
+	// 		cache.ClientWithRefreshKey("opn"),
+	// 	)
+	// 	if err != nil {
+	// 		LogFatal(app.logger, "cache.NewClient", err)
+	// 	}
 
-	h = cacheClient.Middleware(h)
+	// 	var h http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// 		// since we update data only every minute, tell browsers to cache for one minute
+	// 		handler.ServeHTTP(w, r)
+	// 	})
+
+	// 	h = cacheClient.Middleware(h)
+	// }
+	h := handler
 
 	return gziphandler.GzipHandler(h)
 }

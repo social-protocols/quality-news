@@ -1,0 +1,146 @@
+
+function prepareScorePlotData(dataPoints, startTime, endTime) {
+
+  var length
+  for (var i = 0; i < dataPoints.length && dataPoints[i][0] <= endTime; i++) { 
+    length = i+1
+  }
+
+  var results = []
+
+  for (var i = 0; i < length; i++) {
+    var date = new Date(dataPoints[i][0]*1000)
+    results[i] = [date, dataPoints[i][1], dataPoints[i][2]]
+  }
+  return results
+}
+
+var chart
+function scorePlot(dataPoints, startTime, endTime) {
+  var plotDiv = document.getElementById('score_plot_div')
+
+  var data = new google.visualization.DataTable();
+  data.addColumn('date', 'Date');
+//  data.addColumn('number', 'QN Rank');
+  data.addColumn('number', 'Score');
+  data.addColumn('string', 'Story ID');
+  // data.addColumn('string', 'Story Title');
+
+  dataPoints = prepareScorePlotData(dataPoints, startTime, endTime)
+  data.addRows(dataPoints);
+
+
+  // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
+  var options = {
+    isStacked:true,
+    series: {
+          0: {
+          areaOpacity: 1,
+          color: '#EF9A9A',
+          type: 'area',
+          visibleInLegend: false              
+          }
+        },
+    backgroundColor: {fill: 'transparent'},
+    dataOpacity: 0.85,
+    hAxis: {
+      title: 'Date',
+      logScale: false,
+      // viewWindow: {
+      //   min: (startTime-submissionTime)/3600,
+      //   max: (endTime-submissionTime)/3600,
+      // }
+    },
+    vAxis: {
+      title: 'Score',
+      // logScale: true,
+      // direction: -1,
+      // viewWindow: {
+      //   max: 1,
+      //   min: 91
+      // },
+      // ticks: [1,2,4,8,16,32,64,{v: 91, f: "> 90"}],
+    },
+    // interpolateNulls: false, 
+//     series: {
+//       0: {pointShape: 'diamond', pointSize: 5, interpolateNulls: false},
+//       1: {pointShape: 'circle', pointSize: 3, interpolateNulls: false},
+//       2: {pointShape: 'square', pointSize: 3, interpolateNulls: false},
+//       3: {pointShape: 'square', pointSize: 3, interpolateNulls: false},
+// //            4: {pointShape: 'square', pointSize: 0},
+// //            5: {pointShape: 'square', pointSize: 0}
+//     },
+
+    // lineDashStyle: [1,1],
+    // lineWidth: 1,
+    // colors: ['black', '#FF6600', "#AF7FDF", "#6FAEAE", "green","pink"],
+    // colors: ['#0089F4', '#FF6600', "#AF7FDF", "#6FAEAE", "green","pink"],
+    chartArea:{left:80, top:50, bottom: 80, right: 80},
+    height: 300,
+    width: 760,
+    legend: { position: 'bottom' },
+    crosshair: { trigger: 'both' },
+
+
+    title: "Score",
+    annotationsWidth: 0,
+    displayAnnotationsFilter: false,
+    fill: 50,
+    allowHtml: true,
+  };
+
+  // var chart = new google.visualization.LineChart(plotDiv);
+  chart = new google.visualization.AnnotationChart(plotDiv);
+
+  // google.visualization.events.addListener(chart, 'rangechange', rangechange_handler);
+  google.visualization.events.addListener(chart, 'select', select_handler);
+
+
+  chart.draw(data, options);
+}
+
+function clickPositionLabel(i) {
+  zoomIn(scorePlotData.length-i-1)
+}
+
+function select_handler(e) {
+  var n = chart.getSelection()[0].row
+  window.location.hash = '#position-' + scorePlotData[n][2]
+
+  zoomIn(n)
+}
+
+function zoomIn(i) {
+//  i = 10
+  var mid = i - 1
+  var lower = i - 1
+  var upper = i + 1 
+
+
+  if (lower < 0) {
+    lower = 0
+  }
+  if (upper > scorePlotData.length-1) {
+    upper = scorePlotData.length-1
+  }
+
+  var lowerTime = scorePlotData[lower][0]
+  var midTime = scorePlotData[i][0]
+  var upperTime = scorePlotData[upper][0]
+
+  var windowLength = 3600
+  if( (upperTime - midTime) > (midTime - lowerTime) ) {
+    if( (upperTime - midTime) > 3600 ) {
+      windowLength = (upperTime - midTime)
+    }
+  } else if( (midTime - lowerTime) > 3600 ) {
+    windowLength = (midTime - lowerTime)
+  }
+  upperTime = midTime + windowLength
+  lowerTime = midTime - windowLength
+
+  position = scorePlotData[i]
+  chart.setVisibleChartRange(new Date(lowerTime*1000), new Date(upperTime*1000)) 
+}
+
+

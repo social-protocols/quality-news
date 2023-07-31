@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="apple-touch-icon" sizes="180x180" href="static/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="static/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="static/favicon-16x16.png">
+<link rel="manifest" href="static/site.webmanifest">
+<link rel="mask-icon" href="static/safari-pinned-tab.svg" color="#4a9ced">
+<link rel="shortcut icon" href="static/favicon.ico">
+<meta name="msapplication-TileColor" content="#4a9ced">
+<meta name="msapplication-config" content="static/browserconfig.xml">
+<meta name="theme-color" content="#ffffff">
+
+
+<style type="text/css">
+
+{{template "normalize.css.tmpl"}}
+
+{{template "styles.css.tmpl"}}
+
+.toppane {
+
+  position: sticky; 
+  top: 35px; 
+  background-color: var(--background);
+  width: 760px;
+  margin-bottom: 20px;
+  padding: 0;
+  padding-top: 5px;
+
+  z-index: 1;
+
+}
+
+.header {
+  z-index: 1;
+}
+
+.toppane .toppane-content {
+  margin-left: 35px;
+}
+
+.bottompane-header {
+  margin-left: 35px; background-color: lightblue; width: 100%; height: 30px; line-height: 30px; padding-left: 6px
+}
+
+.bottompane {
+  margin-left: 0px;
+}
+
+.positions {
+    position: relative;
+}
+
+.position-label {
+  background-color: #efefef;
+  border: solid darkblue 0.5px;
+  border-radius: 3px;
+  font-size: 10px;
+  padding: 0px 2px;
+  color: blue;
+  font-family: helvetica;
+  line-height: 20px;
+  margin-right: 2px;
+  vertical-align: text-top;
+  text-decoration: none;
+}
+
+
+</style>
+
+
+<script type="text/javascript">
+{{template "vote.js.tmpl"}}
+</script>
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+
+<script>
+
+google.charts.load('current', {packages: ['corechart', 'line', 'annotationchart']});
+google.charts.setOnLoadCallback(drawCharts);
+
+window.addEventListener('resize', drawCharts, false);
+
+var scorePlotData = {{.ScorePlotData}};
+
+function drawCharts() {
+  var startTime = scorePlotData[0][0]
+  var endTime = scorePlotData[scorePlotData.length-1][0]
+
+  scorePlot(scorePlotData, startTime, endTime)
+}
+
+{{template "scorePlot.js.tmpl" .}}
+
+</script>
+
+
+
+<title>Quality News: User Scoreboard</title>
+</head>
+<body>
+
+{{template "header.html.tmpl"  .}}
+
+
+<div class="toppane">
+
+  <div class="toppane-content">
+    <h3>Score History. Current Score: {{.ScoreString}}</h3>
+
+    <div id="score_plot_div"></div>
+  </div>
+
+
+  <div class="bottompane-header">
+    <h3>Vote History</h3>
+  </div>
+  
+</div>
+
+
+<div class="bottompane">
+
+ <ul class="positions">
+
+{{ range $i, $position := .Positions }}
+{{ with $position }}
+  <!-- <tr> -->
+    <li class="position" style="display: flex; justify-content: flex-start;">
+
+      <span class="story-item" id="position-{{.PositionID}}" style="width: 410px;">
+      <!--<a class="upvote-button" href="https://news.ycombinator.com/item?id={{.ID}}" target="_blank" rel="noopener noreferrer">▲</a>//-->
+        <div style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+        <a href="javascript:clickPositionLabel({{$i}})" class="position-label"> {{.Label}} </span>
+          <a class="story-title" href="{{.URL}}">{{.Title}}</a>
+        </div>
+
+
+        <div class="story-details">
+          <span class="story-details-static">
+            {{if .Flagged}}[flagged]{{end}}
+            {{if .Dupe}}[dupe]{{end}}
+
+            {{if (not .Job)}}
+
+              <a href="/stats?id={{.ID}}">
+                <span 
+                  title="Estimated True Upvote Rate:&#013;Ratio of how more or less likely users are to upvote this story compared to the average story (x1.00)."
+                  {{if ge .Story.UpvoteRateString "1"}} class="upvoterate" {{end}}
+                  {{if ge .Story.UpvoteRateString "2"}} style="font-weight:bold;" {{end}}
+                 >
+                    ×{{.Story.UpvoteRateString}}
+                </span> 
+              </a>
+              <span class="comparative-rank">
+                {{if and .TopRank.Valid (not .IsHNTopPage)}}
+                  <a href="/#{{.ID}}">
+                    <span title="Rank on Hacker News Front Page" class="rank-icon hn">#{{.TopRank.Value}}</span>
+                  </a> 
+                {{end}}
+              </span> |
+
+              {{.Score}} points by <a href="https://news.ycombinator.com/user?id={{.By}}">{{.By}}</a> 
+
+            {{end}}
+
+
+            <a href="https://news.ycombinator.com/item?id={{.ID}}" title="{{.ISOTimestamp}}">{{.AgeString}}</a>
+
+            |
+
+            <a href="https://news.ycombinator.com/item?id={{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> 
+          
+          </span>
+        </div>
+
+      </span>
+
+      <span class="story-details" style="width: 210px; font-size: 12px; margin-left: 10px;">
+
+          <div class="vote {{.VoteTypeString}}{{if .Exited}} closed{{end}}" id="vote-{{.ID}}">
+            <a href="javascript:toggleUpvote({{ .ID }})" class="upvote">▲</a> 
+            <a href="javascript:toggleDownvote({{ .ID }})" class="downvote">▼</a>
+
+            <span class="showifvoted price"><span class="upvoterate">×{{.EntryUpvoteRateString}}</span></span>
+
+            <span 
+              style="display: inline-block; width: 40px" 
+              class="showifvoted gainorloss {{if .IsGain}}gain{{else}}loss{{end}}"
+            >{{.GainString}}</span>
+          </div>
+
+        <div style="margin-left: 32px;">{{.EntryTimeString}}</div>
+
+      </span>
+
+      <span class="story-details" style="font-size: 12px; width: 120px;">
+        {{if .Exited}} 
+          upvote cleared <a href="/stats?id={{.StoryID}}" class="upvoterate">×@{{.ExitUpvoteRateString}}</a>
+          <span style="font-size: 12px">{{.ExitTimeString}}</span>
+        {{end}}
+      </span>
+
+    </li>
+
+{{end}}
+{{end}}
+
+</ul>
+
+</div>
+
+</body>
+</html>

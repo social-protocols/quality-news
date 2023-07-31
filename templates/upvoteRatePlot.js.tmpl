@@ -1,6 +1,10 @@
 function prepareUpvoteRatePlotData(dataPoints, submissionTime, endTime) {
 //  return dataPoints.map((dataPoint, i) => [(dataPoints[i][0] - submissionTime)/3600, dataPoints[i][3], 1, dataPoints[i][4]])
-  return dataPoints.filter((dataPoint, i) => dataPoints[i][0] <= endTime).map((dataPoint, i) => [(dataPoints[i][0] - submissionTime)/3600, dataPoints[i][3], 1])
+  return dataPoints.filter((dataPoint, i) => dataPoints[i][0] <= endTime).map((dataPoint, i) => [
+    (dataPoints[i][0] - submissionTime)/3600,
+    dataPoints[i][3],
+    1,
+    i == 3 ? "you voted at certain time" : null])
 }
 
 function upvoteRatePlot(upvoteRatePlotData, submissionTime, startTime, endTime) {
@@ -11,6 +15,7 @@ function upvoteRatePlot(upvoteRatePlotData, submissionTime, startTime, endTime) 
   data.addColumn('number', 'Age');
   data.addColumn('number', 'Estimated True Upvote Rate');
   data.addColumn('number', 'Expected Upvote Rate');
+  data.addColumn({type: 'string', role: 'annotation'});
 //  data.addColumn('number', 'Moving-Average Upvote Rate');
 
   data.addRows(prepareUpvoteRatePlotData(upvoteRatePlotData, submissionTime, endTime));
@@ -49,10 +54,12 @@ function upvoteRatePlot(upvoteRatePlotData, submissionTime, startTime, endTime) 
     legend: { position: 'bottom' },
     crosshair: { trigger: 'both' },
     title: "Upvote Rate",
+    annotations: {style: 'line'},
   };
 
   var chart = new google.visualization.LineChart(plotDiv);
-  chart.draw(data, options);
+  chart.draw(data, options)
+
 }
 
 

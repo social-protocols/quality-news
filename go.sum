@@ -117,8 +117,6 @@ github.com/valyala/fastrand v1.1.0 h1:f+5HkLW4rsgzdNoleUOB69hyT9IlD2ZQh9GyDMfb5G
 github.com/valyala/fastrand v1.1.0/go.mod h1:HWqCzkrkg6QXT8V2EXWvXCoow7vLwOFN002oeRzjapQ=
 github.com/valyala/histogram v1.2.0 h1:wyYGAZZt3CpwUiIb9AU/Zbllg1llXyrtApRS815OLoQ=
 github.com/valyala/histogram v1.2.0/go.mod h1:Hb4kBwb4UxsaNbbbh+RRz8ZR6pdodR57tzWUS3BUzXY=
-github.com/victorspringer/http-cache v0.0.0-20221006212759-e323d9f0f0c4 h1:ihAF03tcseS9hMt7oOIzzE72RCci/z7A2DkJYl59zHE=
-github.com/victorspringer/http-cache v0.0.0-20221006212759-e323d9f0f0c4/go.mod h1:V7CEaXWuLs0tH3DNWqJO+GVr8YgiAwRgBh76T4LNSPU=
 github.com/weppos/publicsuffix-go v0.12.0/go.mod h1:z3LCPQ38eedDQSwmsSRW4Y7t2L8Ln16JPQ02lHAdn5k=
 github.com/weppos/publicsuffix-go v0.20.0 h1:59ypvSUbW3Dunc6zVm+v+MmXf2Q6cGiNDkxgRIzEnaA=
 github.com/weppos/publicsuffix-go v0.20.0/go.mod h1:5ZC/Uv3fIEUE0eP6o9+Yg4+5+W8V0/BieMi05feGXVA=

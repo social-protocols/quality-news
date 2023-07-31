@@ -31,6 +31,8 @@ var (
 		{-6.292276, -5.912105, -1.1996512},
 	}
 	fatigueFactor = 0.003462767
+	// priorWeight = 1.7
+	priorWeight = 2.2956
 )
 
 func expectedUpvoteShare(pageType pageTypeInt, oneBasedRank int) float64 {

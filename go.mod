@@ -15,7 +15,6 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/multiprocessio/go-sqlite3-stdlib v0.0.0-20220822170115-9f6825a1cd25
 	github.com/pkg/errors v0.9.1
-	github.com/victorspringer/http-cache v0.0.0-20221006212759-e323d9f0f0c4
 	github.com/weppos/publicsuffix-go v0.20.0
 	golang.org/x/exp v0.0.0-20221114191408-850992195362
 	gorm.io/driver/sqlite v1.4.3

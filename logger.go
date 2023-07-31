@@ -55,7 +55,7 @@ func Debugf(l leveledLogger, msg string, args ...interface{}) {
 }
 
 func LogFatal(l leveledLogger, msg string, err error, args ...interface{}) {
-	l.Error("", err, args...)
+	l.Error(msg, err, args...)
 	os.Exit(2)
 }
 

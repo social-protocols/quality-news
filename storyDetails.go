@@ -36,6 +36,7 @@ type Story struct {
 }
 
 func (s Story) AgeString() string {
+	// return humanize.Time(time.Unix(int64(time.Now().Unix()-s.AgeApprox), 0))
 	return humanize.Time(time.Unix(int64(time.Now().Unix()-s.AgeApprox), 0))
 }
 

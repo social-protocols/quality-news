@@ -1,6 +1,8 @@
 package main
 
-type DefaultPageHeaderData struct{}
+import "database/sql"
+
+type DefaultPageHeaderData struct{ UserID sql.NullInt64 }
 
 func (d DefaultPageHeaderData) IsQualityPage() bool {
 	return false
@@ -34,6 +36,6 @@ func (d DefaultPageHeaderData) IsAboutPage() bool {
 	return false
 }
 
-func (d DefaultPageHeaderData) IsDeltaPage() bool {
+func (d DefaultPageHeaderData) IsScorePage() bool {
 	return false
 }

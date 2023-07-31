@@ -228,7 +228,7 @@ STORY:
 
 		// Skip any stories that were not fetched successfully.
 		if story.ID == 0 {
-			logger.Error("Missing story id in story", nil)
+			LogErrorf(logger, "Missing story id in story %d", id)
 			crawlErrorsTotal.Inc()
 			continue STORY
 		}

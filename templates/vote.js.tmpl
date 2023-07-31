@@ -1,0 +1,249 @@
+
+// async function toggleUpvote(id) {
+//   console.log("Upvoting", id)
+
+
+//   // Default options are marked with *
+//   const response = await fetch("/upvote", {
+//     method: 'POST',
+//     mode: 'cors',
+//     cache: 'no-cache',
+//     credentials: 'same-origin',
+//     headers: {
+//       'Content-Type': 'application/json'
+//     },
+//     redirect: 'follow',
+//     referrerPolicy: 'no-referrer',
+//     body: JSON.stringify({storyID: id})
+//   });
+
+//   console.log(response.json())
+
+//   var element = document.getElementById("upvote-" + id)
+
+//   // if the element has the upvoted class, add it, else remove it.
+//   if (element.classList.contains("upvoted")) {
+//     element.classList.remove("upvoted");
+//   } else {
+//     element.classList.add("upvoted");
+//   }
+
+//   // return response.json(); // parses JSON response into native JavaScript objects
+// }
+
+
+async function vote(id, direction) {
+
+  console.log("Vote", id, direction)
+  var response = await navigator.locks.request("vote-" + id, async (lock) => {
+
+    console.log("Got lock", id, direction)
+
+    // Default options are marked with *
+    return await fetch("/vote", {
+      method: 'POST',
+      mode: 'cors',
+      cache: 'no-cache',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer',
+      body: JSON.stringify({storyID: id, direction: direction})
+    });
+
+  });
+  
+ console.log("Response from vote endpoint", response, id, direction)
+
+  return response.json()
+}
+
+
+// async function setUpvote(id) {
+//   return vote(id, 1, true)
+// }
+
+// async function clearDown(id) {
+//   return vote(id, 1, false)
+// }
+
+// async function setDownvote(id) {
+//   return vote(id, -1, true)
+// }
+
+// async function clearDownvote(id) {
+//   return vote(id, -1, false)
+// }
+
+
+
+// async function setDownvote(id, status) {
+
+//   // Default options are marked with *
+//   const response = await fetch("/downvote", {
+//     method: 'POST',
+//     mode: 'cors',
+//     cache: 'no-cache',
+//     credentials: 'same-origin',
+//     headers: {
+//       'Content-Type': 'application/json'
+//     },
+//     redirect: 'follow',
+//     referrerPolicy: 'no-referrer',
+//     body: JSON.stringify({storyID: id, status: status})
+//   });
+
+//   return true
+// }
+
+
+async function toggleUpvote(id) {
+  console.log("toggling upvote", id)
+
+  // console.log(response.json())
+
+  var element = document.getElementById("vote-" + id)
+
+  if (element.classList.contains("upvoted")) {
+    var response = await vote(id, 0)
+    console.log("Response clear vote", response)
+    if (!response.success) {
+      console.log("Error setting response", response)
+      return
+    }
+    element.classList.remove("upvoted", "voted");
+    return
+  }
+
+  var response = await vote(id, 1)
+  if (!response.success) {
+    console.log("Error setting upvote")
+    return
+  }
+
+  element.classList.remove("upvoted", "voted");
+  console.log("Response set vote", response)
+
+  element.classList.add("upvoted", "voted");
+  element.classList.remove("downvoted");
+
+  element.getElementsByClassName("price")[0].getElementsByClassName("upvoterate")[0].innerHTML = response.entryUpvoteRate.toFixed(2)
+
+  var gainOrLossElem = element.getElementsByClassName("gainorloss")[0]
+  gainOrLossElem.innerHTML = ""
+
+}
+
+
+
+async function toggleDownvote(id) {
+  console.log("Toggle downvote", id)
+
+  var element = document.getElementById("vote-" + id)
+  if (element.classList.contains("downvoted")) {
+    var response = await vote(id, 0)
+    console.log("Response clear vote", response)
+    if (!response.success) {
+      console.log("Error setting response", response)
+      return
+    }
+    element.classList.remove("downvoted", "voted");
+    return
+  }
+
+  var response = await vote(id, -1)
+  if (!response.success) {
+    console.log("Error setting downvote")
+    return
+  }
+
+  element.classList.add("downvoted", "voted");
+  element.classList.remove("upvoted");
+
+  element.getElementsByClassName("price")[0].getElementsByClassName("upvoterate")[0].innerHTML = response.entryUpvoteRate.toFixed(2)
+
+  var gainOrLossElem = element.getElementsByClassName("gainorloss")[0]
+  gainOrLossElem.innerHTML = ""
+
+
+}
+
+function setVotes() {
+
+  for (var i = 0; i < positions.length; i++) {
+    // find the story details element for this story
+    var storyID = positions[i][0]
+    var direction = positions[i][1]
+    var currentUpvoteRate = positions[i][2]
+    var entryUpvoteRate = positions[i][3]
+    var exitUpvoteRate = positions[i][4]
+
+    console.log("SEtting position", storyID, direction)
+
+    if (direction == 0) {
+      continue;
+    }
+
+    var element = document.getElementById("vote-" + storyID)
+
+    if (element == null) {
+      console.warn("Didn't find story on page", storyID)
+      continue;
+    }
+
+    // console.log("Element",element)
+    if (direction == 1) {
+      element.classList.add("upvoted", "voted");
+    } else if (direction == -1) {
+      element.classList.add("downvoted", "voted");
+    }
+
+    console.log("SEtting upvote rate", entryUpvoteRate)
+
+    // console.log("Got element", storyID, element)
+    element.getElementsByClassName("price")[0].getElementsByClassName("upvoterate")[0].innerHTML = entryUpvoteRate.toFixed(2)
+
+
+    var buyPrice = entryUpvoteRate
+    var sellPrice = exitUpvoteRate !== null ? exitUpvoteRate : currentUpvoteRate
+
+    if (direction == -1) {
+      var tmp = buyPrice
+      buyPrice = sellPrice
+      sellPrice = tmp
+    }
+
+    var gainOrLoss = sellPrice/buyPrice*100 - 100
+    var gainOrLossString = gainOrLoss.toFixed(2)
+    if ( Math.abs(gainOrLoss) < .01 ) {
+      gainOrLossString = ""
+    }
+    else if (gainOrLoss > 0) {
+      gainOrLossString = "+" + gainOrLossString
+    }
+    console.log("SEtting gainorloss", sellPrice, buyPrice, gainOrLoss, entryUpvoteRate, exitUpvoteRate, currentUpvoteRate)
+    var gainOrLossElem = element.getElementsByClassName("gainorloss")[0]
+    gainOrLossElem.innerHTML = gainOrLossString
+
+    if (sellPrice > buyPrice) {
+      gainOrLossElem.classList.add("gain")
+    } else if (sellPrice < buyPrice) {
+      gainOrLossElem.classList.add("loss")      
+    }
+
+
+
+  }
+
+}
+
+
+// upvote(1234)
+//   .then((data) => {
+//     console.log("Upvoted")
+//     console.log(data); // JSON data parsed by `data.json()` call
+//     console.log("That's all")
+//   });
+

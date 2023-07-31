@@ -19,3 +19,11 @@ func getValues[K comparable, V any](m map[K]V) []V {
 	}
 	return values
 }
+
+func mapSlice[T, U any](ts []T, f func(T) U) []U {
+	results := make([]U, len(ts))
+	for i, t := range ts {
+		results[i] = f(t)
+	}
+	return results
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"net/http"
 	"os"
 	"strconv"
@@ -17,6 +18,7 @@ type app struct {
 	httpClient *http.Client
 	logger     leveledLogger
 	cacheSize  int
+	userID     sql.NullInt32
 }
 
 func initApp() app {

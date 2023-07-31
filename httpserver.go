@@ -59,6 +59,13 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.GET("/stats", middleware("stats", l, onPanic, app.statsHandler()))
 	router.GET("/about", middleware("about", l, onPanic, app.aboutHandler()))
 
+	router.POST("/vote", middleware("upvote", l, onPanic, app.voteHandler()))
+
+	router.GET("/score", middleware("score", l, onPanic, app.scoreHandler()))
+
+	router.GET("/login", middleware("login", l, onPanic, app.loginHandler()))
+	router.GET("/logout", middleware("logout", l, onPanic, app.logoutHandler()))
+
 	server.Handler = app.preRouterMiddleware(router)
 
 	return server
@@ -93,7 +100,8 @@ func (app app) statsHandler() func(http.ResponseWriter, *http.Request, StatsPage
 	return func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-		err := statsPage(app.ndb, w, r, params)
+		userID := app.getUserID(r)
+		err := app.statsPage(w, r, params, userID)
 		if err != nil {
 			return err
 		}

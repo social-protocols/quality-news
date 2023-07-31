@@ -16,6 +16,7 @@ type newsDatabase struct {
 	*sql.DB
 
 	db                            *sql.DB
+	upvotesDB                     *sql.DB
 	insertDataPointStatement      *sql.Stmt
 	insertOrReplaceStoryStatement *sql.Stmt
 	selectLastSeenScoreStatement  *sql.Stmt
@@ -39,7 +40,7 @@ func createDataDirIfNotExists(sqliteDataDir string) {
 	}
 }
 
-func (ndb newsDatabase) init() error {
+func (ndb newsDatabase) initFrontpageDB() error {
 	seedStatements := []string{
 		`
 		CREATE TABLE IF NOT EXISTS stories(
@@ -116,6 +117,43 @@ func (ndb newsDatabase) init() error {
 	return nil
 }
 
+func (ndb newsDatabase) initUpvotesDB() error {
+	seedStatements := []string{
+		`create table if not exists votes(userID int not null, storyID int not null, direction int8 not null, entryTime int not null, entryUpvotes int not null, entryExpectedUpvotes int not null, entryUpvoteRate float null)`,
+		`create index if not exists votes_ids on votes(storyID, userID)`,
+		`create index if not exists votes_storyID on votes(storyID)`,
+		`create index if not exists votes_userid on votes(userID)`,
+		`drop view if exists positions`,
+		`create view if not exists positions as
+			with exits as ( 
+			select
+			  votes.rowID as positionID
+			  , votes.*
+			  , first_value(entryTime) over ( partition by userID, storyID order by entryTime rows between current row and unbounded following exclude current row) as exitTime
+			  , first_value(entryUpvotes) over ( partition by userID, storyID order by entryTime rows between current row and unbounded following exclude current row) as exitUpvotes
+			  , first_value(entryExpectedUpvotes) over ( partition by userID, storyID order by entryTime rows between current row and unbounded following exclude current row) as exitExpectedUpvotes
+			  , first_value(entryUpvoteRate) over ( partition by userID, storyID order by entryTime rows between current row and unbounded following exclude current row) as exitUpvoteRate
+			from votes
+			) select * from exits where direction != 0
+		`,
+	}
+
+	for _, s := range seedStatements {
+		_, err := ndb.upvotesDB.Exec(s)
+		if err != nil {
+			return errors.Wrapf(err, "seeding votes database: %s", s)
+		}
+	}
+
+	alterStatements := []string{}
+
+	for _, s := range alterStatements {
+		_, _ = ndb.upvotesDB.Exec(s)
+	}
+
+	return nil
+}
+
 func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	createDataDirIfNotExists(sqliteDataDir)
 
@@ -127,15 +165,39 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	// Register some extension functions from go-sqlite3-stdlib so we can actually do math in sqlite3.
 	stdlib.Register("sqlite3_ext")
+
+	// Connect to database
 	ndb.db, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", frontpageDatabaseFilename))
 
 	if err != nil {
-		return ndb, err
+		return ndb, errors.Wrap(err, "open frontpageDatabase")
 	}
 
-	err = ndb.init()
+	err = ndb.initFrontpageDB()
 	if err != nil {
-		return ndb, err
+		return ndb, errors.Wrap(err, "init frontpageDatabase")
+	}
+
+	{
+		upvotesDatabaseFilename := fmt.Sprintf("%s/upvotes.sqlite", sqliteDataDir)
+
+		ndb.upvotesDB, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", upvotesDatabaseFilename))
+		if err != nil {
+			return ndb, errors.Wrap(err, "open upvotesDB")
+		}
+
+		err = ndb.initUpvotesDB()
+		if err != nil {
+			return ndb, errors.Wrap(err, "initUpvotesDB")
+		}
+
+		// attach frontpage database as readonly. This way, we can write to the upvotes database while the crawler
+		// is writing to the frontpage database.
+		s := fmt.Sprintf("attach database 'file:%s?mode=ro' as frontpage", frontpageDatabaseFilename)
+		_, err = ndb.upvotesDB.Exec(s)
+		if err != nil {
+			return ndb, errors.Wrap(err, "attach frontpage database")
+		}
 	}
 
 	// the newsDatabase type has a few prepared statements that are defined here
@@ -211,49 +273,51 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			? as priorWeight
 			, ? as fatigueFactor
 		)
-		, last as (
-			SELECT
-				stories.*
-				, submissionTime
-				, timestamp
-				, score
-				, descendants
-				, (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
-				, penalty
-				, dupe
-				, flagged
-			FROM stories
+		-- , last as (
+		-- 	SELECT
+		-- 		stories.*
+		-- 		, submissionTime
+		-- 		, timestamp
+		-- 		, score
+		-- 		, descendants
+		-- 		, (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
+		-- 		, penalty
+		-- 		, dupe
+		-- 		, flagged
+		-- 	FROM stories
+		-- 	JOIN dataset
+		-- 	USING (id)
+		-- 	JOIN parameters
+		-- 	WHERE id = ?
+		-- 	ORDER BY sampleTime DESC
+		-- 	LIMIT 1
+		-- )
+		SELECT
+			id
+			, by
+			, title
+			, url
+			, submissionTime
+			, timestamp as originalSubmissionTime
+			, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime)
+			, score
+			, descendants
+			, (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality 
+			, penalty
+			, topRank
+			, qnRank
+			, rawRank
+			, flagged
+			, dupe
+			, job
+			-- use latest information from the last available datapoint for this story (even if it is not in the latest crawl) *except* for rank information.
+			from stories
 			JOIN dataset
 			USING (id)
 			JOIN parameters
 			WHERE id = ?
 			ORDER BY sampleTime DESC
 			LIMIT 1
-		)
-		SELECT
-			last.id
-			, by
-			, title
-			, url
-			, last.submissionTime
-			, timestamp as originalSubmissionTime
-			, coalesce(dataset.ageApprox, (unixepoch() - last.submissionTime), 0)
-			, last.score
-			, last.descendants
-			, last.quality 
-			, last.penalty
-			, topRank
-			, qnRank
-			, rawRank
-			, last.flagged
-			, last.dupe
-			, last.job
-			-- use latest information from the last available datapoint for this story (even if it is not in the latest crawl) *except* for rank information.
-			FROM last
-			LEFT JOIN dataset on (
-				dataset.id = last.id
-				and dataset.sampleTime = (select max(sampleTime) from dataset)
-			)
 		`
 
 		ndb.selectStoryDetailsStatement, err = ndb.db.Prepare(sql)
