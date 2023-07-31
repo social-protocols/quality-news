@@ -62,7 +62,7 @@ func (app app) scoreHandler() func(http.ResponseWriter, *http.Request, ScorePage
 			positions[i].Label = intToAlphaLabel(n - i - 1)
 		}
 
-		scorePlotData := make([][]any, n, n)
+		scorePlotData := make([][]any, n)
 		for i, p := range positions {
 			scorePlotData[n-i-1] = []any{
 				p.EntryTime, p.RunningScore, fmt.Sprintf("%d", p.PositionID),
