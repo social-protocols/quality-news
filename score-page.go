@@ -69,9 +69,6 @@ func (app app) scoreHandler() func(http.ResponseWriter, *http.Request, ScorePage
 				}
 			}
 
-			if p.ID == 36731752 {
-				fmt.Println("Calculating user score", p)
-			}
 			p.UserScore = UserScore(p, modelParams, params.ScoringFormula)
 
 			score += p.UserScore

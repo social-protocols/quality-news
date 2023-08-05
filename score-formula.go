@@ -26,7 +26,6 @@ func buyPrice(p Position) float64 {
 }
 
 func UserScore(p Position, m ModelParams, formula string) float64 {
-
 	var score float64
 	switch formula {
 	case "PTS":
@@ -39,7 +38,7 @@ func UserScore(p Position, m ModelParams, formula string) float64 {
 	}
 
 	if math.IsNaN(score) {
-		fmt.Println(fmt.Sprintf("Got NaN from scoring formula %s. Position: %#v. Modal Params: %#v", formula, p, m))
+		fmt.Printf("Got NaN from scoring formula %s. Position: %#v. Modal Params: %#v\n", formula, p, m)
 	}
 	return score
 	// return p.LogPeerTruthSerum() * 100
@@ -79,8 +78,9 @@ func InformationGain(p Position, m ModelParams) float64 {
 
 	postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes) / (finalExpectedUpvotes - p.EntryExpectedUpvotes)
 	// postVoteUpvoteRate := m.upvoteRate(finalUpvotes, finalExpectedUpvotes)
-  
-	// This hack doesn't make sense.	if postEntryPrice < 0 {
+
+	// TODO: This hack doesn't make sense.
+	if postEntryPrice < 0 {
 		return 0
 	}
 
