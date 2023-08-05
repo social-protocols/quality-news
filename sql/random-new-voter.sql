@@ -12,7 +12,7 @@ with randomFrontpageStories as (
   and topRank is not null 
   and not job
   order by random()
-  limit 10000
+  limit 1000
 ), s as (
   select id as storyID
     , min(sampleTime) as minSampleTime
