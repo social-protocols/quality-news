@@ -104,37 +104,39 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 	// userIDs < 100 are pseudo-users that upvote randomly according to a strategy
 	Debugf(app.logger, "Getting positions for user %d", userID)
 	if userID < 100 {
+		// These special user IDs are  causing the app to freeze up in production. So disable for now.
+		return positions, httperror.PublicErrorf(http.StatusUnauthorized, "Unknown user ID")
 
-		var sqlFilename string
-		switch userID {
-		case 0:
-			sqlFilename = "random-new-voter.sql"
-		case 1:
-			sqlFilename = "random-top-voter.sql"
-		default:
-			return positions, httperror.PublicErrorf(http.StatusUnauthorized, "Unknown user ID")
-		}
+		// var sqlFilename string
+		// switch userID {
+		// case 0:
+		// 	sqlFilename = "random-new-voter.sql"
+		// case 1:
+		// 	sqlFilename = "random-top-voter.sql"
+		// default:
+		// 	return positions, httperror.PublicErrorf(http.StatusUnauthorized, "Unknown user ID")
+		// }
 
-		Debugf(app.logger, "Sql filename %s", sqlFilename)
+		// Debugf(app.logger, "Sql filename %s", sqlFilename)
 
-		tx, e := db.BeginTx(ctx, nil)
-		if e != nil {
-			return positions, errors.Wrap(e, "BeginTX")
-		}
+		// tx, e := db.BeginTx(ctx, nil)
+		// if e != nil {
+		// 	return positions, errors.Wrap(e, "BeginTX")
+		// }
 
-		err := executeSQLFile(ctx, tx, sqlFilename)
-		if err != nil {
-			e := tx.Rollback()
-			if e != nil {
-				app.logger.Error("tx.Rollback", e)
-			}
-			return positions, errors.Wrap(err, "executing "+sqlFilename)
-		}
+		// err := executeSQLFile(ctx, tx, sqlFilename)
+		// if err != nil {
+		// 	e := tx.Rollback()
+		// 	if e != nil {
+		// 		app.logger.Error("tx.Rollback", e)
+		// 	}
+		// 	return positions, errors.Wrap(err, "executing "+sqlFilename)
+		// }
 
-		err = tx.Commit()
-		if err != nil {
-			return positions, errors.Wrap(err, "tx.Commit")
-		}
+		// err = tx.Commit()
+		// if err != nil {
+		// 	return positions, errors.Wrap(err, "tx.Commit")
+		// }
 	}
 
 	getDetailedPositionsStmt, err := db.Prepare(
