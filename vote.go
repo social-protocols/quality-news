@@ -27,9 +27,7 @@ var (
 )
 
 func (app app) prepareVoteStatements() error {
-	fmt.Println("In prepareVoteStatements")
 	if insertVoteStmt == nil {
-		fmt.Println("Not inited")
 
 		var e error
 		insertVoteStmt, e = app.ndb.upvotesDB.Prepare(`
@@ -78,7 +76,6 @@ func (app app) prepareVoteStatements() error {
 		`)
 
 		if e != nil {
-			fmt.Println("Didn't work", e)
 			return errors.Wrap(e, "Preparing insertVoteStmt")
 		}
 
@@ -166,7 +163,6 @@ func (app app) vote(ctx context.Context, userID int64, storyID int, direction in
 }
 
 func (app app) voteHandler() func(http.ResponseWriter, *http.Request, voteParams) error {
-	fmt.Println("Creating vote handler")
 
 	return func(w http.ResponseWriter, r *http.Request, p voteParams) error {
 		userID := app.getUserID(r)
@@ -208,7 +204,6 @@ func (app app) voteHandler() func(http.ResponseWriter, *http.Request, voteParams
 			return errors.Wrap(err, "Marshaling voteResponse")
 		}
 		_, err = w.Write(b)
-		fmt.Println("Writing response", string(b))
 		return errors.Wrap(err, "writing HTTP response")
 	}
 }

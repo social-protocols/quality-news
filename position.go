@@ -102,7 +102,7 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 	db := app.ndb.upvotesDB
 
 	// userIDs < 100 are pseudo-users that upvote randomly according to a strategy
-	fmt.Println("Getting positions for user", userID)
+	Debugf(app.logger, "Getting positions for user %d", userID)
 	if userID < 100 {
 
 		var sqlFilename string
@@ -115,7 +115,7 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 			return positions, httperror.PublicErrorf(http.StatusUnauthorized, "Unknown user ID")
 		}
 
-		fmt.Println("Sql filename", sqlFilename)
+		Debugf(app.logger, "Sql filename %s", sqlFilename)
 
 		tx, e := db.BeginTx(ctx, nil)
 		if e != nil {
@@ -213,7 +213,7 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 		positions = append(positions, p)
 	}
 
-	fmt.Println("Positions", len(positions))
+	Debugf(app.logger, "Number of Positions %d", len(positions))
 
 	return positions, nil
 }
