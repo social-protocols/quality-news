@@ -1,5 +1,9 @@
 # Voting Notes
 
+## TODO
+
+Disable upvote buttons for jobs
+
 ## Login/Logout
 
 I have created simple login/logout functionality:
