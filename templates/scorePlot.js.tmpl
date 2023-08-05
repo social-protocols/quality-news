@@ -111,11 +111,9 @@ function select_handler(e) {
 }
 
 function zoomIn(i) {
-//  i = 10
   var mid = i - 1
   var lower = i - 1
   var upper = i + 1 
-
 
   if (lower < 0) {
     lower = 0
@@ -130,10 +128,10 @@ function zoomIn(i) {
 
   var windowLength = 3600
   if( (upperTime - midTime) > (midTime - lowerTime) ) {
-    if( (upperTime - midTime) > 3600 ) {
+    // if( (upperTime - midTime) > 3600 ) {
       windowLength = (upperTime - midTime)
-    }
-  } else if( (midTime - lowerTime) > 3600 ) {
+    // }
+  } else {
     windowLength = (midTime - lowerTime)
   }
   upperTime = midTime + windowLength

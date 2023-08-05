@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"math"
 )
 
@@ -30,10 +31,45 @@ var (
 		{-5.316879, -5.469948, -1.2944215},
 		{-6.292276, -5.912105, -1.1996512},
 	}
-	fatigueFactor = 0.003462767
+	// fatigueFactor = 0.003462767
 	// priorWeight = 1.7
-	priorWeight = 2.2956
+	// priorWeight = 2.2956
+	// priorWeight = 0.5
 )
+
+type ModelParams struct {
+	FatigueFactor float64
+	PriorWeight   float64
+}
+
+type OptionalModelParams struct {
+	FatigueFactor sql.NullFloat64
+	PriorWeight   sql.NullFloat64
+}
+
+func (p OptionalModelParams) WithDefaults() ModelParams {
+	var results ModelParams
+
+	if p.PriorWeight.Valid {
+		results.PriorWeight = p.PriorWeight.Float64
+	} else {
+		results.PriorWeight = defaultModelParams.PriorWeight
+	}
+
+	if p.FatigueFactor.Valid {
+		results.FatigueFactor = p.FatigueFactor.Float64
+	} else {
+		results.FatigueFactor = defaultModelParams.FatigueFactor
+	}
+
+	return results
+}
+
+var defaultModelParams = ModelParams{0.003462767, 2.2956}
+
+func (p ModelParams) upvoteRate(upvotes int, expectedUpvotes float64) float64 {
+	return (float64(upvotes) + p.PriorWeight) / float64((1-math.Exp(-p.FatigueFactor*expectedUpvotes))/p.FatigueFactor+p.PriorWeight)
+}
 
 func expectedUpvoteShare(pageType pageTypeInt, oneBasedRank int) float64 {
 	zeroBasedPage := (oneBasedRank - 1) / 30

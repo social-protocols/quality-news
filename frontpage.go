@@ -12,14 +12,14 @@ import (
 )
 
 type frontPageData struct {
-	Stories        []Story
-	AverageAge     float64
-	AverageQuality float64
-	AverageUpvotes float64
-	Ranking        string
-	Params         FrontPageParams
-	PositionsJSONData      any
-	UserID sql.NullInt64
+	Stories           []Story
+	AverageAge        float64
+	AverageQuality    float64
+	AverageUpvotes    float64
+	Ranking           string
+	Params            FrontPageParams
+	PositionsJSONData any
+	UserID            sql.NullInt64
 }
 
 func (d frontPageData) AverageAgeString() string {
@@ -103,18 +103,72 @@ func (d frontPageData) SampleTimeString() string {
 }
 
 type FrontPageParams struct {
-	PriorWeight        float64
+	ModelParams
+	// PriorWeight        float64
 	OverallPriorWeight float64
 	Gravity            float64
 	PenaltyWeight      float64
 	PastTime           int64
 }
 
+type OptionalFrontPageParams struct {
+	OptionalModelParams
+	// PriorWeight        float64
+	OverallPriorWeight sql.NullFloat64
+	Gravity            sql.NullFloat64
+	PenaltyWeight      sql.NullFloat64
+	PastTime           sql.NullInt64
+}
+
+func (p OptionalFrontPageParams) WithDefaults() FrontPageParams {
+	var results FrontPageParams
+
+	results.ModelParams = p.OptionalModelParams.WithDefaults()
+
+	if p.Gravity.Valid {
+		results.Gravity = p.Gravity.Float64
+	} else {
+		results.Gravity = defaultFrontPageParams.Gravity
+	}
+
+	if p.OverallPriorWeight.Valid {
+		results.OverallPriorWeight = p.OverallPriorWeight.Float64
+	} else {
+		results.OverallPriorWeight = defaultFrontPageParams.OverallPriorWeight
+	}
+
+	if p.PriorWeight.Valid {
+		results.PriorWeight = p.PriorWeight.Float64
+	} else {
+		results.PriorWeight = defaultFrontPageParams.PriorWeight
+	}
+
+	if p.FatigueFactor.Valid {
+		results.FatigueFactor = p.FatigueFactor.Float64
+	} else {
+		results.FatigueFactor = defaultFrontPageParams.FatigueFactor
+	}
+
+	if p.PenaltyWeight.Valid {
+		results.PenaltyWeight = p.PenaltyWeight.Float64
+	} else {
+		results.PenaltyWeight = defaultFrontPageParams.PenaltyWeight
+	}
+
+	if p.PastTime.Valid {
+		results.PastTime = p.PastTime.Int64
+	} else {
+		results.PastTime = defaultFrontPageParams.PastTime
+	}
+
+	return results
+}
+
 func (p FrontPageParams) String() string {
 	return fmt.Sprintf("%#v", p)
 }
 
-var defaultFrontPageParams = FrontPageParams{priorWeight, 5.0, 1.4, 2.5, 0}
+var defaultFrontPageParams = FrontPageParams{defaultModelParams, 5.0, 1.4, 2.5, 0}
 
 const frontPageSQL = `
 	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %f as penaltyWeight, %f as fatigueFactor, %d as pastTime)
@@ -145,7 +199,9 @@ const frontPageSQL = `
 		, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime) ageApprox
 		, score
 		, descendants
-		, (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
+		, cumulativeUpvotes
+		, cumulativeExpectedUpvotes
+		-- , (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
 		, penalty
 		, topRank
 		, dense_rank() over(order by unadjustedRank + penalty*penaltyWeight) as qnRank
@@ -170,7 +226,9 @@ const hnPageSQL = `
 		, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime) ageApprox
 		, score
 		, descendants
-		, (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
+		, cumulativeUpvotes
+		, cumulativeExpectedUpvotes
+		-- , (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
 		, penalty
 		, topRank
 		, qnRank
@@ -187,7 +245,6 @@ const hnPageSQL = `
 var statements map[string]*sql.Stmt
 
 func (app app) serveFrontPage(r *http.Request, w http.ResponseWriter, ranking string, p FrontPageParams) error {
-
 	userID := app.getUserID(r)
 
 	d, err := app.getFrontPageData(r.Context(), ranking, p, userID)
@@ -217,8 +274,6 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 
 	nStories := len(stories)
 
-
-
 	var totalAgeSeconds int64
 	var weightedAverageQuality float64
 	var totalUpvotes int
@@ -238,18 +293,32 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 			upvoteRates[s.ID] = s.UpvoteRate
 		}
 
-		ps, err := app.getOpenPositions(ctx, userID.Int64, storyIDs)
+		ps, err := app.getPositions(ctx, userID.Int64, storyIDs)
 		if err != nil {
 			return frontPageData{}, errors.Wrap(err, "positions")
+		}
+
+		for i := range ps {
+			ps[i].EntryUpvoteRate = params.upvoteRate(ps[i].EntryUpvotes, ps[i].EntryExpectedUpvotes)
+			ps[i].CurrentUpvoteRate = upvoteRates[ps[i].StoryID]
+
+			if ps[i].ExitUpvotes.Valid && ps[i].ExitExpectedUpvotes.Valid {
+				ps[i].ExitUpvoteRate = sql.NullFloat64{
+					Float64: params.upvoteRate(int(ps[i].ExitUpvotes.Int64), ps[i].ExitExpectedUpvotes.Float64),
+					Valid:   true,
+				}
+			}
+
+			ps[i].UserScore = UserScore(ps[i], params.ModelParams, "")
 		}
 
 		positions = mapSlice(
 			ps,
 			func(p Position) []any {
 				if p.Exited() {
-					return []any{p.StoryID, p.Direction, upvoteRates[p.StoryID], p.EntryUpvoteRate, p.ExitUpvoteRate}
+					return []any{p.StoryID, p.Direction, p.CurrentUpvoteRate, p.EntryUpvoteRate, p.UserScore}
 				}
-				return []any{p.StoryID, p.Direction, upvoteRates[p.StoryID], p.EntryUpvoteRate, nil}
+				return []any{p.StoryID, p.Direction, p.CurrentUpvoteRate, p.EntryUpvoteRate, p.UserScore}
 			},
 		)
 	}
@@ -301,9 +370,9 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		var sql string
 		orderBy := orderByStatement(ranking)
 		if ranking == "quality" {
-			sql = fmt.Sprintf(frontPageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.PenaltyWeight, fatigueFactor, params.PastTime, qnRankFormulaSQL, orderBy)
+			sql = fmt.Sprintf(frontPageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.PenaltyWeight, params.FatigueFactor, params.PastTime, qnRankFormulaSQL, orderBy)
 		} else {
-			sql = fmt.Sprintf(hnPageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, fatigueFactor, params.PastTime, orderBy)
+			sql = fmt.Sprintf(hnPageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.FatigueFactor, params.PastTime, orderBy)
 		}
 
 		s, err = ndb.db.Prepare(sql)
@@ -328,7 +397,9 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 
 		var s Story
 
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.UpvoteRate, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job)
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job)
+
+		s.UpvoteRate = params.ModelParams.upvoteRate(s.CumulativeUpvotes, float64(s.CumulativeExpectedUpvotes))
 
 		if ranking == "hntop" {
 			s.IsHNTopPage = true

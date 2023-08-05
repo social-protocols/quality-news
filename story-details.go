@@ -13,26 +13,28 @@ import (
 )
 
 type Story struct {
-	ID                     int
-	By                     string
-	Title                  string
-	URL                    string
-	SubmissionTime         int64
-	OriginalSubmissionTime int64
-	AgeApprox              int64
-	Score                  int
-	Comments               int
-	UpvoteRate             float64
-	Penalty                float64
-	TopRank                sql.NullInt32
-	QNRank                 sql.NullInt32
-	RawRank                sql.NullInt32
-	Job                    bool
-	Flagged                bool
-	Dupe                   bool
-	IsHNTopPage            bool
-	IsStatsPage            bool
-	IsDeltaPage            bool
+	ID                        int
+	By                        string
+	Title                     string
+	URL                       string
+	SubmissionTime            int64
+	OriginalSubmissionTime    int64
+	AgeApprox                 int64
+	Score                     int
+	Comments                  int
+	CumulativeUpvotes         int
+	CumulativeExpectedUpvotes float64
+	UpvoteRate                float64
+	Penalty                   float64
+	TopRank                   sql.NullInt32
+	QNRank                    sql.NullInt32
+	RawRank                   sql.NullInt32
+	Job                       bool
+	Flagged                   bool
+	Dupe                      bool
+	IsHNTopPage               bool
+	IsStatsPage               bool
+	IsDeltaPage               bool
 }
 
 func (s Story) AgeString() string {

@@ -1,33 +1,39 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"math"
+	"net/http"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/johnwarden/httperror"
+	"github.com/pkg/errors"
 )
 
 type Position struct {
-	UserID               int
-	StoryID              int
-	PositionID           int
-	Direction            int8
-	EntryTime            int64
-	EntryUpvotes         float64
-	EntryExpectedUpvotes float64
-	EntryUpvoteRate      float64
-	PostEntryUpvoteRate  float64
-	ExitTime             sql.NullInt64
-	ExitUpvoteRate       sql.NullFloat64
-	CurrentUpvoteRate    float64
-	SubsequentUpvoteRate float64
+	UserID                 int
+	StoryID                int
+	PositionID             int
+	Direction              int8
+	EntryTime              int64
+	EntryUpvotes           int
+	EntryExpectedUpvotes   float64
+	EntryUpvoteRate        float64
+	ExitTime               sql.NullInt64
+	ExitUpvotes            sql.NullInt64
+	ExitExpectedUpvotes    sql.NullFloat64
+	ExitUpvoteRate         sql.NullFloat64
+	CurrentUpvotes         int
+	CurrentExpectedUpvotes float64
+	CurrentUpvoteRate      float64
 	Story
 	RunningScore float64
 	Label        string
+	UserScore    float64
 }
-
 
 func (p Position) VoteTypeString() string {
 	switch p.Direction {
@@ -61,7 +67,7 @@ func (p Position) ExitTimeString() string {
 }
 
 func (p Position) ExitUpvoteRateString() string {
-	if !p.ExitUpvoteRate.Valid {
+	if !p.Exited() {
 		return ""
 	}
 	return fmt.Sprintf("%.2f", p.ExitUpvoteRate.Float64)
@@ -71,96 +77,8 @@ func (p Position) CurrentUpvoteRateString() string {
 	return fmt.Sprintf("%.2f", p.CurrentUpvoteRate)
 }
 
-func (p Position) sellPrice() float64 {
-	// upvoteRateAdjustment := 0.7203397586203779
-
-	if p.Direction == -1 {
-		return p.EntryUpvoteRate
-	} else if p.Exited() {
-		return p.ExitUpvoteRate.Float64
-	}
-	return p.CurrentUpvoteRate
-}
-
-func (p Position) buyPrice() float64 {
-	if p.Direction == 1 {
-		return p.EntryUpvoteRate
-	} else if p.Exited() {
-		return p.ExitUpvoteRate.Float64
-	}
-	return p.CurrentUpvoteRate
-}
-
-func (p Position) Gain() float64 {
-	// return p.InformationDistance() * 100
-	return p.LogPeerTruthSerum()*100
-	// return p.PeerTruthSerum()*100
-}
-
-func ln(v float64) float64 {
-	return math.Log(v)
-}
-
-func lg(v float64) float64 {
-	return math.Log(v) / math.Log(2)
-}
-
-func (p Position) InformationDistance() float64 {
-	// return p.sellPrice()/p.buyPrice()*100 - 100
-
-	// postEntryPrice := (p.EntryUpvotes+1) / (p.EntryExpectedUpvotes)
-
-	postEntryPrice := p.PostEntryUpvoteRate
-
-	// p.sellPrice() * ( log()
-
-	if p.ID == 36805231 {
-		fmt.Println("Prices", p.EntryUpvoteRate, p.PostEntryUpvoteRate, p.CurrentUpvoteRate, p.buyPrice(), postEntryPrice, p.sellPrice(), postEntryPrice/p.buyPrice(), p.sellPrice()/p.buyPrice())
-	}
-
-	// return ( math.Log(postEntryPrice/p.buyPrice()) - math.Log(p.sellPrice()/p.buyPrice()))  *100
-
-	return (p.sellPrice()*ln(postEntryPrice/p.buyPrice()) + (p.buyPrice() - postEntryPrice)) / ln(2)
-}
-
-func (p Position) LogPeerTruthSerum() float64 {
-	// return p.sellPrice()/p.buyPrice()*100 - 100
-
-	// postEntryPrice := (p.EntryUpvotes+1) / (p.EntryExpectedUpvotes)
-
-	postEntryPrice := p.PostEntryUpvoteRate
-
-	// p.sellPrice() * ( log()
-
-	if p.ID == 36805231 {
-		fmt.Println("Prices", p.EntryUpvoteRate, p.PostEntryUpvoteRate, p.CurrentUpvoteRate, p.buyPrice(), postEntryPrice, p.sellPrice(), postEntryPrice/p.buyPrice(), p.sellPrice()/p.buyPrice())
-	}
-
-	// return ( math.Log(postEntryPrice/p.buyPrice()) - math.Log(p.sellPrice()/p.buyPrice()))  *100
-
-	return lg(p.sellPrice() / p.buyPrice())
-}
-
-func (p Position) PeerTruthSerum() float64 {
-	// return p.sellPrice()/p.buyPrice()*100 - 100
-
-	// postEntryPrice := (p.EntryUpvotes+1) / (p.EntryExpectedUpvotes)
-
-	postEntryPrice := p.PostEntryUpvoteRate
-
-	// p.sellPrice() * ( log()
-
-	if p.ID == 36805231 {
-		fmt.Println("Prices", p.EntryUpvoteRate, p.PostEntryUpvoteRate, p.CurrentUpvoteRate, p.buyPrice(), postEntryPrice, p.sellPrice(), postEntryPrice/p.buyPrice(), p.sellPrice()/p.buyPrice())
-	}
-
-	// return ( math.Log(postEntryPrice/p.buyPrice()) - math.Log(p.sellPrice()/p.buyPrice()))  *100
-
-	return p.sellPrice()/p.buyPrice() - 1
-}
-
-func (p Position) GainString() string {
-	gain := p.Gain()
+func (p Position) UserScoreString() string {
+	gain := p.UserScore
 
 	if math.Abs(gain) < .01 {
 		return "-"
@@ -174,7 +92,177 @@ func (p Position) GainString() string {
 }
 
 func (p Position) IsGain() bool {
-	isGain := p.sellPrice() > p.buyPrice()
+	return p.UserScore > 0
+}
 
-	return isGain
+// Gets every position for the user, along with story details
+func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position, error) {
+	positions := make([]Position, 0)
+
+	db := app.ndb.upvotesDB
+
+	// userIDs < 100 are pseudo-users that upvote randomly according to a strategy
+	fmt.Println("Getting positions for user", userID)
+	if userID < 100 {
+
+		var sqlFilename string
+		switch userID {
+		case 0:
+			sqlFilename = "random-new-voter.sql"
+		case 1:
+			sqlFilename = "random-top-voter.sql"
+		default:
+			return positions, httperror.PublicErrorf(http.StatusUnauthorized, "Unknown user ID")
+		}
+
+		fmt.Println("Sql filename", sqlFilename)
+
+		tx, e := db.BeginTx(ctx, nil)
+		if e != nil {
+			return positions, errors.Wrap(e, "BeginTX")
+		}
+
+		err := executeSQLFile(ctx, tx, sqlFilename)
+		if err != nil {
+			e := tx.Rollback()
+			if e != nil {
+				app.logger.Error("tx.Rollback", e)
+			}
+			return positions, errors.Wrap(err, "executing "+sqlFilename)
+		}
+
+		err = tx.Commit()
+		if err != nil {
+			return positions, errors.Wrap(err, "tx.Commit")
+		}
+	}
+
+	getDetailedPositionsStmt, err := db.Prepare(
+		`
+		select
+			userID
+			, storyID
+			, positionID
+			, direction
+			, entryTime
+			, entryUpvotes
+			, entryExpectedUpvotes
+			, exitTime
+			, exitUpvotes
+			, exitExpectedUpvotes
+			, cumulativeUpvotes
+			, cumulativeExpectedUpvotes
+			, title
+			, url
+			, by
+			, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime) ageApprox
+			, score
+			, descendants as comments
+			from positions 
+			join dataset on 
+			  positions.storyID = id
+			  and userID = ?
+			join stories using (id)
+			group by positionID
+			having max(dataset.sampleTime)
+			order by entryTime desc
+		`)
+	if err != nil {
+		LogFatal(app.logger, "Preparing getDetailedPositionsStmt", err)
+	}
+
+	rows, err := getDetailedPositionsStmt.QueryContext(ctx, userID)
+	if err != nil {
+		return positions, errors.Wrap(err, "getDetailedPositionsStmt")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		// var storyID int
+		// var direction int8
+		// var exitTime sql.NullInt64
+		// var upvoteRate, endingUpvoteRate float64
+
+		var p Position
+
+		err := rows.Scan(
+			&p.UserID,
+			&p.StoryID,
+			&p.PositionID,
+			&p.Direction,
+			&p.EntryTime,
+			&p.EntryUpvotes,
+			&p.EntryExpectedUpvotes,
+			&p.ExitTime,
+			&p.ExitUpvotes,
+			&p.ExitExpectedUpvotes,
+			&p.CurrentUpvotes,
+			&p.CurrentExpectedUpvotes,
+			&p.Story.Title,
+			&p.Story.URL,
+			&p.Story.By,
+			&p.Story.AgeApprox,
+			&p.Story.Score,
+			&p.Story.Comments)
+		if err != nil {
+			return positions, errors.Wrap(err, "scanning positions")
+		}
+
+		p.Story.ID = p.StoryID
+
+		positions = append(positions, p)
+	}
+
+	fmt.Println("Positions", len(positions))
+
+	return positions, nil
+}
+
+// Gets position for the user, without details
+func (app app) getPositions(ctx context.Context, userID int64, storyIDs []int) ([]Position, error) {
+	positions := make([]Position, 0)
+
+	db := app.ndb.upvotesDB
+
+	// TODO: only select votes relevant to the stories on the page
+	getPositionsStatement, err := db.Prepare(`
+    select
+      storyID
+      , direction
+      , entryUpvotes
+      , entryExpectedUpvotes
+      , exitUpvotes
+      , exitExpectedUpvotes
+    from positions
+    where userID = ?
+    and exitTime is null
+    group by storyID
+    having max(positionID)
+  `)
+	if err != nil {
+		LogFatal(app.logger, "Preparing getOpenPositions", err)
+	}
+
+	rows, err := getPositionsStatement.QueryContext(ctx, userID)
+	if err != nil {
+		return positions, errors.Wrap(err, "getPositionsStatement.QuertyContext")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		// var storyID int
+		// var direction int8
+		// var entryUpvotes int
+		// var entryExpectedUpvotes float64
+		var p Position
+
+		err := rows.Scan(&p.StoryID, &p.Direction, &p.EntryUpvotes, &p.EntryExpectedUpvotes, &p.ExitUpvotes, &p.ExitExpectedUpvotes)
+		if err != nil {
+			return positions, errors.Wrap(err, "scanning getPositions")
+		}
+
+		positions = append(positions, p)
+	}
+
+	return positions, nil
 }

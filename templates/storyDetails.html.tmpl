@@ -47,16 +47,15 @@
     |
 
     <a href="https://news.ycombinator.com/item?id={{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> 
-    | 
-
 
     <span class="vote" id="vote-{{.ID}}">
-            <a href="javascript:toggleUpvote({{ .ID }})" class="upvote">▲</a> 
-            <a href="javascript:toggleDownvote({{ .ID }})" class="downvote">▼</a>
+      | 
+      <a href="javascript:toggleUpvote({{ .ID }})" class="upvote">▲</a> 
+      <a href="javascript:toggleDownvote({{ .ID }})" class="downvote">▼</a>
 
-            <span class="showifvoted price"><span class="upvoterate">1.23</span></span>
+      <span class="showifvoted price"><span class="upvoterate">???</span></span>
 
-            <span class="showifvoted gainorloss gain">+1.23</span>
+      <span class="showifvoted gainorloss gain">???</span>
     </span>
 
   </div>

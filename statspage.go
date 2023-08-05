@@ -13,6 +13,7 @@ import (
 
 type StatsPageParams struct {
 	StoryID int `schema:"id,required"`
+	OptionalModelParams
 }
 
 type StatsPageData struct {
@@ -50,12 +51,15 @@ func (app app) statsPage(w io.Writer, r *http.Request, params StatsPageParams, u
 		return err
 	}
 
+	modelParams := params.OptionalModelParams.WithDefaults()
+	s.UpvoteRate = modelParams.upvoteRate(s.CumulativeUpvotes, s.CumulativeExpectedUpvotes)
+
 	s.IsStatsPage = true
 
 	d := StatsPageData{
-		StatsPageParams:     params, // pass through any and all URL parameters to the template
-		EstimatedUpvoteRate: 1.0,
-		Story:               s,
+		StatsPageParams:       params, // pass through any and all URL parameters to the template
+		EstimatedUpvoteRate:   1.0,
+		Story:                 s,
 		DefaultPageHeaderData: DefaultPageHeaderData{UserID: userID},
 	}
 
@@ -71,7 +75,7 @@ func (app app) statsPage(w io.Writer, r *http.Request, params StatsPageParams, u
 	}
 	d.RanksPlotData = ranks
 
-	upvotes, err := upvotesDatapoints(ndb, params.StoryID)
+	upvotes, err := upvotesDatapoints(ndb, params.StoryID, modelParams)
 	if err != nil {
 		return errors.Wrap(err, "upvotesDatapoints")
 	}

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -30,7 +31,7 @@ func (app app) crawlPostprocess(ctx context.Context, tx *sql.Tx) error {
 		"raw-ranks.sql",
 		"delete-old-data.sql",
 	} {
-		err = app.ndb.executeSQLFile(ctx, tx, filename)
+		err = executeSQLFile(ctx, tx, filename)
 		if err != nil {
 			return err
 		}
@@ -52,7 +53,7 @@ func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
 	t := time.Now()
 
 	d := defaultFrontPageParams
-	sql := fmt.Sprintf(qnRanksSQL, d.PriorWeight, d.OverallPriorWeight, d.Gravity, d.PenaltyWeight, fatigueFactor, qnRankFormulaSQL)
+	sql := fmt.Sprintf(qnRanksSQL, d.PriorWeight, d.OverallPriorWeight, d.Gravity, d.PenaltyWeight, d.FatigueFactor, qnRankFormulaSQL)
 
 	stmt, err := tx.Prepare(sql)
 	if err != nil {
@@ -81,15 +82,25 @@ func readSQLSource(filename string) string {
 	return buf.String()
 }
 
-func (ndb newsDatabase) executeSQLFile(ctx context.Context, tx *sql.Tx, filename string) error {
+func executeSQLFile(ctx context.Context, tx *sql.Tx, filename string) error {
 	sql := readSQLSource(filename)
 
-	stmt, err := tx.Prepare(sql)
-	if err != nil {
-		return errors.Wrapf(err, "preparing SQL in file %s", filename)
+	sql = strings.Trim(sql, " \n\r;")
+
+	parts := strings.Split(sql, ";\n")
+
+	for _, sql := range parts {
+
+		stmt, err := tx.Prepare(sql)
+		if err != nil {
+			return errors.Wrapf(err, "preparing SQL in file %s", filename)
+		}
+
+		_, err = stmt.ExecContext(ctx)
+
+		if err != nil {
+			return errors.Wrapf(err, "executing SQL in file %s", filename)
+		}
 	}
-
-	_, err = stmt.ExecContext(ctx)
-
-	return errors.Wrapf(err, "executing SQL in file %s", filename)
+	return nil
 }

@@ -71,27 +71,11 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	return server
 }
 
-func (app app) frontpageHandler(ranking string) func(http.ResponseWriter, *http.Request, FrontPageParams) error {
-	return func(w http.ResponseWriter, r *http.Request, params FrontPageParams) error {
+func (app app) frontpageHandler(ranking string) func(http.ResponseWriter, *http.Request, OptionalFrontPageParams) error {
+	return func(w http.ResponseWriter, r *http.Request, params OptionalFrontPageParams) error {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-		if params.Gravity == 0 {
-			params.Gravity = defaultFrontPageParams.Gravity
-		}
-		if params.OverallPriorWeight == 0 {
-			params.OverallPriorWeight = defaultFrontPageParams.OverallPriorWeight
-		}
-		if params.PriorWeight == 0 {
-			params.PriorWeight = defaultFrontPageParams.PriorWeight
-		}
-		if params.PenaltyWeight == 0 {
-			params.PenaltyWeight = defaultFrontPageParams.PenaltyWeight
-		}
-		if params.PastTime == 0 {
-			params.PastTime = defaultFrontPageParams.PastTime
-		}
-
-		err := app.serveFrontPage(r, w, ranking, params)
+		err := app.serveFrontPage(r, w, ranking, params.WithDefaults())
 		return errors.Wrap(err, "serveFrontPage")
 	}
 }

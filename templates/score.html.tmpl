@@ -111,7 +111,7 @@ function drawCharts() {
 <div class="toppane">
 
   <div class="toppane-content">
-    <h3>Score History. Current Score: {{.ScoreString}}</h3>
+    <h3>Score History. Current Score: {{.ScoreString}}. Average score: {{.AverageScoreString}} </h3>
 
     <div id="score_plot_div"></div>
   </div>
@@ -183,7 +183,7 @@ function drawCharts() {
 
       <span class="story-details" style="width: 210px; font-size: 12px; margin-left: 10px;">
 
-          <div class="vote {{.VoteTypeString}}{{if .Exited}} closed{{end}}" id="vote-{{.ID}}">
+          <div class="vote logged-in {{.VoteTypeString}}{{if .Exited}} closed{{end}}" id="vote-{{.ID}}">
             <a href="javascript:toggleUpvote({{ .ID }})" class="upvote">▲</a> 
             <a href="javascript:toggleDownvote({{ .ID }})" class="downvote">▼</a>
 
@@ -192,7 +192,7 @@ function drawCharts() {
             <span 
               style="display: inline-block; width: 40px" 
               class="showifvoted gainorloss {{if .IsGain}}gain{{else}}loss{{end}}"
-            >{{.GainString}}</span>
+            >{{.UserScoreString}}</span>
           </div>
 
         <div style="margin-left: 32px;">{{.EntryTimeString}}</div>
@@ -201,7 +201,7 @@ function drawCharts() {
 
       <span class="story-details" style="font-size: 12px; width: 120px;">
         {{if .Exited}} 
-          upvote cleared <a href="/stats?id={{.StoryID}}" class="upvoterate">×@{{.ExitUpvoteRateString}}</a>
+          vote cleared <a href="/stats?id={{.StoryID}}" class="upvoterate">×@{{.ExitUpvoteRateString}}</a>
           <span style="font-size: 12px">{{.ExitTimeString}}</span>
         {{end}}
       </span>

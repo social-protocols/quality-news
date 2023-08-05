@@ -28,6 +28,7 @@
 {{template "vote.js.tmpl"}}
 
 var positions = {{.PositionsJSONData}}
+var userID {{if .UserID.Valid}} = {{.UserID}} {{end}}
 </script>
 
 <title>Quality News: Hacker News Rankings</title>

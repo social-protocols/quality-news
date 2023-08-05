@@ -287,8 +287,11 @@ a:visited.resubmitted-age {
 /* UPVOTES */
 
 .vote {
-//  display: inline-block;
-//  width: 240px;
+  visibility: hidden;
+}
+
+.vote.logged-in {
+  visibility: visible;  
 }
 
 .vote span.showifvoted
@@ -318,8 +321,6 @@ a:visited.resubmitted-age {
 .vote.downvoted .price::before {
   content: "downvoted @×"
 }
-
-
 
 .vote.upvoted .price::before {
   color: green;

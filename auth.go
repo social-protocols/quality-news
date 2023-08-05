@@ -38,23 +38,23 @@ type loginParams struct {
 
 func (app app) loginHandler() func(http.ResponseWriter, *http.Request, loginParams) error {
 	return func(w http.ResponseWriter, r *http.Request, p loginParams) error {
-        userID := p.UserID
+		userID := p.UserID
 
-        if !userID.Valid {
-            loggedInUserID := app.getUserID(r)
-            if loggedInUserID.Valid {
-                http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
-                return nil
-            }
+		if !userID.Valid {
+			loggedInUserID := app.getUserID(r)
+			if loggedInUserID.Valid {
+				http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+				return nil
+			}
 
-            // Assign a random user ID if none specified as parameter
-            userID.Int64 = rand.Int63()
-            userID.Valid = true
-        } 
-        
-        if userID.Int64 == 0 {
-            return httperror.PublicErrorf(http.StatusUnauthorized, "Can't login as user 0")
-        }
+			// Assign a random user ID if none specified as parameter
+			userID.Int64 = rand.Int63()
+			userID.Valid = true
+		}
+
+		if userID.Int64 == 0 {
+			return httperror.PublicErrorf(http.StatusUnauthorized, "Can't login as user 0")
+		}
 
 		setUserIDCookie(w, userID)
 

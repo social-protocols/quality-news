@@ -1,6 +1,67 @@
+# Voting Notes
+
+## Login/Logout
+
+I have created simple login/logout functionality:
+	
+	Login with random user ID: 	
+		/login
+	Login with specific user user ID: 
+		/login?userID=1234
+	Logout user: 
+		/logout
+
+If you are logged-in, your user-id will be shown on the top right, and upvote/downvote buttons will be shown next to stories. 
+
+You can toggle a vote to clear the vote. Switching from upvote to downvote or vice versa first clears the current vote.
+
+## Votes and Positions Tables
+
+The `votes` table has one entry for each change of position (from upvoted to cleared, cleared to upvoted, downvoted to upvoted, etc.)
+
+The `positions` view is like the `votes` table, but it does not contain a record for when a vote is cleared. Instead, it contains one record for each upvote/downvote, along with score/price details for the moment the upvote/downvote happened, and then the moment that the position was exited, (the moment the the vote was cleared, if any).
+
+## Scoring
+
+Voting is like buying a stock. Your score is based on your entry price and your final price, which is either the exit price (if you exited the position), or the current price. 
+
+If the final price is greater then the entry price, you gain points, if it is less, you lose. There are a couple of different scoring formulas. 
+
+## Score Page
+
+The score page is at:
+
+	/score
+
+The score page shows each "position". Since a user can enter/exit a position on a story multiple times, a story might be shown multiple times. The users total score is the sum of the score for all positions.
+
+You can look at the score for a particular user:
+
+		/score?userID=1234
+
+You can also use different scoring formulas
+
+		/score?scoringFormula=InformationGain
+		/score?scoringFormula=PTS     	# Peer Truth-Serum
+		/score?scoringFormula=LogPTS    # Default Formula: Log Peer Truth-Serum
+
+And change the model parameters, the most important of which is the priorWeight
+
+		/score?priorWeight = 3.5
+
+## Baseline User IDs
+
+UserID 0 randomly votes on stories on the new page.
+
+		/score?userID=0
+
+UserID 1 randomly votes on stories on the front page.
+
+		/score?userID=1
 
 
-# IMPORTANT FINDINGS
+
+## IMPORTANT FINDINGS
 
 - We need to constantly tune priorWeight so that the results of random voting average to 0.
 	We get different results for the total score for userID 0 than we get from compare-against-random-voter. This is because userID 0 has a starting price that is generally slightly smaller than the priorAverage, because for some stories we accumulate some attention in the first data point. So userID 0 waits for the first data point and then votes, thereby getting in at a slightly lower price. We want this not to be a viable strategy, and it seems we can do this if we just tune down the priorWeight.
@@ -110,6 +171,14 @@ https://stats.stackexchange.com/questions/145789/kl-divergence-between-two-univa
 	
 𝐷ₖₗ(𝑓₁||𝑓₂)=𝜆₁log(𝜆₁𝜆₂)+𝜆₂−𝜆₁
 
+----
 
-Okay but how do we convert this to value created? Well, 
+
+Okay but how do we convert this to value created? 
+
+
+Do we credit users for more value creation for upvoting stories that ultimately get a lot of upvotes? I think not actually. The value created on the home page is a result of all the information provided. 
+
+So I think we should look at total value created during some period of time, and give credit to users proportionally to the amount of information they provided for that period of time.
+
 

@@ -4,7 +4,8 @@ function prepareUpvoteRatePlotData(dataPoints, submissionTime, endTime) {
     (dataPoints[i][0] - submissionTime)/3600,
     dataPoints[i][3],
     1,
-    i == 3 ? "you voted at certain time" : null])
+//    i == 3 ? "you voted at certain time" : null])
+    null])
 }
 
 function upvoteRatePlot(upvoteRatePlotData, submissionTime, startTime, endTime) {

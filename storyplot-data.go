@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"math"
 
 	"github.com/pkg/errors"
 )
@@ -75,7 +74,7 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	return ranks, errors.Wrap(err, "rows.Err")
 }
 
-func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
+func upvotesDatapoints(ndb newsDatabase, storyID int, modelParams ModelParams) ([][]any, error) {
 	var n int
 	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
 		return nil, errors.Wrap(err, "QueryRow: select count")
@@ -92,8 +91,7 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 
 	upvotesData := make([][]any, n)
 
-	rows, err := ndb.db.Query(`select sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes, 
-       upvoteRate
+	rows, err := ndb.db.Query(`select sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes
  	 from dataset where id = ?`, storyID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Query: select upvotes")
@@ -105,21 +103,20 @@ func upvotesDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 		var sampleTime int64
 		var upvotes int
 		var expectedUpvotes float64
-		var upvoteRate float64
+		// var upvoteRate float64
 
-		err = rows.Scan(&sampleTime, &upvotes, &expectedUpvotes, &upvoteRate)
+		err = rows.Scan(&sampleTime, &upvotes, &expectedUpvotes)
 
 		if err != nil {
 			return nil, errors.Wrap(err, "rows.Scan")
 		}
 
-		priorWeight := defaultFrontPageParams.PriorWeight
 		upvotesData[i] = []any{
 			sampleTime,
 			int32(upvotes),
 			expectedUpvotes,
-			(float64(upvotes) + priorWeight) / float64((1-math.Exp(-fatigueFactor*expectedUpvotes))/fatigueFactor+priorWeight),
-			upvoteRate,
+			modelParams.upvoteRate(upvotes, expectedUpvotes),
+			// upvoteRate,
 		}
 		i++
 	}
