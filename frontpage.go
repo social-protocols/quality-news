@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -309,9 +310,6 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 				}
 			}
 
-			if !ps[i].Job {
-				ps[i].UserScore = UserScore(ps[i], params.ModelParams, "")
-			}
 		}
 
 		positions = mapSlice(
@@ -323,6 +321,13 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 				return []any{p.StoryID, p.Direction, p.CurrentUpvoteRate, p.EntryUpvoteRate, p.UserScore}
 			},
 		)
+
+		for _, p := range (positions).([][]any) {
+			if math.IsNaN(p[2].(float64) + p[3].(float64) + p[4].(float64)) {
+				LogErrorf(app.logger, "Got bad positions record %v", p)
+			}
+		}
+
 	}
 
 	d := frontPageData{
