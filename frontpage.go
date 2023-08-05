@@ -309,7 +309,9 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 				}
 			}
 
-			ps[i].UserScore = UserScore(ps[i], params.ModelParams, "")
+			if !ps[i].Job {
+				ps[i].UserScore = UserScore(ps[i], params.ModelParams, "")
+			}
 		}
 
 		positions = mapSlice(
