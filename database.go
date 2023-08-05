@@ -119,7 +119,6 @@ func (ndb newsDatabase) initFrontpageDB() error {
 
 func (ndb newsDatabase) initUpvotesDB() error {
 	seedStatements := []string{
-		`drop table if exists votes`,
 		`create table if not exists votes(userID int not null, storyID int not null, direction int8 not null, entryTime int not null, entryUpvotes int not null, entryExpectedUpvotes int not null)`,
 		`create index if not exists votes_ids on votes(storyID, userID)`,
 		`create index if not exists votes_storyID on votes(storyID)`,
