@@ -66,7 +66,7 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.GET("/login", middleware("login", l, onPanic, app.loginHandler()))
 	router.GET("/logout", middleware("logout", l, onPanic, app.logoutHandler()))
 
-	server.Handler = app.preRouterMiddleware(router)
+	server.Handler = app.preRouterMiddleware(router, writeTimeout)
 
 	return server
 }

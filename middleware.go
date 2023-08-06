@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -135,9 +136,10 @@ func unmarshalRouterRequest(r *http.Request, ps httprouter.Params, params any) e
 
 // preRouterMiddleware wraps the router itself. It is for middleware that does
 // not need to know anything about the route (params, name, etc)
-func (app app) preRouterMiddleware(handler http.Handler) http.Handler {
+func (app app) preRouterMiddleware(handler http.Handler, writeTimeout time.Duration) http.Handler {
 	handler = app.cacheAndCompressMiddleware(handler)
-	handler = app.canonicalDomainMiddleware(handler) // redirects must happen before caching!
+	handler = app.canonicalDomainMiddleware(handler)       // redirects must happen before caching!
+	handler = app.timeoutMiddleware(handler, writeTimeout) // redirects must happen before caching!
 	return handler
 }
 
