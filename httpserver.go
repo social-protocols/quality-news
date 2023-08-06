@@ -15,7 +15,7 @@ import (
 
 const (
 	// writeTimeout      = 2500 * time.Millisecond
-	60 * time.Second
+	writeTimeout      = 60 * time.Second
 	readHeaderTimeout = 5 * time.Second
 )
 
