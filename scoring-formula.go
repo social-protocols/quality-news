@@ -106,17 +106,17 @@ func InformationGain(p Position, m ModelParams) float64 {
 }
 
 func InformationGain2(p Position, m ModelParams) float64 {
-	postEntryPrice := m.upvoteRate(p.EntryUpvotes+int(p.Direction), p.EntryExpectedUpvotes)
-	finalPrice := m.upvoteRate(p.CurrentUpvotes+int(p.Direction), p.CurrentExpectedUpvotes)
+	postEntryUpvoteRate := m.upvoteRate(p.EntryUpvotes+int(p.Direction), p.EntryExpectedUpvotes)
+	finalUpvoteRate := m.upvoteRate(p.CurrentUpvotes+int(p.Direction), p.CurrentExpectedUpvotes)
 	if p.Exited() {
-		finalPrice = m.upvoteRate(int(p.ExitUpvotes.Int64)+int(p.Direction), p.ExitExpectedUpvotes.Float64)
+		finalUpvoteRate = m.upvoteRate(int(p.ExitUpvotes.Int64)+int(p.Direction), p.ExitExpectedUpvotes.Float64)
 	}
 
 	// postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes) / (finalExpectedUpvotes - p.EntryExpectedUpvotes)
 	// postVoteUpvoteRate := m.upvoteRate(finalUpvotes, finalExpectedUpvotes)
 
 	// TODO: This hack doesn't make sense.
-	if postEntryPrice < 0 {
+	if postEntryUpvoteRate < 0 {
 		return 0
 	}
 
@@ -124,15 +124,32 @@ func InformationGain2(p Position, m ModelParams) float64 {
 		fmt.Println("Story", p.Title)
 		fmt.Println("Entry", p.EntryUpvotes, p.EntryExpectedUpvotes, p.EntryUpvoteRate, m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes))
 		fmt.Println("Current", p.CurrentUpvotes, p.CurrentExpectedUpvotes, p.CurrentUpvoteRate)
-		fmt.Println("Prices", p.EntryUpvoteRate, buyPrice(p), postEntryPrice, finalPrice)
+		fmt.Println("Prices", p.EntryUpvoteRate, buyPrice(p), postEntryUpvoteRate, finalUpvoteRate)
 		fmt.Println("Log PTS", p.CurrentUpvoteRate*lg(p.CurrentUpvoteRate/p.EntryUpvoteRate))
-		fmt.Println("Component 1", finalPrice*lg(postEntryPrice/buyPrice(p)))
-		fmt.Println("Component 2", (buyPrice(p)-postEntryPrice)/ln(2))
-		// fmt.Println(fmt.Sprintf("Position %#v %f %f", p, postEntryPrice, finalPrice))
-		// fmt.Println(p.EntryTime, p.EntryUpvoteRate, p.CurrentUpvoteRate, p.ExitUpvoteRate.Float64, finalPrice, postEntryPrice, buyPrice(p))
+		fmt.Println("Component 1", finalUpvoteRate*lg(postEntryUpvoteRate/buyPrice(p)))
+		fmt.Println("Component 2", (buyPrice(p)-postEntryUpvoteRate)/ln(2))
+		// fmt.Println(fmt.Sprintf("Position %#v %f %f", p, postEntryUpvoteRate, finalUpvoteRate))
+		// fmt.Println(p.EntryTime, p.EntryUpvoteRate, p.CurrentUpvoteRate, p.ExitUpvoteRate.Float64, finalUpvoteRate, postEntryUpvoteRate, buyPrice(p))
 	}
 
-	return (finalPrice*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
+	score := (finalUpvoteRate*ln(postEntryUpvoteRate/buyPrice(p)) + (buyPrice(p) - postEntryUpvoteRate)) / ln(2)
+
+
+	if ( score > 0 && finalUpvoteRate < p.EntryUpvoteRate ) || ( score < 0 && finalUpvoteRate > p.EntryUpvoteRate ) {
+		fmt.Println("Story", p.Title)
+		fmt.Println("Entry", p.EntryUpvotes, p.EntryExpectedUpvotes, p.EntryUpvoteRate, m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes))
+		fmt.Println("Current", p.CurrentUpvotes, p.CurrentExpectedUpvotes, p.CurrentUpvoteRate)
+		fmt.Println("Prices", p.EntryUpvoteRate, buyPrice(p), postEntryUpvoteRate, finalUpvoteRate)
+		fmt.Println("Log PTS", p.CurrentUpvoteRate*lg(p.CurrentUpvoteRate/p.EntryUpvoteRate))
+		fmt.Println("Component 1", finalUpvoteRate*lg(postEntryUpvoteRate/buyPrice(p)))
+		fmt.Println("Component 2", (buyPrice(p)-postEntryUpvoteRate)/ln(2))
+		// fmt.Println(fmt.Sprintf("Position %#v %f %f", p, postEntryPrice, finalUpvoteRate))
+		// fmt.Println(p.EntryTime, p.EntryUpvoteRate, p.CurrentUpvoteRate, p.ExitUpvoteRate.Float64, finalUpvoteRate, postEntryPrice, buyPrice(p))
+	}
+
+	return score
+
+
 }
 
 func LogPeerTruthSerum(p Position, m ModelParams) float64 {

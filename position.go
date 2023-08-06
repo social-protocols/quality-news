@@ -105,13 +105,26 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 	// userIDs < 100 are pseudo-users that upvote randomly according to a strategy
 	Debugf(app.logger, "Getting positions for user %d", userID)
 	if userID < 100 {
-		if userID == 0 {
-			randomNewVoterStmt, err := db.Prepare(randomNewVoterSQL)
+		switch userID {
+		case -1:
+			everyStoryVoter, err := db.Prepare(fmt.Sprintf(everyStoryVoterSQL, userID))
+			if err != nil {
+				return positions, errors.Wrap(err, "Preparing everyStoryVoter")
+			}
+			statement = everyStoryVoter
+		case 0:
+			randomNewVoterStmt, err := db.Prepare(fmt.Sprintf(randomVoterSQL, "new", userID))
 			if err != nil {
 				return positions, errors.Wrap(err, "Preparing randomNewVoterStmt")
 			}
 			statement = randomNewVoterStmt
-		} else {
+		case 1:
+			randomTopVoterStmt, err := db.Prepare(fmt.Sprintf(randomVoterSQL, "top", userID))
+			if err != nil {
+				return positions, errors.Wrapf(err, "Preparing randomTopVoterStmt %s", fmt.Sprintf(randomVoterSQL, "top"))
+			}
+			statement = randomTopVoterStmt
+		default:
 			return positions, httperror.PublicErrorf(http.StatusUnauthorized, "Unknown user ID")
 		}
 
@@ -146,36 +159,7 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 		// }
 	} else {
 
-		getDetailedPositionsStmt, err := db.Prepare(
-			`
-			select
-				userID
-				, storyID
-				, positionID
-				, direction
-				, entryTime
-				, entryUpvotes
-				, entryExpectedUpvotes
-				, exitTime
-				, exitUpvotes
-				, exitExpectedUpvotes
-				, cumulativeUpvotes
-				, cumulativeExpectedUpvotes
-				, title
-				, url
-				, by
-				, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime) ageApprox
-				, score
-				, descendants as comments
-				from positions 
-				join dataset on 
-				  positions.storyID = id
-				  and userID = ?
-				join stories using (id)
-				group by positionID
-				having max(dataset.sampleTime)
-				order by entryTime desc
-			`)
+		getDetailedPositionsStmt, err := db.Prepare(getDetailedPositionsSQL)
 		if err != nil {
 			return positions, errors.Wrap(err, "Preparing getDetailedPositionsStmt")
 		}
@@ -185,7 +169,7 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 
 	rows, err := statement.QueryContext(ctx, userID)
 	if err != nil {
-		return positions, errors.Wrap(err, "getDetailedPositionsStmt")
+		return positions, errors.Wrap(err, "Getting positions")
 	}
 	defer rows.Close()
 
@@ -279,56 +263,112 @@ func (app app) getPositions(ctx context.Context, userID int64, storyIDs []int) (
 	return positions, nil
 }
 
-var randomNewVoterSQL = `
+var getDetailedPositionsSQL = `
+select
+	userID
+	, storyID
+	, positionID
+	, direction
+	, entryTime
+	, entryUpvotes
+	, entryExpectedUpvotes
+	, exitTime
+	, exitUpvotes
+	, exitExpectedUpvotes
+	, cumulativeUpvotes
+	, cumulativeExpectedUpvotes
+	, title
+	, url
+	, by
+	, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime) ageApprox
+	, score
+	, descendants as comments
+	from positions 
+	join dataset on 
+	  positions.storyID = id
+	  and userID = ?
+	join stories using (id)
+	group by positionID
+	having max(dataset.sampleTime)
+	order by entryTime desc
+`
+
+var everyStoryVoterSQL = `
 with storiesToUpvote as (
   select id as storyID
     , min(sampleTime) as minSampleTime
     , min(cumulativeUpvotes) as minUpvotes
     , min(cumulativeExpectedUpvotes) as minExpectedUpvotes
   from dataset join stories using (id)
-  where id > (select max(id) from stories) - 1000
+  where id > (select max(id) from stories) - 100000
   and timestamp > ( select min(sampleTime) from dataset ) -- only stories submitted since we started crawling
   group by id
-  order by sampleTime
+  order by id desc
+  limit 1000
 )
 , positions as (
   select 
-    ? as userID
+    %d as userID
     , storiesToUpvote.storyID
     , 1 as direction
     , minSampleTime as entryTime
     , minUpvotes as entryUpvotes
     , minExpectedUPvotes as entryExpectedUpvotes
+    , null as exitTime
+    , null as exitUpvotes
+    , null as exitExpectedUpvotes
     , row_number() over () as positionID
   from storiesToUpvote
   -- left join votes existingVotes using (storyID)
   -- where existingVotes.storyID is null
-) select
-  userID
-  , storyID
-  , positionID
-  , direction
-  , entryTime
-  , entryUpvotes
-  , entryExpectedUpvotes
-  , null as exitTime
-  , null as exitUpvotes
-  , null as exitExpectedUpvotes
-  , cumulativeUpvotes
-  , cumulativeExpectedUpvotes
-  , title
-  , url
-  , by
-  , unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime) ageApprox
-  , score
-  , descendants as comments
-  from positions 
-  join dataset on 
-    positions.storyID = id
-  join stories using (id)
-  group by positionID
-  having max(dataset.sampleTime)
-  order by entryTime desc
-;
+) 
+` + getDetailedPositionsSQL
 
-`
+var randomVoterSQL = `
+with randomDatapoints as (
+  select 
+    id, sampleTime , cumulativeUpvotes, cumulativeExpectedUpvotes
+    , null as exitTime
+    , null as exitUpvotes
+    , null as exitExpectedUpvotes
+    , row_number() over () as i
+    , count() over () as nIDs
+  from dataset 
+  join stories using (id)
+  where
+  timestamp > ( select min(sampleTime) from dataset ) -- only stories submitted since we started crawling
+  and sampleTime > ( select max(sampleTime) from dataset ) - 24 * 60 * 60
+  and %sRank is not null 
+), 
+ limits as (
+  select abs(random()) %% ( nIds / 1000 ) as n
+  from randomDatapoints
+  where i = 1
+)
+, storiesToUpvote as (
+  select id as storyID
+    , min(sampleTime) as minSampleTime
+    , min(cumulativeUpvotes) as minUpvotes
+    , min(cumulativeExpectedUpvotes) as minExpectedUpvotes
+  from randomDatapoints join limits
+  where
+   ( i ) %% (nIDs / 1000) = n
+  group by id
+  order by sampleTime
+)
+, positions as (
+  select 
+    %d as userID
+    , storiesToUpvote.storyID
+    , 1 as direction
+    , minSampleTime as entryTime
+    , minUpvotes as entryUpvotes
+    , minExpectedUPvotes as entryExpectedUpvotes
+    , null as exitTime
+    , null as exitUpvotes
+    , null as exitExpectedUpvotes
+    , row_number() over () as positionID
+  from storiesToUpvote
+  -- left join votes existingVotes using (storyID)
+  -- where existingVotes.storyID is null
+) ` + getDetailedPositionsSQL
