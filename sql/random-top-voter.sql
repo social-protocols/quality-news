@@ -1,14 +1,22 @@
 
-delete from votes where userID = 0;
+delete from votes where userID = 1;
 
-with randomFrontpageStories as (
+
+with limits as (
+  select
+    count(*) / 1000 as n
+    , abs(random()) % 10 as m
+  from dataset
+)
+, randomFrontpageStories as (
   select id, sampleTime , cumulativeUpvotes, cumulativeExpectedUpvotes
   from dataset 
   join stories using (id)
-  where timestamp > (select min(sampleTime) from dataset) -- only stories submitted since we started crawling
-  and topRank is not null 
+  join limits
+  where timestamp > ( select min(sampleTime) from dataset ) -- only stories submitted since we started crawling
+  and newRank is not null 
   and not job
-  and dataset.rowid % ( (select count(*) from dataset)/1000 ) = ( abs(random()) % 100 )
+  and ( ( dataset.rowid - (select min(rowid) from dataset) )  %  n ) = m
 ), s as (
   select id as storyID
     , min(sampleTime) as minSampleTime
@@ -20,7 +28,7 @@ with randomFrontpageStories as (
 )
 insert into votes 
 select 
-  0 as userID
+  1 as userID
   , s.storyID
   , 1 as direction
   , minSampleTime as entryTime
