@@ -33,7 +33,7 @@ func UserScore(p Position, m ModelParams, formula string) float64 {
 	case "InformationGain":
 		score = InformationGain(p, m) * 100
 	case "InformationGain2":
-		score = InformationGain(p, m) * 100
+		score = InformationGain2(p, m) * 100
 	case "LogPTS":
 		score = LogPeerTruthSerum(p, m) * 100
 	case "":
