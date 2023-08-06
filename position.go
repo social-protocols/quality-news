@@ -101,75 +101,89 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 
 	db := app.ndb.upvotesDB
 
+	var statement *sql.Stmt
 	// userIDs < 100 are pseudo-users that upvote randomly according to a strategy
 	Debugf(app.logger, "Getting positions for user %d", userID)
 	if userID < 100 {
-		// These special user IDs are  causing the app to freeze up in production. So disable for now.
-		// return positions, httperror.PublicErrorf(http.StatusUnauthorized, "Unknown user ID")
-
-		var sqlFilename string
-		switch userID {
-		case 0:
-			sqlFilename = "random-new-voter.sql"
-		case 1:
-			sqlFilename = "random-top-voter.sql"
-		default:
+		if userID == 0 {
+			randomNewVoterStmt, err := db.Prepare(randomNewVoterSQL)
+			if err != nil {
+				return positions, errors.Wrap(err, "Preparing randomNewVoterStmt")
+			}
+			statement = randomNewVoterStmt
+		} else {
 			return positions, httperror.PublicErrorf(http.StatusUnauthorized, "Unknown user ID")
 		}
 
-		Debugf(app.logger, "Sql filename %s", sqlFilename)
+		// These special user IDs are  causing the app to freeze up in production. So disable for now.
+		// return positions, httperror.PublicErrorf(http.StatusUnauthorized, "Unknown user ID")
 
-		tx, e := db.BeginTx(ctx, nil)
-		if e != nil {
-			return positions, errors.Wrap(e, "BeginTX")
-		}
+		// var sqlFilename string
+		// switch userID {
+		// case 0:
+		// 	sqlFilename = "random-new-voter.sql"
+		// case 1:
+		// 	sqlFilename = "random-top-voter.sql"
+		// default:
+		// 	return positions, httperror.PublicErrorf(http.StatusUnauthorized, "Unknown user ID")
+		// }
 
-		err := executeSQLFile(ctx, tx, sqlFilename)
+		// Debugf(app.logger, "Sql filename %s", sqlFilename)
+
+		// tx, e := db.BeginTx(ctx, nil)
+		// if e != nil {
+		// 	return positions, errors.Wrap(e, "BeginTX")
+		// }
+
+		// err := executeSQLFile(ctx, tx, sqlFilename)
+		// if err != nil {
+		// 	return positions, errors.Wrap(err, "executing "+sqlFilename)
+		// }
+
+		// err = tx.Commit()
+		// if err != nil {
+		// 	return positions, errors.Wrap(err, "tx.Commit in getDetailedPositions")
+		// }
+	} else {
+
+		getDetailedPositionsStmt, err := db.Prepare(
+			`
+			select
+				userID
+				, storyID
+				, positionID
+				, direction
+				, entryTime
+				, entryUpvotes
+				, entryExpectedUpvotes
+				, exitTime
+				, exitUpvotes
+				, exitExpectedUpvotes
+				, cumulativeUpvotes
+				, cumulativeExpectedUpvotes
+				, title
+				, url
+				, by
+				, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime) ageApprox
+				, score
+				, descendants as comments
+				from positions 
+				join dataset on 
+				  positions.storyID = id
+				  and userID = ?
+				join stories using (id)
+				group by positionID
+				having max(dataset.sampleTime)
+				order by entryTime desc
+			`)
 		if err != nil {
-			return positions, errors.Wrap(err, "executing "+sqlFilename)
+			return positions, errors.Wrap(err, "Preparing getDetailedPositionsStmt")
 		}
 
-		err = tx.Commit()
-		if err != nil {
-			return positions, errors.Wrap(err, "tx.Commit in getDetailedPositions")
-		}
+		statement = getDetailedPositionsStmt
 	}
 
-	getDetailedPositionsStmt, err := db.Prepare(
-		`
-		select
-			userID
-			, storyID
-			, positionID
-			, direction
-			, entryTime
-			, entryUpvotes
-			, entryExpectedUpvotes
-			, exitTime
-			, exitUpvotes
-			, exitExpectedUpvotes
-			, cumulativeUpvotes
-			, cumulativeExpectedUpvotes
-			, title
-			, url
-			, by
-			, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime) ageApprox
-			, score
-			, descendants as comments
-			from positions 
-			join dataset on 
-			  positions.storyID = id
-			  and userID = ?
-			join stories using (id)
-			group by positionID
-			having max(dataset.sampleTime)
-			order by entryTime desc
-		`)
-	if err != nil {
-		return positions, errors.Wrap(err, "Preparing getDetailedPositionsStmt")
-	}
-
-	rows, err := getDetailedPositionsStmt.QueryContext(ctx, userID)
+	rows, err := statement.QueryContext(ctx, userID)
 	if err != nil {
 		return positions, errors.Wrap(err, "getDetailedPositionsStmt")
 	}
@@ -264,3 +278,71 @@ func (app app) getPositions(ctx context.Context, userID int64, storyIDs []int) (
 
 	return positions, nil
 }
+
+var randomNewVoterSQL = `
+with limits as (
+  select
+    count(*) / 1000 as n
+    , abs(random()) % 10 as m
+  from dataset
+)
+, randomFrontpageSample as (
+  select id, sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes
+  from dataset 
+  join stories using (id)
+  join limits
+  where timestamp > ( select min(sampleTime) from dataset ) -- only stories submitted since we started crawling
+  and newRank is not null 
+  and not job
+  and ( ( dataset.rowid - (select min(rowid) from dataset) )  %  n ) = m
+)
+, storiesToUpvote as (
+  select id as storyID
+    , min(sampleTime) as minSampleTime
+    , min(cumulativeUpvotes) as minUpvotes
+    , min(cumulativeExpectedUpvotes) as minExpectedUpvotes
+  from randomFrontpageSample
+  group by id
+  order by sampleTime
+)
+, positions as (
+  select 
+    ? as userID
+    , storiesToUpvote.storyID
+    , 1 as direction
+    , minSampleTime as entryTime
+    , minUpvotes as entryUpvotes
+    , minExpectedUPvotes as entryExpectedUpvotes
+    , row_number() over () as positionID
+  from storiesToUpvote
+  -- left join votes existingVotes using (storyID)
+  -- where existingVotes.storyID is null
+) select
+  userID
+  , storyID
+  , positionID
+  , direction
+  , entryTime
+  , entryUpvotes
+  , entryExpectedUpvotes
+  , null as exitTime
+  , null as exitUpvotes
+  , null as exitExpectedUpvotes
+  , cumulativeUpvotes
+  , cumulativeExpectedUpvotes
+  , title
+  , url
+  , by
+  , unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime) ageApprox
+  , score
+  , descendants as comments
+  from positions 
+  join dataset on 
+    positions.storyID = id
+  join stories using (id)
+  group by positionID
+  having max(dataset.sampleTime)
+  order by entryTime desc
+;
+
+`
