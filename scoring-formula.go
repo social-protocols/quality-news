@@ -120,7 +120,7 @@ func InformationGain2(p Position, m ModelParams) float64 {
 		return 0
 	}
 
-	if p.ID == 36731752 {
+	if p.ID == 37020337 || p.ID == 37019717 {
 		fmt.Println("Story", p.Title)
 		fmt.Println("Entry", p.EntryUpvotes, p.EntryExpectedUpvotes, p.EntryUpvoteRate, m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes))
 		fmt.Println("Current", p.CurrentUpvotes, p.CurrentExpectedUpvotes, p.CurrentUpvoteRate)
