@@ -280,28 +280,14 @@ func (app app) getPositions(ctx context.Context, userID int64, storyIDs []int) (
 }
 
 var randomNewVoterSQL = `
-with limits as (
-  select
-    count(*) / 1000 as n
-    , abs(random()) % 10 as m
-  from dataset
-)
-, randomFrontpageSample as (
-  select id, sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes
-  from dataset 
-  join stories using (id)
-  join limits
-  where timestamp > ( select min(sampleTime) from dataset ) -- only stories submitted since we started crawling
-  and newRank is not null 
-  and not job
-  and ( ( dataset.rowid - (select min(rowid) from dataset) )  %  n ) = m
-)
-, storiesToUpvote as (
+with storiesToUpvote as (
   select id as storyID
     , min(sampleTime) as minSampleTime
     , min(cumulativeUpvotes) as minUpvotes
     , min(cumulativeExpectedUpvotes) as minExpectedUpvotes
-  from randomFrontpageSample
+  from dataset join stories using (id)
+  where id > (select max(id) from stories) - 1000
+  and timestamp > ( select min(sampleTime) from dataset ) -- only stories submitted since we started crawling
   group by id
   order by sampleTime
 )
