@@ -1,6 +1,3 @@
--- okay what if I select randomly from stories that are on the front
-
-
 
 delete from votes where userID = 0;
 
@@ -9,10 +6,9 @@ with randomFrontpageStories as (
   from dataset 
   join stories using (id)
   where timestamp > (select min(sampleTime) from dataset) -- only stories submitted since we started crawling
-  and topRank is not null 
+  and newRank is not null 
   and not job
-  order by random()
-  limit 1000
+  and dataset.rowid % ( (select count(*) from dataset)/1000 ) = ( abs(random()) % 100 )
 ), s as (
   select id as storyID
     , min(sampleTime) as minSampleTime
