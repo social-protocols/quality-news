@@ -109,7 +109,7 @@ func InformationGain2(p Position, m ModelParams) float64 {
 	postEntryPrice := m.upvoteRate(p.EntryUpvotes+int(p.Direction), p.EntryExpectedUpvotes)
 	finalPrice := m.upvoteRate(p.CurrentUpvotes+int(p.Direction), p.CurrentExpectedUpvotes)
 	if p.Exited() {
-		finalPrice = m.upvoteRate(int(p.ExitUpvotes.Int64), p.ExitExpectedUpvotes.Float64)
+		finalPrice = m.upvoteRate(int(p.ExitUpvotes.Int64)+int(p.Direction), p.ExitExpectedUpvotes.Float64)
 	}
 
 	// postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes) / (finalExpectedUpvotes - p.EntryExpectedUpvotes)

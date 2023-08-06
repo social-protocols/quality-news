@@ -166,7 +166,7 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 			order by entryTime desc
 		`)
 	if err != nil {
-		LogFatal(app.logger, "Preparing getDetailedPositionsStmt", err)
+		return positions, errors.Wrap(err, "Preparing getDetailedPositionsStmt")
 	}
 
 	rows, err := getDetailedPositionsStmt.QueryContext(ctx, userID)
@@ -238,7 +238,7 @@ func (app app) getPositions(ctx context.Context, userID int64, storyIDs []int) (
     having max(positionID)
   `)
 	if err != nil {
-		LogFatal(app.logger, "Preparing getOpenPositions", err)
+		return positions, errors.Wrap(err, "Preparing getOpenPositions")
 	}
 
 	rows, err := getPositionsStatement.QueryContext(ctx, userID)

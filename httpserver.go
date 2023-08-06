@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	writeTimeout      = 5000 * time.Millisecond
+	// writeTimeout      = 2500 * time.Millisecond
+	60 * time.Second
 	readHeaderTimeout = 5 * time.Second
 )
 
@@ -38,7 +39,7 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 
 	server := &http.Server{
 		Addr:              listenAddress + ":" + port,
-		WriteTimeout:      writeTimeout,
+		WriteTimeout:      writeTimeout - 100*time.Millisecond,
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
