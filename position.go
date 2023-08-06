@@ -126,16 +126,12 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 
 		err := executeSQLFile(ctx, tx, sqlFilename)
 		if err != nil {
-			e := tx.Rollback()
-			if e != nil {
-				app.logger.Error("tx.Rollback", e)
-			}
 			return positions, errors.Wrap(err, "executing "+sqlFilename)
 		}
 
 		err = tx.Commit()
 		if err != nil {
-			return positions, errors.Wrap(err, "tx.Commit")
+			return positions, errors.Wrap(err, "tx.Commit in getDetailedPositions")
 		}
 	}
 

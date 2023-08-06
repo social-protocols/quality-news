@@ -124,7 +124,7 @@ func (app app) vote(ctx context.Context, userID int64, storyID int, direction in
 			app.logger.Debug("Rolling back transaction")
 			e := tx.Rollback()
 			if e != nil {
-				app.logger.Error("tx.Rollback", e)
+				app.logger.Error("tx.Rollback in vote", e)
 			}
 			return
 		}

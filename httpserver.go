@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	writeTimeout      = 2500 * time.Millisecond
+	writeTimeout      = 5000 * time.Millisecond
 	readHeaderTimeout = 5 * time.Second
 )
 
@@ -66,7 +66,7 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.GET("/login", middleware("login", l, onPanic, app.loginHandler()))
 	router.GET("/logout", middleware("logout", l, onPanic, app.logoutHandler()))
 
-	server.Handler = app.preRouterMiddleware(router, writeTimeout)
+	server.Handler = app.preRouterMiddleware(router, writeTimeout-100*time.Millisecond)
 
 	return server
 }

@@ -80,7 +80,7 @@ func (app app) crawlAndPostprocess(ctx context.Context) (err error) {
 			e := tx.Rollback()
 			crawlErrorsTotal.Inc()
 			if e != nil {
-				logger.Error("tx.Rollback", e)
+				logger.Error("tx.Rollback crawlAndPostprocess", e)
 			}
 			return
 		}
