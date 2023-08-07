@@ -25,7 +25,7 @@
   position: sticky; 
   top: 35px; 
   background-color: var(--background);
-  width: 760px;
+  width: 800px;
   margin-bottom: 20px;
   padding: 0;
   padding-top: 5px;
@@ -54,6 +54,7 @@
     position: relative;
 }
 
+/*
 .position-label {
   background-color: #efefef;
   border: solid darkblue 0.5px;
@@ -67,7 +68,7 @@
   vertical-align: text-top;
   text-decoration: none;
 }
-
+*/
 
 </style>
 
@@ -136,10 +137,12 @@ function drawCharts() {
       <span class="story-item" id="position-{{.PositionID}}" style="width: 410px;">
       <!--<a class="upvote-button" href="https://news.ycombinator.com/item?id={{.ID}}" target="_blank" rel="noopener noreferrer">▲</a>//-->
         <div style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+
+<!--
         <a href="javascript:clickPositionLabel({{$i}})" class="position-label"> {{.Label}} </span>
+-->
           <a class="story-title" href="{{.URL}}">{{.Title}}</a>
         </div>
-
 
         <div class="story-details">
           <span class="story-details-static">
@@ -181,7 +184,7 @@ function drawCharts() {
 
       </span>
 
-      <span class="story-details" style="width: 210px; font-size: 12px; margin-left: 10px;">
+      <span class="story-details" style="width: 210px; font-size: 12px; margin-left: 10px; margin-top: 8px">
 
           <div class="vote logged-in {{.VoteTypeString}}{{if .Exited}} closed{{end}}" id="vote-{{.ID}}">
             <a href="javascript:toggleUpvote({{ .ID }})" class="upvote">▲</a> 
@@ -199,9 +202,10 @@ function drawCharts() {
 
       </span>
 
-      <span class="story-details" style="font-size: 12px; width: 120px;">
+      <span class="story-details" style="font-size: 12px; width: 180px;">
         {{if .Exited}} 
           vote cleared <a href="/stats?id={{.StoryID}}" class="upvoterate">×@{{.ExitUpvoteRateString}}</a>
+          <br/>
           <span style="font-size: 12px">{{.ExitTimeString}}</span>
         {{end}}
       </span>

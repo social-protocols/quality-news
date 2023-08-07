@@ -10,7 +10,19 @@ function prepareScorePlotData(dataPoints, startTime, endTime) {
 
   for (var i = 0; i < length; i++) {
     var date = new Date(dataPoints[i][0]*1000)
-    results[i] = [date, dataPoints[i][1], dataPoints[i][2]]
+
+    var userScore = dataPoints[i][4]
+    var scoreClass = ""
+    if (userScore > 0) {
+      scoreClass = "gain"
+    } else if (userScore < 0) {
+      scoreClass = "loss"
+    }
+
+    results[i] = [i, dataPoints[i][1], dataPoints[i][2], 
+      "<span class='story-title'>" 
+        + dataPoints[i][3] 
+      + "</span><span style='margin-left: 3px;' class='gainorloss " + scoreClass + "'>" + userScore + "</span>" ]
   }
   return results
 }
@@ -20,10 +32,12 @@ function scorePlot(dataPoints, startTime, endTime) {
   var plotDiv = document.getElementById('score_plot_div')
 
   var data = new google.visualization.DataTable();
-  data.addColumn('date', 'Date');
+  data.addColumn('number', 'i');
 //  data.addColumn('number', 'QN Rank');
   data.addColumn('number', 'Score');
-  data.addColumn('string', 'Story ID');
+  // data.addColumn('string', 'Position ID');
+  data.addColumn({type: 'string', role: 'annotationText'});
+  data.addColumn({type: 'string', role: 'tooltip', 'p': {'html': true}});
   // data.addColumn('string', 'Story Title');
 
   dataPoints = prepareScorePlotData(dataPoints, startTime, endTime)
@@ -43,14 +57,14 @@ function scorePlot(dataPoints, startTime, endTime) {
         },
     backgroundColor: {fill: 'transparent'},
     dataOpacity: 0.85,
-    hAxis: {
-      title: 'Date',
-      logScale: false,
-      // viewWindow: {
-      //   min: (startTime-submissionTime)/3600,
-      //   max: (endTime-submissionTime)/3600,
-      // }
-    },
+    // hAxis: {
+    //   title: 'Date',
+    //   logScale: false,
+    //   // viewWindow: {
+    //   //   min: (startTime-submissionTime)/3600,
+    //   //   max: (endTime-submissionTime)/3600,
+    //   // }
+    // },
     vAxis: {
       title: 'Score',
       // logScale: true,
@@ -61,6 +75,16 @@ function scorePlot(dataPoints, startTime, endTime) {
       // },
       // ticks: [1,2,4,8,16,32,64,{v: 91, f: "> 90"}],
     },
+
+
+annotations: {
+    textStyle: {
+         color: 'black',
+         fontSize: 11,
+     },
+     alwaysOutside: true,
+     style: "point",
+},    
     // interpolateNulls: false, 
 //     series: {
 //       0: {pointShape: 'diamond', pointSize: 5, interpolateNulls: false},
@@ -75,39 +99,47 @@ function scorePlot(dataPoints, startTime, endTime) {
     // lineWidth: 1,
     // colors: ['black', '#FF6600', "#AF7FDF", "#6FAEAE", "green","pink"],
     // colors: ['#0089F4', '#FF6600', "#AF7FDF", "#6FAEAE", "green","pink"],
-    chartArea:{left:80, top:50, bottom: 80, right: 80},
-    height: 300,
-    width: 760,
+    chartArea:{left:60, top:20, bottom: 20, right: 0},
+    height: 275,
+    width: 800,
     legend: { position: 'bottom' },
     crosshair: { trigger: 'both' },
 
+    tooltip: {isHtml: true},
+
 
     title: "Score",
-    annotationsWidth: 0,
-    displayAnnotationsFilter: false,
-    fill: 50,
-    allowHtml: true,
+
+
+    // annotationsWidth: 0,
+    // displayAnnotationsFilter: false,
+    // fill: 50,
+    // allowHtml: true,
   };
 
-  // var chart = new google.visualization.LineChart(plotDiv);
-  chart = new google.visualization.AnnotationChart(plotDiv);
+  var chart = new google.visualization.LineChart(plotDiv);
+  // chart = new google.visualization.AnnotationChart(plotDiv);
 
   // google.visualization.events.addListener(chart, 'rangechange', rangechange_handler);
   google.visualization.events.addListener(chart, 'select', select_handler);
 
 
   chart.draw(data, options);
+
+
+  function select_handler(e) {
+    console.log("In select handler", e)
+    console.log(chart.getSelection())
+    var n = chart.getSelection()[0].row
+    window.location.hash = '#position-' + scorePlotData[n][2]
+
+    // zoomIn(n)
+  }
+
 }
 
 function clickPositionLabel(i) {
   zoomIn(scorePlotData.length-i-1)
-}
-
-function select_handler(e) {
-  var n = chart.getSelection()[0].row
-  window.location.hash = '#position-' + scorePlotData[n][2]
-
-  zoomIn(n)
 }
 
 function zoomIn(i) {
