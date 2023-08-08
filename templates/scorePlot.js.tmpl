@@ -28,19 +28,22 @@ function prepareScorePlotData(dataPoints, startTime, endTime) {
       voteType = "downvote"
     }
 
+    var upvoteRateString = p[7]
     var entryUpvoteRateString = p[6]
 
     // , p.EntryUpvoteRateString(), p.CurrentUpvoteRateString(), p.ExitUpvoteRateString()
 
     // p[1] rounded to two decimal places
     results[i] = [i, p[1], p[2], 
-      Math.round(p[1] * 100) / 100
       + "<span class='story-title'>\n" + p[3] + "</span>\n"
+      + "<span style='margin-left: 1px;' class='upvoterate'>×" + upvoteRateString + "</span>\n"
 
       + "<span style='margin-left: 1px;' class='vote " + voteType + "d'>\n"
         + "<span class='showifvoted price'>" + entryUpvoteRateString + "</span>\n"
         + "<span style='margin-left: 1px;' class='showifvoted gainorloss " + scoreClass + "'>" + userScore + "</span>\n"
-      + "</span>" 
+      + "</span>\n" 
+      + "Total: " + Math.round(p[1] * 100) / 100
+
       ]
   }
   return results
