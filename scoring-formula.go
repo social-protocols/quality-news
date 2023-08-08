@@ -44,6 +44,8 @@ func UserScore(p Position, m ModelParams, formula string) float64 {
 		score = InformationGain6(p, m) * 100
 	case "InformationGain7":
 		score = InformationGain7(p, m) * 100
+	case "InformationGain8":
+		score = InformationGain8(p, m) * 100
 	case "LogPTS":
 		score = LogPeerTruthSerum(p, m) * 100
 	case "":
@@ -255,6 +257,37 @@ func InformationGain7(p Position, m ModelParams) float64 {
 	postVoteUpvoteRate := ( float64(finalUpvotes-p.EntryUpvotes)+ m.PriorWeight) / (finalExpectedUpvotes - p.EntryExpectedUpvotes + m.PriorWeight)
 
 	return (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
+}
+
+
+// Like InformationGain1, but takes weighted average of score and 0 (weighted by post-entry expected upvotes) 
+func InformationGain8(p Position, m ModelParams) float64 {
+	// Information gain logic doesn't work for downvotes
+	if p.Direction == -1 {
+		return 0
+	}
+
+	postEntryPrice := m.upvoteRate(p.EntryUpvotes+int(p.Direction), p.EntryExpectedUpvotes)
+
+	finalUpvotes := p.CurrentUpvotes
+	finalExpectedUpvotes := p.CurrentExpectedUpvotes
+
+	if p.Exited() {
+		finalUpvotes = int(p.ExitUpvotes.Int64)
+		finalExpectedUpvotes = p.ExitExpectedUpvotes.Float64
+	}
+
+	if finalExpectedUpvotes == p.EntryExpectedUpvotes {
+		return 0
+	}
+
+	postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes) / (finalExpectedUpvotes - p.EntryExpectedUpvotes)
+
+
+	gain := (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
+
+	return ( gain + 0 ) / ( finalExpectedUpvotes - p.EntryExpectedUpvotes + m.PriorWeight )
+
 }
 
 func LogPeerTruthSerum(p Position, m ModelParams) float64 {
