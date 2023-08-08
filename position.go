@@ -106,12 +106,6 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 	Debugf(app.logger, "Getting positions for user %d", userID)
 	if userID < 100 {
 		switch userID {
-		case -1:
-			everyStoryVoter, err := db.Prepare(fmt.Sprintf(everyStoryVoterSQL, userID))
-			if err != nil {
-				return positions, errors.Wrap(err, "Preparing everyStoryVoter")
-			}
-			statement = everyStoryVoter
 		case 0:
 			randomNewVoterStmt, err := db.Prepare(fmt.Sprintf(randomVoterSQL, "new", userID))
 			if err != nil {
@@ -124,6 +118,19 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 				return positions, errors.Wrapf(err, "Preparing randomTopVoterStmt %s", fmt.Sprintf(randomVoterSQL, "top"))
 			}
 			statement = randomTopVoterStmt
+		case 2:
+			everyStoryVoter, err := db.Prepare(fmt.Sprintf(everyStoryVoterSQL, userID, 1))
+			if err != nil {
+				return positions, errors.Wrap(err, "Preparing everyStoryVoter")
+			}
+			statement = everyStoryVoter
+		case 3:
+			everyStoryDownVoter, err := db.Prepare(fmt.Sprintf(everyStoryVoterSQL, userID, -1))
+			if err != nil {
+				return positions, errors.Wrap(err, "Preparing everyStoryVoter")
+			}
+			statement = everyStoryDownVoter
+
 		default:
 			return positions, httperror.PublicErrorf(http.StatusUnauthorized, "Unknown user ID")
 		}
@@ -310,7 +317,7 @@ with storiesToUpvote as (
   select 
     %d as userID
     , storiesToUpvote.storyID
-    , 1 as direction
+    , %d as direction
     , minSampleTime as entryTime
     , minUpvotes as entryUpvotes
     , minExpectedUPvotes as entryExpectedUpvotes
