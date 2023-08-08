@@ -358,6 +358,8 @@ func orderByStatement(ranking string) string {
 		return "case when rawRank is null or (topRank is null and rawRank > 90) then null else ifnull(topRank,91) - rawRank end nulls last"
 	case "best-upvoterate":
 		return "(cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) desc nulls last"
+	case "best-upvoterate-fatigue":
+		return "exp(-fatigueFactor*cumulativeExpectedUpvotes) * (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) desc nulls last"
 	default:
 		return fmt.Sprintf("%sRank nulls last", ranking)
 	}
