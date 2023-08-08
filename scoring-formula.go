@@ -286,7 +286,7 @@ func InformationGain8(p Position, m ModelParams) float64 {
 
 	gain := (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
 
-	return ( gain + 0 ) / ( finalExpectedUpvotes - p.EntryExpectedUpvotes + m.PriorWeight )
+	return ( gain * (finalExpectedUpvotes - p.EntryExpectedUpvotes) ) / ( finalExpectedUpvotes - p.EntryExpectedUpvotes + m.PriorWeight )
 
 }
 
