@@ -53,9 +53,7 @@ And change the model parameters, the most important of which is the priorWeight
 
 		/score?priorWeight = 3.5
 
-## Baseline User IDs -- DISABLED
-
-NOTE: This was causing the app to freeze in production, so disabling for now.
+## Baseline User IDs
 
 UserID 0 randomly votes on stories on the new page.
 
@@ -64,6 +62,14 @@ UserID 0 randomly votes on stories on the new page.
 UserID 1 randomly votes on stories on the front page.
 
 		/score?userID=1
+
+Upvotes all new stories immediately (on first crawl where they appear)
+
+		/score?userID=2
+
+Downvotes all new stories immediately
+
+		/score?userID=3
 
 
 ## IMPORTANT FINDINGS
