@@ -36,6 +36,8 @@ func UserScore(p Position, m ModelParams, formula string) float64 {
 		score = InformationGain2(p, m) * 100
 	case "InformationGain3":
 		score = InformationGain3(p, m) * 100
+	case "InformationGain4":
+		score = InformationGain4(p, m) * 100
 	case "LogPTS":
 		score = LogPeerTruthSerum(p, m) * 100
 	case "":
@@ -125,6 +127,31 @@ func InformationGain3(p Position, m ModelParams) float64 {
 	score := (finalUpvoteRate*ln(finalUpvoteRate/buyPrice(p)) + (buyPrice(p) - finalUpvoteRate)) / ln(2)
 
 	return score
+}
+
+func InformationGain4(p Position, m ModelParams) float64 {
+	postEntryPrice := m.upvoteRate(p.EntryUpvotes+int(p.Direction), p.EntryExpectedUpvotes)
+
+	finalUpvotes := p.CurrentUpvotes
+	finalExpectedUpvotes := p.CurrentExpectedUpvotes
+
+	if p.Exited() {
+		finalUpvotes = int(p.ExitUpvotes.Int64)
+		finalExpectedUpvotes = p.ExitExpectedUpvotes.Float64
+	}
+
+	if finalExpectedUpvotes == p.EntryExpectedUpvotes {
+		return 0
+	}
+
+	postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes+4) / (finalExpectedUpvotes - p.EntryExpectedUpvotes + 4)
+
+	// TODO: This hack doesn't make sense.
+	if postEntryPrice < 0 {
+		return 0
+	}
+
+	return (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
 }
 
 func LogPeerTruthSerum(p Position, m ModelParams) float64 {

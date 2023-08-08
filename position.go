@@ -309,6 +309,7 @@ with storiesToUpvote as (
   from dataset join stories using (id)
   where id > (select max(id) from stories) - 100000
   and timestamp > ( select min(sampleTime) from dataset ) -- only stories submitted since we started crawling
+  and not job
   group by id
   order by id desc
   limit 1000
@@ -346,6 +347,7 @@ with randomDatapoints as (
   timestamp > ( select min(sampleTime) from dataset ) -- only stories submitted since we started crawling
   and sampleTime > ( select max(sampleTime) from dataset ) - 24 * 60 * 60
   and %sRank is not null 
+  and not job
 ), 
  limits as (
   select abs(random()) %% ( nIds / 1000 ) as n
