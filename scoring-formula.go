@@ -100,8 +100,7 @@ func InformationGain2(p Position, m ModelParams) float64 {
 
 	score := (finalUpvoteRate*ln(postEntryUpvoteRate/buyPrice(p)) + (buyPrice(p) - postEntryUpvoteRate)) / ln(2)
 
-
-	if ( score > 0 && finalUpvoteRate < p.EntryUpvoteRate ) || ( score < 0 && finalUpvoteRate > p.EntryUpvoteRate ) {
+	if (score > 0 && finalUpvoteRate < p.EntryUpvoteRate) || (score < 0 && finalUpvoteRate > p.EntryUpvoteRate) {
 		fmt.Println("Story", p.Title)
 		fmt.Println("Entry", p.EntryUpvotes, p.EntryExpectedUpvotes, p.EntryUpvoteRate, m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes))
 		fmt.Println("Current", p.CurrentUpvotes, p.CurrentExpectedUpvotes, p.CurrentUpvoteRate)
@@ -115,7 +114,6 @@ func InformationGain2(p Position, m ModelParams) float64 {
 
 	return score
 }
-
 
 func InformationGain3(p Position, m ModelParams) float64 {
 	// postEntryUpvoteRate := m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes)

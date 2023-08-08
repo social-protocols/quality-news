@@ -88,7 +88,7 @@ func (app app) scoreHandler() func(http.ResponseWriter, *http.Request, ScorePage
 		scorePlotData := make([][]any, n)
 		for i, p := range positions {
 			scorePlotData[n-i-1] = []any{
-				p.EntryTime, p.RunningScore, fmt.Sprintf("%d", p.PositionID), p.Story.Title, p.UserScoreString(), p.Direction, p.EntryUpvoteRateString(), p.CurrentUpvoteRateString(), p.ExitUpvoteRateString(), 
+				p.EntryTime, p.RunningScore, fmt.Sprintf("%d", p.PositionID), p.Story.Title, p.UserScoreString(), p.Direction, p.EntryUpvoteRateString(), p.CurrentUpvoteRateString(), p.ExitUpvoteRateString(),
 			}
 		}
 
