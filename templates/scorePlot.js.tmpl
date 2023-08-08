@@ -59,7 +59,11 @@ function scorePlot(dataPoints, startTime, endTime) {
   data.addColumn({type: 'string', role: 'tooltip', 'p': {'html': true}});
   // data.addColumn('string', 'Story Title');
 
+
   dataPoints = prepareScorePlotData(dataPoints, startTime, endTime)
+
+  console.log("Sample data point", dataPoints[0]) 
+
   data.addRows(dataPoints);
 
 
