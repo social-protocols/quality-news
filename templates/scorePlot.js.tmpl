@@ -62,10 +62,7 @@ function scorePlot(dataPoints, startTime, endTime) {
 
   dataPoints = prepareScorePlotData(dataPoints, startTime, endTime)
 
-  console.log("Sample data point", dataPoints[0]) 
-
   data.addRows(dataPoints);
-
 
   // https://developers.google.com/chart/interactive/docs/gallery/linechart#configuration-options
   var options = {

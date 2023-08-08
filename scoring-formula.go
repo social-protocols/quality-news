@@ -118,13 +118,13 @@ func InformationGain2(p Position, m ModelParams) float64 {
 
 
 func InformationGain3(p Position, m ModelParams) float64 {
-	postEntryUpvoteRate := m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes)
+	// postEntryUpvoteRate := m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes)
 	finalUpvoteRate := m.upvoteRate(p.CurrentUpvotes, p.CurrentExpectedUpvotes)
 	if p.Exited() {
 		finalUpvoteRate = m.upvoteRate(int(p.ExitUpvotes.Int64), p.ExitExpectedUpvotes.Float64)
 	}
 
-	score := (finalUpvoteRate*ln(postEntryUpvoteRate/buyPrice(p)) + (buyPrice(p) - postEntryUpvoteRate)) / ln(2)
+	score := (finalUpvoteRate*ln(finalUpvoteRate/buyPrice(p)) + (buyPrice(p) - finalUpvoteRate)) / ln(2)
 
 	return score
 }
