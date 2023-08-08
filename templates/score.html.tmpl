@@ -186,7 +186,7 @@ function drawCharts() {
 
       <span class="story-details" style="width: 210px; font-size: 12px; margin-left: 10px; margin-top: 8px">
 
-          <div class="vote logged-in {{.VoteTypeString}}{{if .Exited}} closed{{end}}" id="vote-{{.ID}}">
+          <div class="vote {{.VoteTypeString}}{{if .Exited}} closed{{end}}" id="vote-{{.ID}}">
             <a href="javascript:toggleUpvote({{ .ID }})" class="upvote">▲</a> 
             <a href="javascript:toggleDownvote({{ .ID }})" class="downvote">▼</a>
 
