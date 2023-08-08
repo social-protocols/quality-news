@@ -65,7 +65,8 @@ func (p OptionalModelParams) WithDefaults() ModelParams {
 	return results
 }
 
-var defaultModelParams = ModelParams{0.003462767, 2.2956}
+// var defaultModelParams = ModelParams{0.003462767, 2.2956}
+var defaultModelParams = ModelParams{FatigueFactor: 0.003462767, PriorWeight: 0.75}
 
 func (p ModelParams) upvoteRate(upvotes int, expectedUpvotes float64) float64 {
 	return (float64(upvotes) + p.PriorWeight) / float64((1-math.Exp(-p.FatigueFactor*expectedUpvotes))/p.FatigueFactor+p.PriorWeight)
