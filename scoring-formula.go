@@ -40,6 +40,8 @@ func UserScore(p Position, m ModelParams, formula string) float64 {
 		score = InformationGain4(p, m) * 100
 	case "InformationGain5":
 		score = InformationGain5(p, m) * 100
+	case "InformationGain6":
+		score = InformationGain6(p, m) * 100
 	case "LogPTS":
 		score = LogPeerTruthSerum(p, m) * 100
 	case "":
@@ -156,6 +158,7 @@ func InformationGain4(p Position, m ModelParams) float64 {
 
 	return (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
 }
+
 // This is like InformationGain4, but make downvotes work by incrementing denominator instead of
 // decrementing numerator.
 func InformationGain5(p Position, m ModelParams) float64 {
@@ -181,6 +184,30 @@ func InformationGain5(p Position, m ModelParams) float64 {
 	return (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
 }
 
+// This is like InformationGain1, but make downvotes work by incrementing denominator instead of
+// decrementing numerator.
+func InformationGain6(p Position, m ModelParams) float64 {
+	postEntryPrice := m.upvoteRate(p.EntryUpvotes+1, p.EntryExpectedUpvotes)
+	if p.Direction == -1 {
+		postEntryPrice = m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes+1)
+	}
+
+	finalUpvotes := p.CurrentUpvotes
+	finalExpectedUpvotes := p.CurrentExpectedUpvotes
+
+	if p.Exited() {
+		finalUpvotes = int(p.ExitUpvotes.Int64)
+		finalExpectedUpvotes = p.ExitExpectedUpvotes.Float64
+	}
+
+	if finalExpectedUpvotes == p.EntryExpectedUpvotes {
+		return 0
+	}
+
+	postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes) / (finalExpectedUpvotes - p.EntryExpectedUpvotes)
+
+	return (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
+}
 
 func LogPeerTruthSerum(p Position, m ModelParams) float64 {
 	postEntryPrice := m.upvoteRate(p.CumulativeUpvotes+1, p.CumulativeExpectedUpvotes)
