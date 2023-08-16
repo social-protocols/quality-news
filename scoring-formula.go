@@ -38,14 +38,12 @@ func UserScore(p Position, m ModelParams, formula string) float64 {
 		score = InformationGain3(p, m) * 100
 	case "InformationGain4":
 		score = InformationGain4(p, m) * 100
-	case "InformationGain5":
-		score = InformationGain5(p, m) * 100
-	case "InformationGain6":
-		score = InformationGain6(p, m) * 100
 	case "InformationGain7":
 		score = InformationGain7(p, m) * 100
 	case "InformationGain8":
 		score = InformationGain8(p, m) * 100
+	case "InformationGain9":
+		score = InformationGain9(p, m) * 100
 	case "LogPTS":
 		score = LogPeerTruthSerum(p, m) * 100
 	case "":
@@ -71,13 +69,14 @@ func lg(v float64) float64 {
 	return math.Log(v) / math.Log(2)
 }
 
+// postVoteUpvoteRate is observed upvote rate after the user's vote
 func InformationGain(p Position, m ModelParams) float64 {
 	// Information gain logic doesn't work for downvotes
 	if p.Direction == -1 {
 		return 0
 	}
 
-	postEntryPrice := m.upvoteRate(p.EntryUpvotes+int(p.Direction), p.EntryExpectedUpvotes)
+	postEntryUpvoteRate := m.upvoteRate(p.EntryUpvotes+int(p.Direction), p.EntryExpectedUpvotes)
 
 	finalUpvotes := p.CurrentUpvotes
 	finalExpectedUpvotes := p.CurrentExpectedUpvotes
@@ -93,10 +92,10 @@ func InformationGain(p Position, m ModelParams) float64 {
 
 	postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes) / (finalExpectedUpvotes - p.EntryExpectedUpvotes)
 
-
-	return (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
+	return (postVoteUpvoteRate*ln(postEntryUpvoteRate/buyPrice(p)) + (buyPrice(p) - postEntryUpvoteRate)) / ln(2)
 }
 
+// Like informationGain1, but post-vote upvote rate is finalUpvoteRate
 func InformationGain2(p Position, m ModelParams) float64 {
 	// Information gain logic doesn't work for downvotes
 	if p.Direction == -1 {
@@ -109,7 +108,6 @@ func InformationGain2(p Position, m ModelParams) float64 {
 		finalUpvoteRate = m.upvoteRate(int(p.ExitUpvotes.Int64)+int(p.Direction), p.ExitExpectedUpvotes.Float64)
 	}
 
-
 	score := (finalUpvoteRate*ln(postEntryUpvoteRate/buyPrice(p)) + (buyPrice(p) - postEntryUpvoteRate)) / ln(2)
 
 	if (score > 0 && finalUpvoteRate < p.EntryUpvoteRate) || (score < 0 && finalUpvoteRate > p.EntryUpvoteRate) {
@@ -120,13 +118,14 @@ func InformationGain2(p Position, m ModelParams) float64 {
 		fmt.Println("Log PTS", p.CurrentUpvoteRate*lg(p.CurrentUpvoteRate/p.EntryUpvoteRate))
 		fmt.Println("Component 1", finalUpvoteRate*lg(postEntryUpvoteRate/buyPrice(p)))
 		fmt.Println("Component 2", (buyPrice(p)-postEntryUpvoteRate)/ln(2))
-		// fmt.Println(fmt.Sprintf("Position %#v %f %f", p, postEntryPrice, finalUpvoteRate))
-		// fmt.Println(p.EntryTime, p.EntryUpvoteRate, p.CurrentUpvoteRate, p.ExitUpvoteRate.Float64, finalUpvoteRate, postEntryPrice, buyPrice(p))
+		// fmt.Println(fmt.Sprintf("Position %#v %f %f", p, postEntryUpvoteRate, finalUpvoteRate))
+		// fmt.Println(p.EntryTime, p.EntryUpvoteRate, p.CurrentUpvoteRate, p.ExitUpvoteRate.Float64, finalUpvoteRate, postEntryUpvoteRate, buyPrice(p))
 	}
 
 	return score
 }
 
+// Use final upvoteRate instead of postEntry upvote rate.
 func InformationGain3(p Position, m ModelParams) float64 {
 	// Information gain logic doesn't work for downvotes
 	if p.Direction == -1 {
@@ -150,7 +149,7 @@ func InformationGain4(p Position, m ModelParams) float64 {
 		return 0
 	}
 
-	postEntryPrice := m.upvoteRate(p.EntryUpvotes+int(p.Direction), p.EntryExpectedUpvotes)
+	postEntryUpvoteRate := m.upvoteRate(p.EntryUpvotes+int(p.Direction), p.EntryExpectedUpvotes)
 
 	finalUpvotes := p.CurrentUpvotes
 	finalExpectedUpvotes := p.CurrentExpectedUpvotes
@@ -166,80 +165,79 @@ func InformationGain4(p Position, m ModelParams) float64 {
 
 	postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes+4) / (finalExpectedUpvotes - p.EntryExpectedUpvotes + 4)
 
-	return (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
+	return (postVoteUpvoteRate*ln(postEntryUpvoteRate/buyPrice(p)) + (buyPrice(p) - postEntryUpvoteRate)) / ln(2)
 }
 
-// This is like InformationGain4, but make downvotes work by incrementing denominator instead of
-// decrementing numerator.
-func InformationGain5(p Position, m ModelParams) float64 {
-	// Information gain logic doesn't work for downvotes
-	if p.Direction == -1 {
-		return 0
-	}
+// // This is like InformationGain4, but make downvotes work by incrementing denominator instead of
+// // decrementing numerator.
+// func InformationGain5(p Position, m ModelParams) float64 {
+// 	// Information gain logic doesn't work for downvotes
+// 	if p.Direction == -1 {
+// 		return 0
+// 	}
 
-	postEntryPrice := m.upvoteRate(p.EntryUpvotes+1, p.EntryExpectedUpvotes)
-	if p.Direction == -1 {
-		postEntryPrice = m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes+1)
-	}
+// 	postEntryUpvoteRate := m.upvoteRate(p.EntryUpvotes+1, p.EntryExpectedUpvotes)
+// 	if p.Direction == -1 {
+// 		postEntryUpvoteRate = m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes+1)
+// 	}
 
-	finalUpvotes := p.CurrentUpvotes
-	finalExpectedUpvotes := p.CurrentExpectedUpvotes
+// 	finalUpvotes := p.CurrentUpvotes
+// 	finalExpectedUpvotes := p.CurrentExpectedUpvotes
 
-	if p.Exited() {
-		finalUpvotes = int(p.ExitUpvotes.Int64)
-		finalExpectedUpvotes = p.ExitExpectedUpvotes.Float64
-	}
+// 	if p.Exited() {
+// 		finalUpvotes = int(p.ExitUpvotes.Int64)
+// 		finalExpectedUpvotes = p.ExitExpectedUpvotes.Float64
+// 	}
 
-	if finalExpectedUpvotes == p.EntryExpectedUpvotes {
-		return 0
-	}
+// 	if finalExpectedUpvotes == p.EntryExpectedUpvotes {
+// 		return 0
+// 	}
 
-	postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes+4) / (finalExpectedUpvotes - p.EntryExpectedUpvotes + 4)
+// 	postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes+4) / (finalExpectedUpvotes - p.EntryExpectedUpvotes + 4)
 
-	return (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
-}
+// 	return (postVoteUpvoteRate*ln(postEntryUpvoteRate/buyPrice(p)) + (buyPrice(p) - postEntryUpvoteRate)) / ln(2)
+// }
 
-// This is like InformationGain1, but make downvotes work by incrementing denominator instead of
-// decrementing numerator.
-func InformationGain6(p Position, m ModelParams) float64 {
-	// Information gain logic doesn't work for downvotes
-	if p.Direction == -1 {
-		return 0
-	}
+// // This is like InformationGain1, but make downvotes work by incrementing denominator instead of
+// // decrementing numerator.
+// func InformationGain6(p Position, m ModelParams) float64 {
+// 	// Information gain logic doesn't work for downvotes
+// 	if p.Direction == -1 {
+// 		return 0
+// 	}
 
-	postEntryPrice := m.upvoteRate(p.EntryUpvotes+1, p.EntryExpectedUpvotes)
-	if p.Direction == -1 {
-		postEntryPrice = m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes+1)
-	}
+// 	postEntryUpvoteRate := m.upvoteRate(p.EntryUpvotes+1, p.EntryExpectedUpvotes)
+// 	if p.Direction == -1 {
+// 		postEntryUpvoteRate = m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes+1)
+// 	}
 
-	finalUpvotes := p.CurrentUpvotes
-	finalExpectedUpvotes := p.CurrentExpectedUpvotes
+// 	finalUpvotes := p.CurrentUpvotes
+// 	finalExpectedUpvotes := p.CurrentExpectedUpvotes
 
-	if p.Exited() {
-		finalUpvotes = int(p.ExitUpvotes.Int64)
-		finalExpectedUpvotes = p.ExitExpectedUpvotes.Float64
-	}
+// 	if p.Exited() {
+// 		finalUpvotes = int(p.ExitUpvotes.Int64)
+// 		finalExpectedUpvotes = p.ExitExpectedUpvotes.Float64
+// 	}
 
-	if finalExpectedUpvotes == p.EntryExpectedUpvotes {
-		return 0
-	}
+// 	if finalExpectedUpvotes == p.EntryExpectedUpvotes {
+// 		return 0
+// 	}
 
-	postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes) / (finalExpectedUpvotes - p.EntryExpectedUpvotes)
+// 	postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes) / (finalExpectedUpvotes - p.EntryExpectedUpvotes)
 
-	return (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
-}
+// 	return (postVoteUpvoteRate*ln(postEntryUpvoteRate/buyPrice(p)) + (buyPrice(p) - postEntryUpvoteRate)) / ln(2)
+// }
 
-// This is like InformationGain5, but use the priorWeight parameter instead of random parameter 4
+// This is like InformationGain4, but use the priorWeight parameter instead of random parameter 4
 func InformationGain7(p Position, m ModelParams) float64 {
 	// Information gain logic doesn't work for downvotes
 	if p.Direction == -1 {
 		return 0
 	}
 
-
-	postEntryPrice := m.upvoteRate(p.EntryUpvotes+1, p.EntryExpectedUpvotes)
+	postEntryUpvoteRate := m.upvoteRate(p.EntryUpvotes+1, p.EntryExpectedUpvotes)
 	if p.Direction == -1 {
-		postEntryPrice = m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes+1)
+		postEntryUpvoteRate = m.upvoteRate(p.EntryUpvotes, p.EntryExpectedUpvotes+1)
 	}
 
 	finalUpvotes := p.CurrentUpvotes
@@ -254,20 +252,19 @@ func InformationGain7(p Position, m ModelParams) float64 {
 		return 0
 	}
 
-	postVoteUpvoteRate := ( float64(finalUpvotes-p.EntryUpvotes)+ m.PriorWeight) / (finalExpectedUpvotes - p.EntryExpectedUpvotes + m.PriorWeight)
+	postVoteUpvoteRate := (float64(finalUpvotes-p.EntryUpvotes) + m.PriorWeight) / (finalExpectedUpvotes - p.EntryExpectedUpvotes + m.PriorWeight)
 
-	return (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
+	return (postVoteUpvoteRate*ln(postEntryUpvoteRate/buyPrice(p)) + (buyPrice(p) - postEntryUpvoteRate)) / ln(2)
 }
 
-
-// Like InformationGain1, but takes weighted average of score and 0 (weighted by post-entry expected upvotes) 
+// Like InformationGain1, but takes weighted average of score and 0 (weighted by post-entry expected upvotes)
 func InformationGain8(p Position, m ModelParams) float64 {
 	// Information gain logic doesn't work for downvotes
 	if p.Direction == -1 {
 		return 0
 	}
 
-	postEntryPrice := m.upvoteRate(p.EntryUpvotes+int(p.Direction), p.EntryExpectedUpvotes)
+	postEntryUpvoteRate := m.upvoteRate(p.EntryUpvotes+int(p.Direction), p.EntryExpectedUpvotes)
 
 	finalUpvotes := p.CurrentUpvotes
 	finalExpectedUpvotes := p.CurrentExpectedUpvotes
@@ -283,18 +280,42 @@ func InformationGain8(p Position, m ModelParams) float64 {
 
 	postVoteUpvoteRate := float64(finalUpvotes-p.EntryUpvotes) / (finalExpectedUpvotes - p.EntryExpectedUpvotes)
 
+	gain := (postVoteUpvoteRate*ln(postEntryUpvoteRate/buyPrice(p)) + (buyPrice(p) - postEntryUpvoteRate)) / ln(2)
 
-	gain := (postVoteUpvoteRate*ln(postEntryPrice/buyPrice(p)) + (buyPrice(p) - postEntryPrice)) / ln(2)
+	return (gain * (finalExpectedUpvotes - p.EntryExpectedUpvotes)) / (finalExpectedUpvotes - p.EntryExpectedUpvotes + m.PriorWeight)
+}
 
-	return ( gain * (finalExpectedUpvotes - p.EntryExpectedUpvotes) ) / ( finalExpectedUpvotes - p.EntryExpectedUpvotes + m.PriorWeight )
+// Final upvote rate is overall final upvote rate.
+func InformationGain9(p Position, m ModelParams) float64 {
+	// Information gain logic doesn't work for downvotes
+	if p.Direction == -1 {
+		return 0
+	}
 
+	postEntryUpvoteRate := m.upvoteRate(p.EntryUpvotes+int(p.Direction), p.EntryExpectedUpvotes)
+
+	finalUpvotes := p.CurrentUpvotes
+	finalExpectedUpvotes := p.CurrentExpectedUpvotes
+
+	if p.Exited() {
+		finalUpvotes = int(p.ExitUpvotes.Int64)
+		finalExpectedUpvotes = p.ExitExpectedUpvotes.Float64
+	}
+
+	finalUpvoteRate := m.upvoteRate(finalUpvotes, finalExpectedUpvotes)
+
+	if finalExpectedUpvotes == p.EntryExpectedUpvotes {
+		return 0
+	}
+
+	return (finalUpvoteRate*ln(postEntryUpvoteRate/buyPrice(p)) + (buyPrice(p) - postEntryUpvoteRate)) / ln(2)
 }
 
 func LogPeerTruthSerum(p Position, m ModelParams) float64 {
-	postEntryPrice := m.upvoteRate(p.CumulativeUpvotes+1, p.CumulativeExpectedUpvotes)
+	postEntryUpvoteRate := m.upvoteRate(p.CumulativeUpvotes+1, p.CumulativeExpectedUpvotes)
 
 	if p.ID == 36805231 {
-		fmt.Println("Prices", p.EntryUpvoteRate, postEntryPrice, p.CurrentUpvoteRate, buyPrice(p), postEntryPrice, sellPrice(p), postEntryPrice/buyPrice(p), sellPrice(p)/buyPrice(p))
+		fmt.Println("Prices", p.EntryUpvoteRate, postEntryUpvoteRate, p.CurrentUpvoteRate, buyPrice(p), postEntryUpvoteRate, sellPrice(p), postEntryUpvoteRate/buyPrice(p), sellPrice(p)/buyPrice(p))
 	}
 
 	if p.ID == 36731752 {
