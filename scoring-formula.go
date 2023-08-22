@@ -44,6 +44,8 @@ func UserScore(p Position, m ModelParams, formula string) float64 {
 		score = InformationGain8(p, m) * 100
 	case "InformationGain9":
 		score = InformationGain9(p, m) * 100
+	case "InformationGain10":
+		score = InformationGain10(p, m) * 100
 	case "LogPTS":
 		score = LogPeerTruthSerum(p, m) * 100
 	case "":
@@ -309,6 +311,29 @@ func InformationGain9(p Position, m ModelParams) float64 {
 	}
 
 	return (finalUpvoteRate*ln(postEntryUpvoteRate/buyPrice(p)) + (buyPrice(p) - postEntryUpvoteRate)) / ln(2)
+}
+
+func InformationGain10(p Position, m ModelParams) float64 {
+	// Information gain logic doesn't work for downvotes
+	if p.Direction == -1 {
+		return 0
+	}
+
+	finalUpvotes := p.CurrentUpvotes
+	finalExpectedUpvotes := p.CurrentExpectedUpvotes
+
+	if p.Exited() {
+		finalUpvotes = int(p.ExitUpvotes.Int64)
+		finalExpectedUpvotes = p.ExitExpectedUpvotes.Float64
+	}
+
+	finalUpvoteRate := m.upvoteRate(finalUpvotes, finalExpectedUpvotes)
+
+	if finalExpectedUpvotes == p.EntryExpectedUpvotes {
+		return 0
+	}
+
+	return (ln(finalUpvoteRate/buyPrice(p)) + (buyPrice(p)/finalUpvoteRate - 1)) / ln(2)
 }
 
 func LogPeerTruthSerum(p Position, m ModelParams) float64 {
