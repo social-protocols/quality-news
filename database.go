@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -23,6 +24,28 @@ type newsDatabase struct {
 	selectLastCrawlTimeStatement  *sql.Stmt
 	selectStoryDetailsStatement   *sql.Stmt
 	selectStoryCountStatement     *sql.Stmt
+
+	sqliteDataDir string
+}
+
+/* Attach the frontpage dataset for each context, to solve "no such table" errors,
+
+per suggestion here https://stackoverflow.com/users/saves/2573589
+*/
+
+func (ndb newsDatabase) upvotesDBWithDataset(ctx context.Context) (*sql.Conn, error) {
+	conn, err := ndb.upvotesDB.Conn(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "ndb.upvotesDB.Conn")
+	}
+
+	frontpageDatabaseFilename := fmt.Sprintf("%s/%s", ndb.sqliteDataDir, sqliteDataFilename)
+
+	// attach frontpage database as readonly. This way, we can write to the upvotes database while the crawler
+	// is writing to the frontpage database.
+	s := fmt.Sprintf("attach database 'file:%s?mode=ro' as frontpage", frontpageDatabaseFilename)
+	_, err = conn.ExecContext(ctx, s)
+	return conn, errors.Wrap(err, "attach frontpage database")
 }
 
 func (ndb newsDatabase) close() {
@@ -158,7 +181,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	frontpageDatabaseFilename := fmt.Sprintf("%s/%s", sqliteDataDir, sqliteDataFilename)
 
-	ndb := newsDatabase{}
+	ndb := newsDatabase{sqliteDataDir: sqliteDataDir}
 
 	var err error
 
@@ -166,7 +189,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	stdlib.Register("sqlite3_ext")
 
 	// Connect to database
-	ndb.db, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL&_mutex=full", frontpageDatabaseFilename))
+	ndb.db, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", frontpageDatabaseFilename))
 
 	if err != nil {
 		return ndb, errors.Wrap(err, "open frontpageDatabase")
@@ -180,7 +203,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	{
 		upvotesDatabaseFilename := fmt.Sprintf("%s/upvotes.sqlite", sqliteDataDir)
 
-		ndb.upvotesDB, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL&_mutex=full", upvotesDatabaseFilename))
+		ndb.upvotesDB, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", upvotesDatabaseFilename))
 		if err != nil {
 			return ndb, errors.Wrap(err, "open upvotesDB")
 		}
@@ -190,13 +213,6 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			return ndb, errors.Wrap(err, "initUpvotesDB")
 		}
 
-		// attach frontpage database as readonly. This way, we can write to the upvotes database while the crawler
-		// is writing to the frontpage database.
-		s := fmt.Sprintf("attach database 'file:%s?mode=ro' as frontpage", frontpageDatabaseFilename)
-		_, err = ndb.upvotesDB.Exec(s)
-		if err != nil {
-			return ndb, errors.Wrap(err, "attach frontpage database")
-		}
 	}
 
 	// the newsDatabase type has a few prepared statements that are defined here

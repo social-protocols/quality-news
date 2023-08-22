@@ -99,7 +99,10 @@ func (p Position) IsGain() bool {
 func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position, error) {
 	positions := make([]Position, 0)
 
-	db := app.ndb.upvotesDB
+	db, err := app.ndb.upvotesDBWithDataset(ctx)
+	if err != nil {
+		return positions, errors.Wrap(err, "upvotesDBWithDataset")
+	}
 
 	var statement *sql.Stmt
 	// userIDs < 100 are pseudo-users that upvote randomly according to a strategy
@@ -107,25 +110,25 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 	if userID < 100 {
 		switch userID {
 		case 0:
-			randomNewVoterStmt, err := db.Prepare(fmt.Sprintf(randomVoterSQL, "new", userID))
+			randomNewVoterStmt, err := db.PrepareContext(ctx, fmt.Sprintf(randomVoterSQL, "new", userID))
 			if err != nil {
 				return positions, errors.Wrap(err, "Preparing randomNewVoterStmt")
 			}
 			statement = randomNewVoterStmt
 		case 1:
-			randomTopVoterStmt, err := db.Prepare(fmt.Sprintf(randomVoterSQL, "top", userID))
+			randomTopVoterStmt, err := db.PrepareContext(ctx, fmt.Sprintf(randomVoterSQL, "top", userID))
 			if err != nil {
 				return positions, errors.Wrapf(err, "Preparing randomTopVoterStmt %s", fmt.Sprintf(randomVoterSQL, "top"))
 			}
 			statement = randomTopVoterStmt
 		case 2:
-			everyStoryVoter, err := db.Prepare(fmt.Sprintf(everyStoryVoterSQL, userID, 1))
+			everyStoryVoter, err := db.PrepareContext(ctx, fmt.Sprintf(everyStoryVoterSQL, userID, 1))
 			if err != nil {
 				return positions, errors.Wrap(err, "Preparing everyStoryVoter")
 			}
 			statement = everyStoryVoter
 		case 3:
-			everyStoryDownVoter, err := db.Prepare(fmt.Sprintf(everyStoryVoterSQL, userID, -1))
+			everyStoryDownVoter, err := db.PrepareContext(ctx, fmt.Sprintf(everyStoryVoterSQL, userID, -1))
 			if err != nil {
 				return positions, errors.Wrap(err, "Preparing everyStoryVoter")
 			}
@@ -166,7 +169,7 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 		// }
 	} else {
 
-		getDetailedPositionsStmt, err := db.Prepare(getDetailedPositionsSQL)
+		getDetailedPositionsStmt, err := db.PrepareContext(ctx, getDetailedPositionsSQL)
 		if err != nil {
 			return positions, errors.Wrap(err, "Preparing getDetailedPositionsStmt")
 		}
@@ -228,7 +231,7 @@ func (app app) getPositions(ctx context.Context, userID int64, storyIDs []int) (
 	db := app.ndb.upvotesDB
 
 	// TODO: only select votes relevant to the stories on the page
-	getPositionsStatement, err := db.Prepare(`
+	getPositionsStatement, err := db.PrepareContext(ctx, `
     select
       storyID
       , direction
