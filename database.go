@@ -166,7 +166,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	stdlib.Register("sqlite3_ext")
 
 	// Connect to database
-	ndb.db, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", frontpageDatabaseFilename))
+	ndb.db, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL&_mutex=full", frontpageDatabaseFilename))
 
 	if err != nil {
 		return ndb, errors.Wrap(err, "open frontpageDatabase")
@@ -180,7 +180,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	{
 		upvotesDatabaseFilename := fmt.Sprintf("%s/upvotes.sqlite", sqliteDataDir)
 
-		ndb.upvotesDB, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", upvotesDatabaseFilename))
+		ndb.upvotesDB, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL&_mutex=full", upvotesDatabaseFilename))
 		if err != nil {
 			return ndb, errors.Wrap(err, "open upvotesDB")
 		}
