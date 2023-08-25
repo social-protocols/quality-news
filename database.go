@@ -158,7 +158,6 @@ func (ndb newsDatabase) initUpvotesDB() error {
 			from votes
 			) select * from exits where direction != 0
 		`,
-		`delete from votes where userID < 100`,
 	}
 
 	for _, s := range seedStatements {
