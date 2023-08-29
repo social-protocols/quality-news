@@ -45,7 +45,25 @@ func (ndb newsDatabase) upvotesDBWithDataset(ctx context.Context) (*sql.Conn, er
 	// is writing to the frontpage database.
 	s := fmt.Sprintf("attach database 'file:%s?mode=ro' as frontpage", frontpageDatabaseFilename)
 	_, err = conn.ExecContext(ctx, s)
-	return conn, errors.Wrap(err, "attach frontpage database")
+	if err != nil && err.Error() != "database frontpage is already in use" {
+		return conn, errors.Wrap(err, "attach frontpage database")
+	}
+
+	return conn, nil
+}
+
+func (ndb newsDatabase) attachFrontpageDB() error {
+	frontpageDatabaseFilename := fmt.Sprintf("%s/%s", ndb.sqliteDataDir, sqliteDataFilename)
+
+	s := fmt.Sprintf("attach database 'file:%s?mode=ro' as frontpage", frontpageDatabaseFilename)
+
+	_, err := ndb.upvotesDB.Exec(s)
+
+	if err != nil && err.Error() != "database frontpage is already in use" {
+		return errors.Wrap(err, "attach frontpage database")
+	}
+
+	return nil
 }
 
 func (ndb newsDatabase) close() {
@@ -173,7 +191,12 @@ func (ndb newsDatabase) initUpvotesDB() error {
 		_, _ = ndb.upvotesDB.Exec(s)
 	}
 
-	return nil
+	frontpageDatabaseFilename := fmt.Sprintf("%s/%s", ndb.sqliteDataDir, sqliteDataFilename)
+
+	// attach the dataset table
+	s := fmt.Sprintf("attach database 'file:%s?mode=ro' as frontpage", frontpageDatabaseFilename)
+	_, err := ndb.upvotesDB.Exec(s)
+	return errors.Wrap(err, "attach frontpage database")
 }
 
 func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {

@@ -228,7 +228,10 @@ func (app app) getDetailedPositions(ctx context.Context, userID int) ([]Position
 func (app app) getPositions(ctx context.Context, userID int64, storyIDs []int) ([]Position, error) {
 	positions := make([]Position, 0)
 
-	db := app.ndb.upvotesDB
+	db, err := app.ndb.upvotesDBWithDataset(ctx)
+	if err != nil {
+		return positions, errors.Wrap(err, "upvotesDBWithDataset")
+	}
 
 	// TODO: only select votes relevant to the stories on the page
 	getPositionsStatement, err := db.PrepareContext(ctx, `

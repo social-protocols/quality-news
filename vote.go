@@ -27,6 +27,11 @@ var (
 )
 
 func (app app) prepareVoteStatements() error {
+	err := app.ndb.attachFrontpageDB()
+	if err != nil {
+		return errors.Wrap(err, "attachFrontpageDB")
+	}
+
 	if insertVoteStmt == nil {
 
 		var e error
@@ -109,7 +114,11 @@ func (app app) vote(ctx context.Context, userID int64, storyID int, direction in
 		return 0, 0, err
 	}
 
-	tx, e := app.ndb.upvotesDB.BeginTx(ctx, nil)
+	db, err := app.ndb.upvotesDBWithDataset(ctx)
+	if err != nil {
+		return 0, 0, errors.Wrap(err, "upvotesDBWithDataset")
+	}
+	tx, e := db.BeginTx(ctx, nil)
 	if e != nil {
 		err = errors.Wrap(e, "BeginTX")
 		return
@@ -163,7 +172,6 @@ func (app app) vote(ctx context.Context, userID int64, storyID int, direction in
 }
 
 func (app app) voteHandler() func(http.ResponseWriter, *http.Request, voteParams) error {
-
 	return func(w http.ResponseWriter, r *http.Request, p voteParams) error {
 		userID := app.getUserID(r)
 
