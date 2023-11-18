@@ -49,7 +49,7 @@ processes = []
 
 # flyctl volumes create data --region ewr --size 3
 [[mounts]]
-  source = "data"
+  source = "data2"
   destination = "/data"
 
 # prometheus metrics
