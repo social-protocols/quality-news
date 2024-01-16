@@ -15,7 +15,7 @@
 
 </div>
 
-[Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that provides additional data and insights on submissions, notably, the **upvoteRate** metric. We propose that this metric could be used to improve the Hacker News ranking algorithm.
+[Quality News](https://news.social-protocols.org) is a [Hacker News](https://news.ycombinator.com) client that provides additional data and insights on submissions, notably, the **upvoteRate** metric. The metric is the result of our [collection](https://github.com/social-protocols/hn-scraper) and analysis of the [Hacker News voting data set](https://osf.io/bnysw/). We propose that this metric could be used to improve the Hacker News ranking algorithm. 
 
 Quality News uses live minute-by-minute rank and upvote data collected from Hacker News. It looks and behaves very similar to the original Hacker News site except it shows `upvoteRate` and other metrics next to each story. It also provides charts with the history of each story's rank, upvotes, and upvote rate. It is a lightweight, server-side rendered page written in [go](https://go.dev) and hosted on [fly.io](https://fly.io).
 
