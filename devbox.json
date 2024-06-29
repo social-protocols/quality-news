@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.11.0/.schema/devbox.schema.json",
+  "packages": [
+    "entr@latest",
+    "gcc@latest",
+    "go_1_19@latest",
+    "gotools@latest",
+    "golangci-lint@latest",
+    "sqlite-interactive@latest",
+    "just@latest",
+  ],
+}
+// this file supports comments
+// vim: set ft=jsonc:

@@ -186,18 +186,16 @@ The frontpage generator queries the database and calculates the Bayesian average
 
 Make sure, you have:
 
-- go 1.19+
 - [direnv](https://direnv.net/) - to set environment variables automatically
-- entr - to automatically rerun server when files change
-- sqlite3
+- [devbox](https://www.jetify.com/devbox/docs/installing_devbox/) - install required software for project
 
-Run:
+To install required software and set environment variables, run:
 
 ```sh
+direnv allow
+```
 
-
-source .envrc # if you don't have direnv installed
-
+```sh
 go get
 ```
 
@@ -210,20 +208,7 @@ go run *.go
 Or, to automatically watch for source file changes:
 
 ```sh
-./watch.sh
-```
-
-### Using NIX
-
-There is also a [shell.nix](shell.nix) available, which provides all required dependencies.
-
-Install nix on your system, enter the news directory, and run:      
-
-```sh 
-
-nix-channel --update
-nix-shell
-./watch.sh
+just dev
 ```
 
 # Contributions
