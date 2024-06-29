@@ -173,11 +173,11 @@ function drawCharts() {
             {{end}}
 
 
-            <a href="https://news.ycombinator.com/item?id={{.ID}}" title="{{.ISOTimestamp}}">{{.AgeString}}</a>
+            <a href="https://sn.fly.dev/hn/{{.ID}}" title="{{.ISOTimestamp}}">{{.AgeString}}</a>
 
             |
 
-            <a href="https://news.ycombinator.com/item?id={{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> 
+            <a href="https://sn.fly.dev/hn/{{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> 
           
           </span>
         </div>
