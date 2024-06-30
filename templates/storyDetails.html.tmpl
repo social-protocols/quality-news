@@ -40,13 +40,13 @@
 
     {{/*if .IsResubmitted}}
     <span class="original-age" title="{{.OriginalISOTimestamp}}">{{.OriginalAgeString}}</span>
-    <a href="https://sn.fly.dev/hn/{{.ID}}" title="2nd-Chance Pool submission time: {{.ISOTimestamp}}" class="resubmitted-age">{{.AgeString}}</a>
+    <a href="https://news.ycombinator.com/item?id={{.ID}}" title="2nd-Chance Pool submission time: {{.ISOTimestamp}}" class="resubmitted-age">{{.AgeString}}</a>
     {{else*/}}
-    <a href="https://sn.fly.dev/hn/{{.ID}}" title="{{.ISOTimestamp}}">{{.AgeString}}</a>
+    <a href="https://news.ycombinator.com/item?id={{.ID}}" title="{{.ISOTimestamp}}">{{.AgeString}}</a>
 
     |
 
-    <a href="https://sn.fly.dev/hn/{{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> 
+    <a href="https://news.ycombinator.com/item?id={{.ID}}">{{if (eq .Comments 0)}}discuss{{else}}{{.Comments}}&nbsp;comments{{end}}</a> 
 
     <span class="vote" id="vote-{{.ID}}">
       | 
