@@ -12,6 +12,7 @@
 <div align="center">
  
 ![GitHub](https://img.shields.io/github/license/social-protocols/news?style=flat-square)
+[![zulip](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://social-protocols.zulipchat.com/join/mwl3zq4gsr2iitpcaznn6auh/)
 
 </div>
 
@@ -21,7 +22,7 @@ Quality News uses live minute-by-minute rank and upvote data collected from Hack
 
 We hope for interest and support from the Hacker News community to encourage official ranking experiments on the Hacker News frontpage. We're happy to help where we can in this regard.
 
-This is a collective intelligence experiment by [Social Protocols](https://social-protocols.org). Follow us on [Mastodon](https://mas.to/@SocialProtocols) or [Twitter](https://twitter.com/socialprotocols), or send a [mail](mailto:mail@social-protocols.org).
+This is a collective intelligence experiment by [Social Protocols](https://social-protocols.org). Follow us on [Mastodon](https://mas.to/@SocialProtocols) or [Twitter](https://twitter.com/socialprotocols), [chat with us on Zulip](https://social-protocols.zulipchat.com/join/mwl3zq4gsr2iitpcaznn6auh/), or send a [mail](mailto:mail@social-protocols.org).
 
 ## Introduction
 
