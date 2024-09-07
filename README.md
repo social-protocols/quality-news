@@ -129,7 +129,7 @@ Computing this sum over the story's entire history on Hacker News gives the stor
 
 <img alt="sample stories rank history chart" src="static/rank-history.png" width="550"/>
 <img alt="sample expected upvotes chart" src="static/expected-upvotes.png" width="550"/>
-<br/><span style="margin-left: 60px;">History of rank, upvotes, and expected upvotes for a sample story</span><br/>
+<br/>
 
 
 ## The Upvote Rate
@@ -144,7 +144,8 @@ The factor of how many more or fewer upvotes a story receives than expected is c
 ##### Chart of Upvote Rate for a Sample Story
 
 <img alt="sample upvote rate chart" src="static/upvote-rate.png" width="550"/>
-<br/><span style="margin-left: 60px;">History of the estimated upvote rate of a sample story</span><br/>
+<br/>
+
 
 The relationship `upvotes ≈ upvoteRate * expectedUpvotes` holds even in the aggregate, independently of the ranks at which upvotes actually occurred. This can be seen by taking the sum of a story's upvotes across all time intervals:
 
