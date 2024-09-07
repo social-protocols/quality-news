@@ -83,7 +83,7 @@ func (rs rawStory) Clean() (ScrapedStory, error) {
 
 	// parse submission time
 	{
-		submissionTime, err := time.Parse("2006-01-02T15:04:05", rs.SubmissionTime)
+		submissionTime, err := time.Parse("2006-01-02T15:04:05Z", rs.SubmissionTime)
 		if err != nil {
 			return story, errors.Wrapf(err, "parse submission time %s", rs.SubmissionTime)
 		}
