@@ -1,15 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"time"
-	"fmt"
 
 	"github.com/pkg/errors"
 )
 
 const alertAfterMinutes = 5
-
 
 func (app app) healthHandler() func(http.ResponseWriter, *http.Request, loginParams) error {
 	return func(w http.ResponseWriter, r *http.Request, p loginParams) error {
@@ -35,4 +34,3 @@ func (app app) healthHandler() func(http.ResponseWriter, *http.Request, loginPar
 		return nil
 	}
 }
-
