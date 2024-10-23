@@ -83,22 +83,22 @@ func (rs rawStory) Clean() (ScrapedStory, error) {
 
 	// parse submission time
 	{
-        // submission times now contain a timestamp string, followed by a
-        // space then a unix timestamp with what looks like the *current*
-        // time which I suppose we can just ignore. For
-        // example "2024-10-23T16:44:01 1729713776"
-        parts := strings.Split(rs.SubmissionTime, " ")
+		// submission times now contain a timestamp string, followed by a
+		// space then a unix timestamp with what looks like the *current*
+		// time which I suppose we can just ignore. For
+		// example "2024-10-23T16:44:01 1729713776"
+		parts := strings.Split(rs.SubmissionTime, " ")
 
-        var submissionTime time.Time
-        var err error
+		var submissionTime time.Time
+		var err error
 
-        if strings.HasSuffix(parts[0], "Z") {
-            // Old format with "Z" indicating UTC
-            submissionTime, err = time.Parse("2006-01-02T15:04:05Z", parts[0])
-        } else {
-            // New format without "Z"
-            submissionTime, err = time.Parse("2006-01-02T15:04:05", parts[0])
-        }
+		if strings.HasSuffix(parts[0], "Z") {
+			// Old format with "Z" indicating UTC
+			submissionTime, err = time.Parse("2006-01-02T15:04:05Z", parts[0])
+		} else {
+			// New format without "Z"
+			submissionTime, err = time.Parse("2006-01-02T15:04:05", parts[0])
+		}
 
 		if err != nil {
 			return story, errors.Wrapf(err, "parse submission time %s", rs.SubmissionTime)
@@ -328,4 +328,3 @@ func (app app) scrapeFrontPageStories(ctx context.Context) (map[int]ScrapedStory
 
 	return stories, nil
 }
-
