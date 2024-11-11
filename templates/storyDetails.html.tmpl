@@ -10,10 +10,12 @@
     {{if .Dupe}}[dupe]{{end}}
 
   {{if (not .Job)}}
-      {{if and .IsHNTopPage .OverRanked}}<a href="/#{{.ID}}"><span title="Over-Ranked" class="delta-icon over-ranked">⬆{{.RankDiffAbs}}</span></a> {{end}}
-      {{if and .IsHNTopPage .UnderRanked}}<a href="/#{{.ID}}"><span title="Under-Ranked" class="delta-icon under-ranked">⬇{{.RankDiffAbs}}</span></a> {{end}}
-
     <a href="/stats?id={{.ID}}">
+    <span>
+      {{if and .IsHNTopPage .OverRanked}}<span title="Over-Ranked" class="delta over-ranked">⬆{{.RankDiffAbs}}</span> {{end}}
+      {{if and .IsHNTopPage .UnderRanked}}<span title="Under-Ranked" class="delta under-ranked">⬇{{.RankDiffAbs}}</span> {{end}}
+    </span>
+
       <span 
         title="Estimated True Upvote Rate:&#013;Ratio of how more or less likely users are to upvote this story compared to the average story (x1.00)."
         {{if ge .UpvoteRateString "1"}} class="upvoterate" {{end}}

@@ -80,7 +80,9 @@ var userID {{if .UserID.Valid}} = {{.UserID}} {{end}}
 	    {{end}}
 	    {{if .IsBestPage}}
 	        <a href="https://news.ycombinator.com/best">"Best" Page</a>.
-	    {{end}} Page. The estimated <span class="upvoterate">×upvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a> is shown next to each story: click on it to see charts of the story's rank, upvotes, and upvoteRate history.
+	    {{end}} Page. The estimated <span class="upvoterate">×upvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a> {{if .IsHNTopPage}} 
+	    	and <span style="white-space:nowrap"><span class="over-ranked">⬆</span><span class="under-ranked">⬇</span>rankDelta <a class="question-mark" href="/about#rank-delta">(?)</span></a>  
+	    {{end}} is shown below to each story: click on it to see charts of the story's rank, upvotes, and upvoteRate history.
 
 		</div>
 

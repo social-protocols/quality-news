@@ -5,7 +5,7 @@ GitHub.</p>
 <p>This is a collective intelligence experiment by <a href="https://social-protocols.org">Social Protocols</a>. Follow us on <a rel="me" href="https://mas.to/@SocialProtocols">Mastodon</a> or <a href="https://twitter.com/socialprotocols">Twitter</a>, or send a <a href="mailto:mail@social-protocols.org">mail</a>.</p>
 
 <h2 id="upvote-rate">Upvote Rate</h2>
-<p>The <strong>upvoteRate</strong> quantifies how much more or less
+<p>The <strong class="upvoterate">×upvoteRate</strong> quantifies how much more or less
 likely users are to upvote this story compared to the average story. It
 is calculated as the story's total upvotes divided by total
 <strong>expected upvotes</strong>.</p>
@@ -25,6 +25,15 @@ according to the "raw" Hacker News ranking formula:</p>
 But the HN ranking is further influenced by moderator actions, user flags, and other factors which boost or penalize stories.
 
 </p>
+
+
+<h2 id="rank-delta">Rank Delta</h2>
+<p>The delta between the raw rank and front page rank. An <span class="over-ranked">⬆</span>over-ranked page may have received a boost by HN moderators, while an
+<span class="under-ranked">⬇</span>under-ranked page may have received a penalty.
+</p>
+
+
+
 
 {{/*
 <h2 id="rank-delta">Rank Delta</h2>

@@ -5,6 +5,7 @@
   --text-red: #d4214b;
   --text-green: #05851e;
   --text-blue: #0089f4;
+  --text-hn:  #ff6600;
 }
 
 html {
@@ -237,7 +238,7 @@ a:visited.boost {
   color: #5a6266;
 }
 
-.delta-icon {
+.delta {
   display: inline-block;
   text-align: center;
   min-width: 2em;
@@ -246,22 +247,22 @@ a:visited.boost {
   padding-right: 1px;
   padding-top: 1px;
   padding-bottom: 1px;
-  /* negative margin reverts the height increase by the padding */
   margin-top: -1px;
   margin-bottom: -1px;
-  # background-color: #cae2f4;
-  # color: #5a6266;
-  margin-left: -2em;
-#  font-size: 11px;
-
-.delta-icon .over-ranked {
-  color: #6c6c6c;
+  font-size: 11px;
 }
 
-.delta-icon .under-ranked {
-  color: black;
+.over-ranked,
+a:link.over-ranked,
+a:visited.over-ranked {
+  color: darkgreen;
 }
 
+.under-ranked,
+a:link.under-ranked,
+a:visited.under-ranked {
+  color: darkred;
+}
 
 .original-age {
   text-decoration: line-through;
