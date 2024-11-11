@@ -192,7 +192,7 @@ func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error, moreLink
 			class := e.Attr("class")
 
 			// stories will always start with a tr of class athing
-			if class == "athing" && n < 30 {
+			if strings.Contains(class, "athing") && n < 30 {
 				n = n + 1
 				lastStoryRownum = i
 				if n > 30 {
@@ -207,7 +207,6 @@ func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error, moreLink
 					errCh <- err
 				}
 			} else if class == "" && i == lastStoryRownum+1 && n > 0 && n <= 30 {
-
 				// the first tr after the "athing" contains the second row of
 				// details for the story. Note also we must skip any trs
 				// before the first athing because sometimes they contain
