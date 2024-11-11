@@ -241,7 +241,6 @@ a:visited.boost {
 .delta {
   display: inline-block;
   text-align: center;
-  min-width: 2em;
   border-radius: 6px;
   padding-left: 1px;
   padding-right: 1px;
@@ -258,11 +257,22 @@ a:visited.over-ranked {
   color: darkgreen;
 }
 
+.over-ranked::before {
+  content: '↑'
+}
+
+
 .under-ranked,
 a:link.under-ranked,
 a:visited.under-ranked {
   color: darkred;
 }
+
+.under-ranked::before {
+  content: '↓'
+}
+
+
 
 .original-age {
   text-decoration: line-through;
