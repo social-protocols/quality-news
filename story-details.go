@@ -71,12 +71,11 @@ func (s Story) RankDiff() int32 {
 	return rawRank - topRank
 }
 
-
 func abs(a int32) int32 {
-    if a >= 0 {
-        return a
-    }
-    return -a
+	if a >= 0 {
+		return a
+	}
+	return -a
 }
 
 func (s Story) RankDiffAbs() int32 {
