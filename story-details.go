@@ -71,6 +71,26 @@ func (s Story) RankDiff() int32 {
 	return rawRank - topRank
 }
 
+
+func abs(a int32) int32 {
+    if a >= 0 {
+        return a
+    }
+    return -a
+}
+
+func (s Story) RankDiffAbs() int32 {
+	return abs(s.RankDiff())
+}
+
+func (s Story) OverRanked() bool {
+	return s.RankDiff() > 0
+}
+
+func (s Story) UnderRanked() bool {
+	return s.RankDiff() < 0
+}
+
 func (s Story) Domain() string {
 	u, err := url.Parse(s.URL)
 	if err != nil {

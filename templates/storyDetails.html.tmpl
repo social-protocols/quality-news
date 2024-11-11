@@ -10,6 +10,8 @@
     {{if .Dupe}}[dupe]{{end}}
 
   {{if (not .Job)}}
+      {{if and .IsHNTopPage .OverRanked}}<a href="/#{{.ID}}"><span title="Over-Ranked" class="delta-icon over-ranked">⬆{{.RankDiffAbs}}</span></a> {{end}}
+      {{if and .IsHNTopPage .UnderRanked}}<a href="/#{{.ID}}"><span title="Under-Ranked" class="delta-icon under-ranked">⬇{{.RankDiffAbs}}</span></a> {{end}}
 
     <a href="/stats?id={{.ID}}">
       <span 
