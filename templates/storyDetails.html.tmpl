@@ -12,8 +12,8 @@
   {{if (not .Job)}}
     <a href="/stats?id={{.ID}}">
     <span>
-      {{if and .IsHNTopPage .OverRanked}}<span title="Over-Ranked" class="delta over-ranked">{{.RankDiffAbs}}</span> {{end}}
-      {{if and .IsHNTopPage .UnderRanked}}<span title="Under-Ranked" class="delta under-ranked">{{.RankDiffAbs}}</span> {{end}}
+      {{if and (or .IsHNTopPage .IsRawPage) .OverRanked}}<span title="Over-Ranked" class="delta over-ranked">{{.RankDiffAbs}}</span> {{end}}
+      {{if and (or .IsHNTopPage .IsRawPage) .UnderRanked}}<span title="Under-Ranked" class="delta under-ranked">{{.RankDiffAbs}}</span> {{end}}
     </span>
 
       <span 

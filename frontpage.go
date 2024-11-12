@@ -413,6 +413,9 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		if ranking == "hntop" {
 			s.IsHNTopPage = true
 		}
+		if ranking == "raw" {
+			s.IsRawPage = true
+		}
 		if ranking == "highdelta" || ranking == "lowdelta" {
 			s.IsDeltaPage = true
 		}
