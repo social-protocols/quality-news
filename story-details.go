@@ -35,7 +35,7 @@ type Story struct {
 	IsHNTopPage               bool
 	IsStatsPage               bool
 	IsDeltaPage               bool
-	IsRawPage bool
+	IsRawPage                 bool
 }
 
 func (s Story) AgeString() string {
