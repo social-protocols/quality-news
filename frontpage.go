@@ -319,7 +319,8 @@ func orderByStatement(ranking string) string {
 						, gravity/0.8
 					)
 				)
-				+ (ifnull(topRank,91) - rawRank) 
+				* ( ifnull(topRank,91) / rawrank )
+
 			end nulls last
 		 `
 	case "hntop":

@@ -220,7 +220,6 @@ func (ndb newsDatabase) registerExtensions() error {
 	return errors.Wrap(err, "registering sample_from_gamma_distribution")
 }
 
-
 func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	createDataDirIfNotExists(sqliteDataDir)
 
