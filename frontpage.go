@@ -171,51 +171,7 @@ func (p FrontPageParams) String() string {
 
 var defaultFrontPageParams = FrontPageParams{defaultModelParams, 5.0, 1.4, 2.5, 0}
 
-const frontPageSQL = `
-	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %f as penaltyWeight, %f as fatigueFactor, %d as pastTime)
-	, rankedStories as (
-		select
-			*
-			, timestamp as OriginalSubmissionTime
-			, (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
-	  from stories
-	  join dataset using(id)
-	  join parameters
-	  where sampleTime = case when pastTime > 0 then pastTime else (select max(sampleTime) from dataset) end
-      and score >= 3
-	)
-	, unadjustedRanks as (
-		select
-			*
-			, dense_rank() over(order by %s)  as unadjustedRank
-		from rankedStories
-	)
-	select
-		id
-		, by
-		, title
-		, url
-		, submissionTime
-		, timestamp as OriginalSubmissionTime
-		, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime) ageApprox
-		, score
-		, descendants
-		, cumulativeUpvotes
-		, cumulativeExpectedUpvotes
-		-- , (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
-		, penalty
-		, topRank
-		, dense_rank() over(order by unadjustedRank + penalty*penaltyWeight) as qnRank
-		, rawRank
-		, flagged
-		, dupe
-		, job
-	from unadjustedRanks
-	order by %s
-	limit 90;
-`
-
-const hnPageSQL = `
+const pageSQL = `
 	with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gravity, %f as fatigueFactor, %d as pastTime)
 	select
 		id
@@ -347,7 +303,7 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 func orderByStatement(ranking string) string {
 	switch ranking {
 	case "quality":
-		return "qnRank nulls last"
+		return "case when rawRank is null or (topRank is null and rawRank > 90) then null else qnRank + (ifnull(topRank,91) - rawRank) end nulls last"
 	case "hntop":
 		return "topRank nulls last"
 	case "unadjusted":
@@ -378,11 +334,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 
 		var sql string
 		orderBy := orderByStatement(ranking)
-		if ranking == "quality" {
-			sql = fmt.Sprintf(frontPageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.PenaltyWeight, params.FatigueFactor, params.PastTime, qnRankFormulaSQL, orderBy)
-		} else {
-			sql = fmt.Sprintf(hnPageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.FatigueFactor, params.PastTime, orderBy)
-		}
+		sql = fmt.Sprintf(pageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.FatigueFactor, params.PastTime, orderBy)
 
 		s, err = ndb.db.Prepare(sql)
 		if err != nil {

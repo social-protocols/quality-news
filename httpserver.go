@@ -51,6 +51,7 @@ func (app app) httpServer(onPanic func(error)) *http.Server {
 	router.GET("/new", middleware("new", l, onPanic, app.frontpageHandler("new")))
 	router.GET("/top", middleware("top", l, onPanic, app.frontpageHandler("hntop")))
 	router.GET("/best", middleware("best", l, onPanic, app.frontpageHandler("best")))
+	router.GET("/quality", middleware("quality", l, onPanic, app.frontpageHandler("quality")))
 	router.GET("/best-upvoterate", middleware("best-upvoterate", l, onPanic, app.frontpageHandler("best-upvoterate")))
 	router.GET("/best-upvoterate-fatigue", middleware("best-upvoterate-fatigue", l, onPanic, app.frontpageHandler("best-upvoterate-fatigue")))
 	router.GET("/ask", middleware("ask", l, onPanic, app.frontpageHandler("ask")))
