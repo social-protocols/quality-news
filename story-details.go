@@ -33,6 +33,7 @@ type Story struct {
 	Flagged                   bool
 	Dupe                      bool
 	IsHNTopPage               bool
+	IsQualityPage             bool
 	IsStatsPage               bool
 	IsDeltaPage               bool
 	IsRawPage                 bool

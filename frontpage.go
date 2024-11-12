@@ -303,7 +303,25 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 func orderByStatement(ranking string) string {
 	switch ranking {
 	case "quality":
-		return "case when rawRank is null or (topRank is null and rawRank > 90) then null else qnRank + (ifnull(topRank,91) - rawRank) end nulls last"
+		return `
+			case when rawRank is null or (topRank is null and rawRank > 90) then null else 
+
+				dense_rank() over(order by 
+					sample_from_gamma_distribution(
+						cumulativeUpvotes + overallPriorWeight, 
+						(
+							1-exp(-fatigueFactor*cumulativeExpectedUpvotes)
+						)
+						/fatigueFactor 
+						+ overallPriorWeight
+					) / pow(
+						cast(sampleTime-submissionTime as real)/3600 + 2
+						, gravity/0.8
+					)
+				)
+				+ (ifnull(topRank,91) - rawRank) 
+			end nulls last
+		 `
 	case "hntop":
 		return "topRank nulls last"
 	case "unadjusted":
@@ -364,6 +382,9 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 
 		if ranking == "hntop" {
 			s.IsHNTopPage = true
+		}
+		if ranking == "quality" {
+			s.IsQualityPage = true
 		}
 		if ranking == "raw" {
 			s.IsRawPage = true

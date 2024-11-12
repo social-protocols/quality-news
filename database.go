@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	_ "github.com/mattn/go-sqlite3"
+	sqlite3 "github.com/mattn/go-sqlite3"
 
 	stdlib "github.com/multiprocessio/go-sqlite3-stdlib"
 	"github.com/pkg/errors"
@@ -216,6 +216,28 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	if err != nil {
 		return ndb, errors.Wrap(err, "open frontpageDatabase")
+	}
+
+	// After connecting to the database, we want to register a  custom function
+	conn, err := ndb.db.Conn(context.Background())
+	if err != nil {
+		return ndb, errors.Wrap(err, "getting connection")
+	}
+	defer conn.Close()
+
+	err = conn.Raw(func(driverConn interface{}) error {
+		if sqliteConn, ok := driverConn.(*sqlite3.SQLiteConn); ok {
+			err := sqliteConn.RegisterFunc("sample_from_gamma_distribution", sampleFromGammaDistribution, true)
+			if err != nil {
+				return errors.Wrap(err, "sqliteConn.RegisterFunc(\"sample_from_gamma_distribution\")")
+			}
+		} else {
+			return fmt.Errorf("failed to cast driverConn to *sqlite3.SQLiteConn")
+		}
+		return nil
+	})
+	if err != nil {
+		return ndb, errors.Wrap(err, "registering sample_from_gamma_distribution")
 	}
 
 	err = ndb.initFrontpageDB()
