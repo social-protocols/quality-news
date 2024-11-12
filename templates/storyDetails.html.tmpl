@@ -11,10 +11,6 @@
 
   {{if (not .Job)}}
     <a href="/stats?id={{.ID}}">
-    <span>
-      {{if and (or .IsHNTopPage .IsRawPage .IsQualityPage) .OverRanked}}<span title="Over-Ranked" class="delta over-ranked">{{.RankDiffAbs}}</span> {{end}}
-      {{if and (or .IsHNTopPage .IsRawPage .IsQualityPage) .UnderRanked}}<span title="Under-Ranked" class="delta under-ranked">{{.RankDiffAbs}}</span> {{end}}
-    </span>
 
       <span 
         title="Estimated True Upvote Rate:&#013;Ratio of how more or less likely users are to upvote this story compared to the average story (x1.00)."
@@ -34,6 +30,10 @@
       {{if and .TopRank.Valid (not .IsHNTopPage)}}<a href="/#{{.ID}}"><span title="Rank on Hacker News Front Page" class="rank-icon hn">#{{.TopRank.Value}}</span></a> {{end}}
 
 {{/*      {{if and .QNRank.Valid (le .QNRank.Int32 90) (not .IsQualityPage) }}<a href="/#{{.ID}}"><span class="rank-icon qn">#{{.QNRank.Value}}</span> on QN</a> |{{end}} */}}
+    </span>
+    <span>
+      {{if and (or .IsHNTopPage .IsRawPage .IsQualityPage) .OverRanked}}<span title="Over-Ranked" class="delta over-ranked">{{.RankDiffAbs}}</span> {{end}}
+      {{if and (or .IsHNTopPage .IsRawPage .IsQualityPage) .UnderRanked}}<span title="Under-Ranked" class="delta under-ranked">{{.RankDiffAbs}}</span> {{end}}
     </span>
 
     |

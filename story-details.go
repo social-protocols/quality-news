@@ -64,10 +64,7 @@ func (s Story) RankDiff() int32 {
 	topRank := s.TopRank.Int32
 
 	if !s.TopRank.Valid {
-		if rawRank > 90 {
 			return 0
-		}
-		topRank = 91
 	}
 
 	return rawRank - topRank
