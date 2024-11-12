@@ -340,6 +340,9 @@ func orderByStatement(ranking string) string {
 }
 
 func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, params FrontPageParams) (stories []Story, err error) {
+
+	ndb.registerExtensions()
+
 	if statements == nil {
 		statements = make(map[string]*sql.Stmt)
 	}
@@ -368,7 +371,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 
 	rows, err := s.QueryContext(ctx)
 	if err != nil {
-		return stories, errors.Wrap(err, "executing SQL")
+		return stories, errors.Wrap(err, "executing front page SQL")
 	}
 	defer rows.Close()
 
