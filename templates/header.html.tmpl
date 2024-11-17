@@ -10,6 +10,8 @@
 <a class="nav-link {{if .IsBestPage}}active{{end}}" href="/best">best</a> |
 <a class="nav-link {{if .IsRawPage}}active{{end}}" href="/raw">raw</a> |
 <a class="nav-link {{if .IsQualityPage}}active{{end}}" href="/quality">quality</a> |
+<a class="nav-link {{if .IsPenaltiesPage}}active{{end}}" href="/penalties">penalties</a> |
+<a class="nav-link {{if .IsBoostsPage}}active{{end}}" href="/boosts">boosts</a> |
 {{ if .UserID.Valid }} <a class="nav-link {{if .IsScorePage}}active{{end}}" href="/score">score</a> | {{ end }}
 <a class="nav-link {{if .IsAboutPage}}active{{end}}" href="/about">about</a>
 </div>

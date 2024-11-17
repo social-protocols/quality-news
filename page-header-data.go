@@ -32,6 +32,14 @@ func (d DefaultPageHeaderData) IsRawPage() bool {
 	return false
 }
 
+func (d DefaultPageHeaderData) IsPenaltiesPage() bool {
+	return false
+}
+
+func (d DefaultPageHeaderData) IsBoostsPage() bool {
+	return false
+}
+
 func (d DefaultPageHeaderData) IsAboutPage() bool {
 	return false
 }

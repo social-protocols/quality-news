@@ -18,22 +18,15 @@
         {{if ge .UpvoteRateString "2"}} style="font-weight:bold;" {{end}}>
         ×{{.UpvoteRateString}}</span> 
 
-      {{/*if (or .IsHNTopPage .IsDeltaPage) }}
-        {{if ne .RankDiff 0}}
-          <span class={{if lt .RankDiff 0}}"penalty"{{else}}"boost"{{end}} title="Rank Delta:&#013;Difference in ranking caused by Hacker News moderation and other factors compared to using the raw formula. {{if gt .RankDiff 0}}+{{end}}{{.RankDiff}} means that it is ranked {{if gt .RankDiff 0}}higher{{else}}lower{{end}} on the front page than if it were ranked using the raw formula only. Have a look at the 'raw' page to see the raw ranking.">
-            {{if gt .RankDiff 0}}+{{end}}{{.RankDiff}}
-          </span>
-        {{end}}
-      {{end*/}}
     </a>
+    <span>
+      {{if and (or .IsHNTopPage .IsRawPage .IsQualityPage .IsPenaltiesPage .IsBoostsPage) .OverRanked}}<a href="/stats?id={{.ID}}"><span title="Rank Delta:&#013;Difference between rank on top page and 'raw' rank before penalties or boosts" class="delta over-ranked">{{.RankDiffAbs}}</span></a> {{end}}
+      {{if and (or .IsHNTopPage .IsRawPage .IsQualityPage .IsPenaltiesPage .IsBoostsPage) .UnderRanked}}<a href="/stats?id={{.ID}}"><span title="Rank Delta:&#013;Difference between rank on top page and 'raw' rank before penalties or boosts" class="delta under-ranked">{{.RankDiffAbs}}</span></a> {{end}}
+    </span>
+
     <span class="comparative-rank">
       {{if and .TopRank.Valid (not .IsHNTopPage)}}<a href="/#{{.ID}}"><span title="Rank on Hacker News Front Page" class="rank-icon hn">#{{.TopRank.Value}}</span></a> {{end}}
 
-{{/*      {{if and .QNRank.Valid (le .QNRank.Int32 90) (not .IsQualityPage) }}<a href="/#{{.ID}}"><span class="rank-icon qn">#{{.QNRank.Value}}</span> on QN</a> |{{end}} */}}
-    </span>
-    <span>
-      {{if and (or .IsHNTopPage .IsRawPage .IsQualityPage) .OverRanked}}<span title="Over-Ranked" class="delta over-ranked">{{.RankDiffAbs}}</span> {{end}}
-      {{if and (or .IsHNTopPage .IsRawPage .IsQualityPage) .UnderRanked}}<span title="Under-Ranked" class="delta under-ranked">{{.RankDiffAbs}}</span> {{end}}
     </span>
 
     |

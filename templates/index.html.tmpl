@@ -38,31 +38,25 @@ var userID {{if .UserID.Valid}} = {{.UserID}} {{end}}
 {{template "header.html.tmpl"  .}}
 
 
+	<div class="introduction">
 	{{if .IsRawPage}}
 
-	<div class="introduction">
-		These are the current stories on the Hacker News Front page ranked by the raw score produced by the HN formula, with no moderation penalties or bonuses applied. This makes the impact of moderation on the HN frontpage visible (e.g. off-topic/non-tech stories are ranked higher).
+			These are the current stories on the Hacker News Front page ranked by the raw score produced by the HN formula, with no moderation penalties or bonuses applied. This makes the impact of moderation on the HN frontpage visible (e.g. off-topic/non-tech stories are ranked higher).
 
-	</div>
 
-	<div class="key">
-		<span class="upvoterate">×UpvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a>
-    {{/*if (or .IsHNTopPage .IsDeltaPage)}}&nbsp; <span class="boost">+</span>/<span class="penalty">-</span> <span style="color: #223344">rank delta</span> <a class="question-mark" href="/about#rank-delta">(?)</a>{{end*/}}
-		{{if (not .IsHNTopPage)}}
-		&nbsp; <span class="rank-icon hn">#rank</span> on front page
-		{{end}}
-		{{/*&nbsp; <span class="original-age">original</span> <span class="resubmitted-age">2nd-chance</span> age <a class="question-mark" href="/about#second-chance-age">(?)</a>*/}}
-	</div>	
+	{{else if .IsQualityPage}}
 
-{{else if .IsBestUpvoteRatePage}}
+			This is an alternative Hacker News front page with a "fairer" ranking formula as described <a href="https://github.com/social-protocols/quality-news#readme">here</a>. 
 
-<div class="introduction">
-  Similar to the Hacker News <a href="https://news.ycombinator.com/best">"Best" Page</a>, these are the current stories on the Hacker News Front page ranked by their <a class="question-mark" href="/about#upvote-rate"><span class="upvoterate">×upvoteRate (?)</span></a>. This makes the impact of moderation on the HN frontpage visible (e.g. off-topic/non-tech stories are ranked higher).
-</div>
+	{{else if .IsPenaltiesPage}}
+
+			This page shows stories whose rank on the Hacker News front page is significantly lower than their <a href="/about#raw-rank">raw rank</a>, indicating that they have been penalized by Hacker News moderators. See <a href="https://www.righto.com/2013/11/how-hacker-news-ranking-really-works.html">this blog post</a> for a discussion of how Hacker News applies penalties.
+
+	{{else if .IsBoostsPage}}
+
+			This page shows stories whose rank on the Hacker News front page is significantly lower than their <a href="/about#raw-rank">raw rank</a>, indicating that have been boosted by Hacker News moderators.
 
 	{{else}}
-		<div class="introduction">
-
 
 		This is the current Hacker News 
 
@@ -80,13 +74,26 @@ var userID {{if .UserID.Valid}} = {{.UserID}} {{end}}
 	    {{end}}
 	    {{if .IsBestPage}}
 	        <a href="https://news.ycombinator.com/best">"Best" Page</a>.
-	    {{end}} Page. The estimated <span class="upvoterate">×upvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a> {{if .IsHNTopPage}} 
-	    	and <span style="white-space:nowrap"><span class="over-ranked"></span><span class="under-ranked"></span>rankDelta <a class="question-mark" href="/about#rank-delta">(?)</span></a>  
-	    {{end}} is shown below each story: click on it to see charts of the story's rank, upvotes, and upvoteRate.
-
-		</div>
+	    {{end}} Page, with some additional performance stats.
 
 	{{end}}
+
+	    Click on the stats next to a story to see detailed historical charts.
+
+	</div>
+
+	<div class="key">key: 
+		<span class="upvoterate">×UpvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a>
+    {{/*if (or .IsHNTopPage .IsPenaltyOrBoostPage)}}&nbsp; <span class="boost">+</span>/<span class="penalty">-</span> <span style="color: #223344">rank delta</span> <a class="question-mark" href="/about#rank-delta">(?)</a>{{end*/}}
+
+		{{if (not .IsHNTopPage)}}
+		&nbsp; <span class="rank-icon hn">#rank</span> on front page
+		{{end}}
+
+		&nbsp; <span style="white-space:nowrap"><span class="over-ranked"></span><span class="under-ranked"></span>rankDelta <a class="question-mark" href="/about#rank-delta">(?)</span></a>
+
+		{{/*&nbsp; <span class="original-age">original</span> <span class="resubmitted-age">2nd-chance</span> age <a class="question-mark" href="/about#second-chance-age">(?)</a>*/}}
+	</div>	
 
 
 <ol class="stories">

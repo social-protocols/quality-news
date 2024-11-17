@@ -14,7 +14,23 @@ import (
 )
 
 const (
-	qnRankFormulaSQL = "pow(ageHours, (cumulativeUpvotes + overallPriorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + overallPriorWeight)) / pow(ageHours + 2, gravity/0.8) desc"
+	// qnRankFormulaSQL = "pow(ageHours * (cumulativeUpvotes + overallPriorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + overallPriorWeight), 0.8) / pow(ageHours + 2, gravity/0.8) desc"
+
+	qnRankFormulaSQL = `
+		pow(
+			ageHours * 
+			sample_from_gamma_distribution(
+				cumulativeUpvotes + overallPriorWeight,
+				(
+						1-exp(-fatigueFactor*cumulativeExpectedUpvotes)
+				) / fatigueFactor + overallPriorWeight
+			 )
+			 , 0.8
+		) / pow(
+				ageHours + 2
+				, gravity/0.8
+		) desc`
+
 	hnRankFormulaSQL = "(score-1) / pow(ageHours + 2, gravity/0.8) desc"
 )
 
@@ -30,6 +46,7 @@ func (app app) crawlPostprocess(ctx context.Context, tx *sql.Tx) error {
 		"resubmissions.sql",
 		"raw-ranks.sql",
 		"delete-old-data.sql",
+		"penalties.sql",
 	} {
 		err = executeSQLFile(ctx, tx, filename)
 		if err != nil {

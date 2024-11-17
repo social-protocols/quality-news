@@ -51,10 +51,6 @@ func (d frontPageData) IsBestPage() bool {
 	return d.Ranking == "best"
 }
 
-func (d frontPageData) IsBestUpvoteRatePage() bool {
-	return d.Ranking == "best-upvoterate"
-}
-
 func (d frontPageData) IsAskPage() bool {
 	return d.Ranking == "ask"
 }
@@ -71,8 +67,12 @@ func (d frontPageData) IsAboutPage() bool {
 	return false
 }
 
-func (d frontPageData) IsDeltaPage() bool {
-	return d.Ranking == "highdelta" || d.Ranking == "lowdelta"
+func (d frontPageData) IsPenaltiesPage() bool {
+	return d.Ranking == "penalties"
+}
+
+func (d frontPageData) IsBoostsPage() bool {
+	return d.Ranking == "boosts"
 }
 
 func (d frontPageData) IsScorePage() bool {
@@ -195,6 +195,7 @@ const pageSQL = `
 		, job
 	from dataset join stories using (id) join parameters
 	where sampleTime = case when pastTime > 0 then pastTime else (select max(sampleTime) from dataset) end
+	and (%s)
 	order by %s
 	limit 90;
 `
@@ -303,46 +304,50 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 func orderByStatement(ranking string) string {
 	switch ranking {
 	case "quality":
-		return `
-			case when rawRank is null or (topRank is null and rawRank > 90) then null else 
-
-				dense_rank() over(order by 
-					sample_from_gamma_distribution(
-						cumulativeUpvotes + overallPriorWeight, 
-						(
-							1-exp(-fatigueFactor*cumulativeExpectedUpvotes)
-						)
-						/fatigueFactor 
-						+ overallPriorWeight
-					) / pow(
-						cast(sampleTime-submissionTime as real)/3600 + 2
-						, gravity/0.8
-					)
-				)
-				* ( ifnull(topRank,91) / rawrank )
-
-			end nulls last
-		 `
+		// return `ifnull(topRank, 91) * qnRank/rawRank`
+		return `qnRank * exp(penalty) asc`
 	case "hntop":
-		return "topRank nulls last"
+		return "topRank"
 	case "unadjusted":
 		return hnRankFormulaSQL
-	case "lowdelta":
-		return "case when rawRank is null or (topRank is null and rawRank > 90) then null else ifnull(topRank,91) - rawRank end desc nulls last"
-	case "highdelta":
-		return "case when rawRank is null or (topRank is null and rawRank > 90) then null else ifnull(topRank,91) - rawRank end nulls last"
-	case "best-upvoterate":
-		return "(cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) desc nulls last"
-	case "best-upvoterate-fatigue":
-		return "exp(-fatigueFactor*cumulativeExpectedUpvotes) * (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) desc nulls last"
+	case "boosts":
+		// The qn ranking formula but subsituting rank delta for upvoteRate
+		return "pow((sampleTime-submissionTime) * (rawRank - topRank), 0.8) / pow(cast(sampleTime-submissionTime as real)/3600+2,0.8) desc nulls last"
+	case "penalties":
+		// The qn ranking formula but subsituting rank delta for upvoteRate
+		return "pow((sampleTime-submissionTime) * (topRank - rawRank), 0.8) / pow(cast(sampleTime-submissionTime as real)/3600+2,0.8) desc nulls last"
 	default:
 		return fmt.Sprintf("%sRank nulls last", ranking)
 	}
 }
 
+func whereClause(ranking string) string {
+	switch ranking {
+	case "quality":
+		return `
+			-- we should have made penalty nullable. In any case, if it is equal to exactly 0 it means we haven't calculated a penalty
+			-- because it was never in the top 90.
+			topRank is not null or penalty != 0.0
+		 `
+	case "hntop":
+		return "topRank is not null"
+	case "unadjusted":
+		return hnRankFormulaSQL
+	case "boosts":
+		return "topRank < rawRank"
+	case "penalties":
+		return "topRank > rawRank"
+	default:
+		return "1 = 1"
+	}
+}
+
 func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, params FrontPageParams) (stories []Story, err error) {
 
-	ndb.registerExtensions()
+	err = ndb.registerExtensions()
+	if err != nil {
+		return stories, errors.Wrap(err, "registerExtensions")
+	}
 
 	if statements == nil {
 		statements = make(map[string]*sql.Stmt)
@@ -356,7 +361,9 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 
 		var sql string
 		orderBy := orderByStatement(ranking)
-		sql = fmt.Sprintf(pageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.FatigueFactor, params.PastTime, orderBy)
+		where := whereClause(ranking)
+
+		sql = fmt.Sprintf(pageSQL, params.PriorWeight, params.OverallPriorWeight, params.Gravity, params.FatigueFactor, params.PastTime, where, orderBy)
 
 		s, err = ndb.db.Prepare(sql)
 		if err != nil {
@@ -393,8 +400,11 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		if ranking == "raw" {
 			s.IsRawPage = true
 		}
-		if ranking == "highdelta" || ranking == "lowdelta" {
-			s.IsDeltaPage = true
+		if ranking == "penalties" {
+			s.IsPenaltiesPage = true
+		}
+		if ranking == "boosts" {
+			s.IsBoostsPage = true
 		}
 
 		if err != nil {

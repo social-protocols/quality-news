@@ -13,23 +13,13 @@ with parameters as (select %f as priorWeight, %f as overallPriorWeight, %f as gr
 	and score >= 3 -- story can't reach front page until score >= 3
   and coalesce(topRank, bestRank, newRank, askRank, showRank) is not null -- let's not rank stories if they aren't accumulating attention
 ),
-unadjustedRanks as (
+qnRanks as (
   select 
   id
-    , dense_rank() over(order by %s) as unadjustedRank
+    , dense_rank() over(order by %s) as rank
     , sampleTime
     , penalty
   from latestData join parameters
-)
-, qnRanks as (
-  select 
-  id
-    , unadjustedRank
-    , penalty
-    , unadjustedRank + penalty*penaltyWeight as adjustedRank
-    , dense_rank() over(order by unadjustedRank + penalty*penaltyWeight) as rank
-    , sampleTime
-  from unadjustedRanks join parameters
 )
 update dataset as d set qnRank = qnRanks.rank
 from qnRanks

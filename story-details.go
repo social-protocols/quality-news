@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"math"
 	"net/url"
 	"strings"
 	"time"
@@ -35,7 +36,8 @@ type Story struct {
 	IsHNTopPage               bool
 	IsQualityPage             bool
 	IsStatsPage               bool
-	IsDeltaPage               bool
+	IsPenaltiesPage           bool
+	IsBoostsPage              bool
 	IsRawPage                 bool
 }
 
@@ -57,6 +59,8 @@ func (s Story) UpvoteRateString() string {
 }
 
 func (s Story) RankDiff() int32 {
+	// return s.RawRank.Int32 - int32(math.Exp(s.Penalty) * float64(s.RawRank.Int32))
+
 	if !s.RawRank.Valid {
 		return 0
 	}
@@ -64,7 +68,7 @@ func (s Story) RankDiff() int32 {
 	topRank := s.TopRank.Int32
 
 	if !s.TopRank.Valid {
-		return 0
+		topRank = 91
 	}
 
 	return rawRank - topRank
@@ -87,6 +91,10 @@ func (s Story) OverRanked() bool {
 
 func (s Story) UnderRanked() bool {
 	return s.RankDiff() < 0
+}
+
+func (s Story) PenaltyString() string {
+	return fmt.Sprintf("%.2f", math.Exp(s.Penalty))
 }
 
 func (s Story) Domain() string {
