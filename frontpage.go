@@ -317,16 +317,20 @@ func orderByStatement(ranking string) string {
 	switch ranking {
 	case "fair":
 		return `case 
-			-- boosts of overRanked stories
 			when job = 1 then topRank
+			-- boosts of overRanked stories
 			when topRank < rawRank and topRank < qnRank then topRank
 			-- boosts of underRanked stories
 			when topRank < rawRank and topRank > qnRank then qnRank
 			-- penalties of overRanked stories
 			when topRank > rawRank and topRank < qnRank then qnRank
-			-- penalties of underRanked stories
 			when topRank > rawRank and topRank > qnRank then topRank
-		end `
+		end nulls last`
+			// -- penalties of underRanked stories
+			// 	-- when page is on front page
+			// 	when topRank > rawRank and topRank > qnRank then qnRank*exp(penalty)
+			// 	-- when page is not on front page
+			// 	when topRank is null and rawRank <= 90 and qnRank <= 90 then qnRank*exp(penalty)
 	case "upvoterate":
 		return "qnRank nulls last"
 	case "hntop":
@@ -352,7 +356,7 @@ func whereClause(ranking string) string {
 		return `
 			-- we should have made penalty nullable. In any case, if it is equal to exactly 0 it means we haven't calculated a penalty
 			-- because it was never in the top 90.
-			topRank is not null
+			topRank is not null and qnRank is not null
 		 `
 	case "qnrank":
 		return "qnRank is not null"
