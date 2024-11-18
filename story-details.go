@@ -34,11 +34,12 @@ type Story struct {
 	Flagged                   bool
 	Dupe                      bool
 	IsHNTopPage               bool
-	IsQualityPage             bool
+	IsFairPage                bool
+	IsUpvoteratePage          bool
 	IsStatsPage               bool
 	IsPenaltiesPage           bool
 	IsBoostsPage              bool
-	IsResubmissionsPage           bool
+	IsResubmissionsPage       bool
 	IsRawPage                 bool
 }
 
@@ -73,6 +74,10 @@ func (s Story) RankDiff() int32 {
 	}
 
 	return rawRank - topRank
+}
+
+func (s Story) IsAlternativeFrontPage() bool {
+	return s.IsHNTopPage || s.IsRawPage || s.IsPenaltiesPage || s.IsBoostsPage || s.IsResubmissionsPage || s.IsFairPage || s.IsUpvoteratePage
 }
 
 func abs(a int32) int32 {

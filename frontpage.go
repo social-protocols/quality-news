@@ -35,8 +35,12 @@ func (d frontPageData) AverageUpvotesString() string {
 	return fmt.Sprintf("%.0f", d.AverageUpvotes)
 }
 
-func (d frontPageData) IsQualityPage() bool {
-	return d.Ranking == "quality"
+func (d frontPageData) IsFairPage() bool {
+	return d.Ranking == "fair"
+}
+
+func (d frontPageData) IsUpvoteratePage() bool {
+	return d.Ranking == "upvoterate"
 }
 
 func (d frontPageData) IsHNTopPage() bool {
@@ -311,9 +315,20 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 
 func orderByStatement(ranking string) string {
 	switch ranking {
-	case "quality":
-		// return `ifnull(topRank, 91) * qnRank/rawRank`
-		return `qnRank * exp(penalty) asc`
+	case "fair":
+		return `case 
+			-- boosts of overRanked stories
+			when job = 1 then topRank
+			when topRank < rawRank and topRank < qnRank then topRank
+			-- boosts of underRanked stories
+			when topRank < rawRank and topRank > qnRank then qnRank
+			-- penalties of overRanked stories
+			when topRank > rawRank and topRank < qnRank then qnRank
+			-- penalties of underRanked stories
+			when topRank > rawRank and topRank > qnRank then topRank
+		end `
+	case "upvoterate":
+		return "qnRank nulls last"
 	case "hntop":
 		return "topRank"
 	case "unadjusted":
@@ -333,12 +348,14 @@ func orderByStatement(ranking string) string {
 
 func whereClause(ranking string) string {
 	switch ranking {
-	case "quality":
+	case "fair":
 		return `
 			-- we should have made penalty nullable. In any case, if it is equal to exactly 0 it means we haven't calculated a penalty
 			-- because it was never in the top 90.
-			topRank is not null or penalty != 0.0
+			topRank is not null
 		 `
+	case "qnrank":
+		return "qnRank is not null"
 	case "hntop":
 		return "topRank is not null"
 	case "unadjusted":
@@ -406,8 +423,11 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		if ranking == "hntop" {
 			s.IsHNTopPage = true
 		}
-		if ranking == "quality" {
-			s.IsQualityPage = true
+		if ranking == "fair" {
+			s.IsFairPage = true
+		}
+		if ranking == "upvoterate" {
+			s.IsUpvoteratePage = true
 		}
 		if ranking == "raw" {
 			s.IsRawPage = true

@@ -4,7 +4,11 @@ import "database/sql"
 
 type DefaultPageHeaderData struct{ UserID sql.NullInt64 }
 
-func (d DefaultPageHeaderData) IsQualityPage() bool {
+func (d DefaultPageHeaderData) IsFairPage() bool {
+	return false
+}
+
+func (d DefaultPageHeaderData) IsUpvoteratePage() bool {
 	return false
 }
 
@@ -54,4 +58,8 @@ func (d DefaultPageHeaderData) IsAlgorithmsPage() bool {
 
 func (d DefaultPageHeaderData) IsScorePage() bool {
 	return false
+}
+
+func (d DefaultPageHeaderData) IsAlternativeFrontPage() bool {
+	return d.IsHNTopPage() || d.IsRawPage() || d.IsPenaltiesPage() || d.IsBoostsPage() || d.IsResubmissionsPage() || d.IsFairPage() || d.IsUpvoteratePage()
 }

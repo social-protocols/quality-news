@@ -2,7 +2,7 @@
 <svg style="flex-shrink: 0" class="icon" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><circle cx="100" cy="100" r="99" fill="#94caff" paint-order="markers fill stroke"/><circle cx="100" cy="100" r="57.269" fill="#4a9ced" paint-order="markers fill stroke"/><circle cx="100" cy="100" r="30.288" fill="#005fbe" paint-order="markers fill stroke"/></svg>
 <a href="/" class="header-title">Quality News</a>
 <div>
-<!--<a class="nav-link {{if .IsQualityPage}}active{{end}}" href="/">qn&nbsp;top</a> |-->
+<!--<a class="nav-link {{if .IsFairPage}}active{{end}}" href="/">qn&nbsp;top</a> |-->
 <a class="nav-link {{if .IsNewPage}}active{{end}}" href="/new">new</a> |
 <a class="nav-link {{if .IsHNTopPage}}active{{end}}" href="/">top</a> |
 <a class="nav-link {{if .IsAskPage}}active{{end}}" href="/ask">ask</a> |
@@ -10,7 +10,8 @@
 <a class="nav-link {{if .IsBestPage}}active{{end}}" href="/best">best</a> |
 
 {{if .IsRawPage}}<a class="nav-link active" href="/raw">raw</a> |{{end}}
-{{if .IsQualityPage}}<a class="nav-link active" href="/quality">quality</a> |{{end}}
+{{if .IsFairPage}}<a class="nav-link active" href="/fair">fair</a> |{{end}}
+{{if .IsUpvoteratePage}}<a class="nav-link active" href="/upvoterate">upvoterate</a> |{{end}}
 {{if .IsPenaltiesPage}}<a class="nav-link active" href="/penalties">penalties</a> |{{end}}
 {{if .IsBoostsPage}}<a class="nav-link active" href="/boosts">boosts</a> |{{end}}
 {{if .IsResubmissionsPage}}<a class="nav-link active" href="/resubmissions">resubmissions</a> |{{end}}

@@ -20,8 +20,8 @@
 
     </a>
     <span>
-      {{if and (or .IsHNTopPage .IsRawPage .IsQualityPage .IsPenaltiesPage .IsBoostsPage) .OverRanked}}<a href="/stats?id={{.ID}}"><span title="Rank Delta:&#013;Difference between rank on top page and 'raw' rank before penalties or boosts" class="delta over-ranked">{{.RankDiffAbs}}</span></a> {{end}}
-      {{if and (or .IsHNTopPage .IsRawPage .IsQualityPage .IsPenaltiesPage .IsBoostsPage) .UnderRanked}}<a href="/stats?id={{.ID}}"><span title="Rank Delta:&#013;Difference between rank on top page and 'raw' rank before penalties or boosts" class="delta under-ranked">{{.RankDiffAbs}}</span></a> {{end}}
+      {{if and (.IsAlternativeFrontPage) .OverRanked}}<a href="/stats?id={{.ID}}"><span title="Rank Delta:&#013;Difference between rank on top page and 'raw' rank before penalties or boosts" class="delta over-ranked">{{.RankDiffAbs}}</span></a> {{end}}
+      {{if and (.IsAlternativeFrontPage) .UnderRanked}}<a href="/stats?id={{.ID}}"><span title="Rank Delta:&#013;Difference between rank on top page and 'raw' rank before penalties or boosts" class="delta under-ranked">{{.RankDiffAbs}}</span></a> {{end}}
     </span>
 
     <span class="comparative-rank">
@@ -35,10 +35,6 @@
 
   {{end}}
 
-    {{/*if .IsResubmitted}}
-    <span class="original-age" title="{{.OriginalISOTimestamp}}">{{.OriginalAgeString}}</span>
-    <a href="https://news.ycombinator.com/item?id={{.ID}}" title="2nd-Chance Pool submission time: {{.ISOTimestamp}}" class="resubmitted-age">{{.AgeString}}</a>
-    {{else*/}}
     <a href="https://news.ycombinator.com/item?id={{.ID}}" title="{{.ISOTimestamp}}">{{.AgeString}}</a>
 
     |

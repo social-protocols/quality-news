@@ -44,9 +44,14 @@ var userID {{if .UserID.Valid}} = {{.UserID}} {{end}}
 			These are the current stories on the Hacker News Front page ranked by the raw score produced by the HN formula, with no moderation penalties or bonuses applied. This makes the impact of moderation on the HN frontpage visible (e.g. off-topic/non-tech stories are ranked higher).
 
 
-	{{else if .IsQualityPage}}
+	{{else if .IsFairPage}}
 
 			This is an alternative Hacker News front page with a "fairer" ranking formula as described <a href="https://github.com/social-protocols/quality-news#readme">here</a>. 
+
+	{{else if .IsUpvoteratePage}}
+
+			This is an alternative Hacker News front page based on <span class="upvoterate">×UpvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a> instead of upvotes. Ignores HN moderator boosts/penalties.
+
 
 	{{else if .IsPenaltiesPage}}
 
@@ -54,11 +59,11 @@ var userID {{if .UserID.Valid}} = {{.UserID}} {{end}}
 
 	{{else if .IsBoostsPage}}
 
-			This page shows stories whose rank on the Hacker News front page is significantly lower than their <a href="/about#raw-rank">raw rank</a>, indicating that have been boosted by Hacker News moderators.
+			This page shows stories whose rank on the Hacker News front page is significantly lower than their <a href="/about#raw-rank">raw rank</a>, indicating action by Hacker News moderators such as addition to the <a href="https://news.ycombinator.com/item?id=26998308">second-chance pool</a>.
 
 	{{else if .IsResubmissionsPage}}
 
-			This page shows stories that have been randomly selected from the <a href="https://news.ycombinator.com/item?id=26998308">second-chance pool</a> and added to the front page.
+			This page shows stories that have been randomly selected from the <a href="https://news.ycombinator.com/item?id=26998308">second-chance pool</a> and added to the front page. Sorted by most recent.
 
 	{{else}}
 
@@ -122,11 +127,11 @@ var userID {{if .UserID.Valid}} = {{.UserID}} {{end}}
 <div class="parameters">
 <h2>parameters</h2>
 <ul>
-{{if .IsQualityPage }}
+{{if .IsFairPage }}
 <li>Gravity: {{.GravityString}}</li>
 {{ end }}
 <li>Prior Weight: {{.PriorWeightString}}</li>
-{{if .IsQualityPage }}
+{{if .IsFairPage }}
 <li>Overall Prior Weight: {{.OverallPriorWeightString}}</li>
 {{ end }}
 <li>Sample Time: {{.SampleTimeString}}</li>
