@@ -20,6 +20,6 @@ func (app app) aboutHandler() func(http.ResponseWriter, *http.Request, struct{})
 
 		err := templates.ExecuteTemplate(w, "about.html.tmpl", AboutPageData{DefaultPageHeaderData{UserID: app.getUserID(r)}})
 
-		return errors.Wrap(err, "executing about page template")
+		return errors.Wrap(err, "executing algorithms page template")
 	}
 }

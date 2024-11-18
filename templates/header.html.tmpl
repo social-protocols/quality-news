@@ -8,10 +8,15 @@
 <a class="nav-link {{if .IsAskPage}}active{{end}}" href="/ask">ask</a> |
 <a class="nav-link {{if .IsShowPage}}active{{end}}" href="/show">show</a> |
 <a class="nav-link {{if .IsBestPage}}active{{end}}" href="/best">best</a> |
-<a class="nav-link {{if .IsRawPage}}active{{end}}" href="/raw">raw</a> |
-<a class="nav-link {{if .IsQualityPage}}active{{end}}" href="/quality">quality</a> |
-<a class="nav-link {{if .IsPenaltiesPage}}active{{end}}" href="/penalties">penalties</a> |
-<a class="nav-link {{if .IsBoostsPage}}active{{end}}" href="/boosts">boosts</a> |
+
+{{if .IsRawPage}}<a class="nav-link active" href="/raw">raw</a> |{{end}}
+{{if .IsQualityPage}}<a class="nav-link active" href="/quality">quality</a> |{{end}}
+{{if .IsPenaltiesPage}}<a class="nav-link active" href="/penalties">penalties</a> |{{end}}
+{{if .IsBoostsPage}}<a class="nav-link active" href="/boosts">boosts</a> |{{end}}
+{{if .IsResubmissionsPage}}<a class="nav-link active" href="/resubmissions">resubmissions</a> |{{end}}
+
+<a class="nav-link {{if .IsAlgorithmsPage}}active{{end}}" href="/algorithms">algorithms</a> |
+
 {{ if .UserID.Valid }} <a class="nav-link {{if .IsScorePage}}active{{end}}" href="/score">score</a> | {{ end }}
 <a class="nav-link {{if .IsAboutPage}}active{{end}}" href="/about">about</a>
 </div>

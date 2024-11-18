@@ -67,12 +67,20 @@ func (d frontPageData) IsAboutPage() bool {
 	return false
 }
 
+func (d frontPageData) IsAlgorithmsPage() bool {
+	return false
+}
+
 func (d frontPageData) IsPenaltiesPage() bool {
 	return d.Ranking == "penalties"
 }
 
 func (d frontPageData) IsBoostsPage() bool {
 	return d.Ranking == "boosts"
+}
+
+func (d frontPageData) IsResubmissionsPage() bool {
+	return d.Ranking == "resubmissions"
 }
 
 func (d frontPageData) IsScorePage() bool {
@@ -316,6 +324,8 @@ func orderByStatement(ranking string) string {
 	case "penalties":
 		// The qn ranking formula but subsituting rank delta for upvoteRate
 		return "pow((sampleTime-submissionTime) * (topRank - rawRank), 0.8) / pow(cast(sampleTime-submissionTime as real)/3600+2,0.8) desc nulls last"
+	case "resubmissions":
+		return "submissionTime desc"
 	default:
 		return fmt.Sprintf("%sRank nulls last", ranking)
 	}
@@ -337,6 +347,8 @@ func whereClause(ranking string) string {
 		return "topRank < rawRank"
 	case "penalties":
 		return "topRank > rawRank"
+	case "resubmissions":
+		return "submissionTime != timestamp"
 	default:
 		return "1 = 1"
 	}
@@ -405,6 +417,9 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		}
 		if ranking == "boosts" {
 			s.IsBoostsPage = true
+		}
+		if ranking == "resubmissions" {
+			s.IsResubmissionsPage = true
 		}
 
 		if err != nil {

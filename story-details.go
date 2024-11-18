@@ -38,6 +38,7 @@ type Story struct {
 	IsStatsPage               bool
 	IsPenaltiesPage           bool
 	IsBoostsPage              bool
+	IsResubmissionsPage           bool
 	IsRawPage                 bool
 }
 

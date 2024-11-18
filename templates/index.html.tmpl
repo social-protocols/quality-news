@@ -56,6 +56,10 @@ var userID {{if .UserID.Valid}} = {{.UserID}} {{end}}
 
 			This page shows stories whose rank on the Hacker News front page is significantly lower than their <a href="/about#raw-rank">raw rank</a>, indicating that have been boosted by Hacker News moderators.
 
+	{{else if .IsResubmissionsPage}}
+
+			This page shows stories that have been randomly selected from the <a href="https://news.ycombinator.com/item?id=26998308">second-chance pool</a> and added to the front page.
+
 	{{else}}
 
 		This is the current Hacker News 
@@ -74,11 +78,11 @@ var userID {{if .UserID.Valid}} = {{.UserID}} {{end}}
 	    {{end}}
 	    {{if .IsBestPage}}
 	        <a href="https://news.ycombinator.com/best">"Best" Page</a>.
-	    {{end}} Page, with some additional performance stats.
+	    {{end}} Page, with some additional performance stats. 
 
 	{{end}}
 
-	    Click on the stats next to a story to see detailed historical charts.
+	    Click on the stats next to a story to see detailed historical charts. Click <a href="/algorithms">here</a> for additional ranking algorithms 
 
 	</div>
 

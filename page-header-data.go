@@ -40,7 +40,15 @@ func (d DefaultPageHeaderData) IsBoostsPage() bool {
 	return false
 }
 
+func (d DefaultPageHeaderData) IsResubmissionsPage() bool {
+	return false
+}
+
 func (d DefaultPageHeaderData) IsAboutPage() bool {
+	return false
+}
+
+func (d DefaultPageHeaderData) IsAlgorithmsPage() bool {
 	return false
 }
 

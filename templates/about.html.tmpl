@@ -37,7 +37,13 @@
 
 <div class="content">
 
+{{if .IsAboutPage}}
 {{template "about-content.html.tmpl" .}}
+{{end}}
+
+{{if .IsAlgorithmsPage}}
+{{template "algorithms-content.html.tmpl" .}}
+{{end}}
 
 </div>
 
