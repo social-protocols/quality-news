@@ -2,12 +2,12 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"fmt"
-	"os"
-
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"os"
 )
 
 type StorageClient struct {
@@ -64,11 +64,22 @@ func NewStorageClient() (*StorageClient, error) {
 	return &StorageClient{minioClient: minioClient, bucket: bucket}, nil
 }
 
+// UploadFile uploads a file compressed with gzip and sets the correct headers
 func (sc *StorageClient) UploadFile(ctx context.Context, objectName string, content []byte) error {
-	// Upload the file
-	_, err := sc.minioClient.PutObject(ctx, sc.bucket, objectName,
-		bytes.NewReader(content), int64(len(content)), minio.PutObjectOptions{
-			ContentType: "text/html",
+	// Compress the content using gzip
+	var compressedContent bytes.Buffer
+	gzipWriter := gzip.NewWriter(&compressedContent)
+	_, err := gzipWriter.Write(content)
+	if err != nil {
+		return fmt.Errorf("failed to compress content: %v", err)
+	}
+	gzipWriter.Close() // Make sure to close the writer to flush the data
+
+	// Upload the compressed content with the appropriate headers
+	_, err = sc.minioClient.PutObject(ctx, sc.bucket, objectName,
+		&compressedContent, int64(compressedContent.Len()), minio.PutObjectOptions{
+			ContentType:     "text/html", // Original content type
+			ContentEncoding: "gzip",      // Inform the browser that the content is gzipped
 		})
 	if err != nil {
 		return fmt.Errorf("failed to upload object %s: %v", objectName, err)
