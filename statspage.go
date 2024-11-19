@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -25,6 +26,7 @@ type StatsPageData struct {
 	UpvotesPlotData [][]any
 	PenaltyPlotData [][]any
 	MaxSampleTime   int
+	BaseURL         string
 }
 
 func (s StatsPageData) MaxSampleTimeISOString() string {
@@ -42,15 +44,20 @@ func (s StatsPageData) MaxAgeHours() int {
 var ErrStoryIDNotFound = httperror.New(404, "Story ID not found")
 
 func (app app) statsPage(w io.Writer, r *http.Request, params StatsPageParams, userID sql.NullInt64) error {
+
+	BaseURL := os.Getenv("BASE_URL")
+	if BaseURL == "" {
+		panic("BASE_URL environment variable not set")
+	}
+
 	ndb := app.ndb
 	s, err := ndb.selectStoryDetails(params.StoryID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ErrStoryIDNotFound
+			return httperror.NotFound
 		}
 		return err
 	}
-
 	modelParams := params.OptionalModelParams.WithDefaults()
 	s.UpvoteRate = modelParams.upvoteRate(s.CumulativeUpvotes, s.CumulativeExpectedUpvotes)
 
@@ -61,6 +68,7 @@ func (app app) statsPage(w io.Writer, r *http.Request, params StatsPageParams, u
 		EstimatedUpvoteRate:   1.0,
 		Story:                 s,
 		DefaultPageHeaderData: DefaultPageHeaderData{UserID: userID},
+		BaseURL:               BaseURL,
 	}
 
 	maxSampleTime, err := maxSampleTime(ndb, params.StoryID)

@@ -15,6 +15,8 @@ primary_region = "ewr"
   SQLITE_DATA_DIR="/data"
   LOG_LEVEL="INFO"
   CACHE_SIZE="100"
+  R2_BUCKET="news-archive"
+  R2_CDN_DOMAIN="news-archive.social-protocols.org"
 
 [experimental]
   allowed_public_ports = []

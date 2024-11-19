@@ -8,4 +8,7 @@ then
     # eval "$(lorri direnv)"
 fi
 
+export R2_ACCESS_KEY_ID="DEV.ACCESS.KEY.ID"
+export R2_SECRET_ACCESS_KEY="DEV.SECRET.ACCESS.KEY"
+
 echo "Successfully loaded .envrc.local"

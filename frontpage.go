@@ -326,11 +326,11 @@ func orderByStatement(ranking string) string {
 			when topRank > rawRank and topRank < qnRank then qnRank
 			when topRank > rawRank and topRank > qnRank then topRank
 		end nulls last`
-			// -- penalties of underRanked stories
-			// 	-- when page is on front page
-			// 	when topRank > rawRank and topRank > qnRank then qnRank*exp(penalty)
-			// 	-- when page is not on front page
-			// 	when topRank is null and rawRank <= 90 and qnRank <= 90 then qnRank*exp(penalty)
+		// -- penalties of underRanked stories
+		// 	-- when page is on front page
+		// 	when topRank > rawRank and topRank > qnRank then qnRank*exp(penalty)
+		// 	-- when page is not on front page
+		// 	when topRank is null and rawRank <= 90 and qnRank <= 90 then qnRank*exp(penalty)
 	case "upvoterate":
 		return "qnRank nulls last"
 	case "hntop":
