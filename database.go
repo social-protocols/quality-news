@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 
 	sqlite3 "github.com/mattn/go-sqlite3"
 
@@ -16,14 +17,15 @@ import (
 type newsDatabase struct {
 	*sql.DB
 
-	db                            *sql.DB
-	upvotesDB                     *sql.DB
-	insertDataPointStatement      *sql.Stmt
-	insertOrReplaceStoryStatement *sql.Stmt
-	selectLastSeenScoreStatement  *sql.Stmt
-	selectLastCrawlTimeStatement  *sql.Stmt
-	selectStoryDetailsStatement   *sql.Stmt
-	selectStoryCountStatement     *sql.Stmt
+	db                              *sql.DB
+	upvotesDB                       *sql.DB
+	insertDataPointStatement        *sql.Stmt
+	insertOrReplaceStoryStatement   *sql.Stmt
+	selectLastSeenScoreStatement    *sql.Stmt
+	selectLastCrawlTimeStatement    *sql.Stmt
+	selectStoryDetailsStatement     *sql.Stmt
+	selectStoryCountStatement       *sql.Stmt
+	selectStoriesToArchiveStatement *sql.Stmt
 
 	sqliteDataDir string
 }
@@ -377,6 +379,18 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		}
 	}
 
+	{
+		sql := `
+			SELECT DISTINCT id
+			FROM dataset
+			WHERE submissionTime <= unixepoch() - 30*24*60*60
+		`
+		ndb.selectStoriesToArchiveStatement, err = ndb.db.Prepare(sql)
+		if err != nil {
+			return ndb, errors.Wrap(err, "preparing selectStoriesToArchiveStatement")
+		}
+	}
+
 	err = ndb.importPenaltiesData(sqliteDataDir)
 
 	return ndb, err
@@ -449,6 +463,51 @@ func (ndb newsDatabase) selectLastCrawlTime() (int, error) {
 	err := ndb.selectLastCrawlTimeStatement.QueryRow().Scan(&sampleTime)
 
 	return sampleTime, err
+}
+
+func (ndb newsDatabase) selectStoriesToArchive() ([]int, error) {
+	var storyIDs []int
+
+	rows, err := ndb.selectStoriesToArchiveStatement.Query()
+	if err != nil {
+		return storyIDs, errors.Wrap(err, "selectStoriesToArchiveStatement.Query")
+	}
+
+	for rows.Next() {
+		var storyID int
+		if err := rows.Scan(&storyID); err != nil {
+			return nil, errors.Wrap(err, "scan story ID")
+		}
+		storyIDs = append(storyIDs, storyID)
+	}
+	return storyIDs, nil
+}
+
+func (ndb newsDatabase) deleteOldData(storyIDs []int) (int64, error) {
+	if len(storyIDs) == 0 {
+		return 0, nil
+	}
+
+	// Build a query with placeholders for each storyID
+	placeholders := make([]string, len(storyIDs))
+	args := make([]interface{}, len(storyIDs))
+	for i, id := range storyIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := fmt.Sprintf("DELETE FROM dataset WHERE id IN (%s)", strings.Join(placeholders, ","))
+	result, err := ndb.db.Exec(query, args...)
+	if err != nil {
+		return 0, errors.Wrap(err, "deleteOldData Exec")
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "getting RowsAffected")
+	}
+
+	return rowsAffected, nil
 }
 
 func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {

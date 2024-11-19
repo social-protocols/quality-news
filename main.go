@@ -93,6 +93,12 @@ func main() {
 func (app app) mainLoop(ctx context.Context) {
 	logger := app.logger
 
+	logger.Info("Arching old stories")
+	err := app.runArchivingTasks(ctx)
+	if err != nil {
+		LogFatal(logger, "runArchivingTasks", err)
+	}
+
 	lastCrawlTime, err := app.ndb.selectLastCrawlTime()
 	if err != nil {
 		LogFatal(logger, "selectLastCrawlTime", err)
@@ -101,6 +107,8 @@ func (app app) mainLoop(ctx context.Context) {
 	t := time.Now().Unix()
 
 	elapsed := int(t) - lastCrawlTime
+
+	logger.Info("Elapsed", "elapsed", elapsed)
 
 	// If it has been more than a minute since our last crawl,
 	// then crawl right away.
@@ -144,6 +152,7 @@ func (app app) mainLoop(ctx context.Context) {
 				<-time.After(time.Duration(delay) * time.Second)
 				ticker <- t + delay
 			}()
+
 			logger.Info("Beginning crawl")
 
 			// cancel crawl if it doesn't complete 1 second before the next
@@ -154,6 +163,12 @@ func (app app) mainLoop(ctx context.Context) {
 
 			if err = app.crawlAndPostprocess(ctx); err != nil {
 				logger.Error("crawlAndPostprocess", err)
+			}
+
+			logger.Info("Arching old stories")
+			err := app.runArchivingTasks(ctx)
+			if err != nil {
+				logger.Error("runMaintenanceTasks", err)
 			}
 
 			logger.Debug("Scheduling tick at next minute mark", "seconds", 60-time.Now().Unix()%60)
