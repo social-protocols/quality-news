@@ -246,8 +246,8 @@ func (app app) newScraper(resultCh chan ScrapedStory, errCh chan error, moreLink
 }
 
 func (app app) scrapeHN(pageType string, resultCh chan ScrapedStory, errCh chan error) {
-	BaseURL := "https://news.ycombinator.com/"
-	url := BaseURL
+	baseUrl := "https://news.ycombinator.com/"
+	url := baseUrl
 	if pageType == "new" {
 		url = url + "newest"
 	} else if pageType != "top" {
@@ -262,7 +262,7 @@ func (app app) scrapeHN(pageType string, resultCh chan ScrapedStory, errCh chan 
 		}
 		select {
 		case relativeURL := <-moreLinkCh:
-			url = BaseURL + relativeURL
+			url = baseUrl + relativeURL
 		default:
 			// there won't always be a next link, in particular the show page could have less than 3 pages worth of stories
 		}

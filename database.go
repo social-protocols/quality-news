@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"strings"
 
 	sqlite3 "github.com/mattn/go-sqlite3"
 
@@ -26,6 +25,8 @@ type newsDatabase struct {
 	selectStoryDetailsStatement     *sql.Stmt
 	selectStoryCountStatement       *sql.Stmt
 	selectStoriesToArchiveStatement *sql.Stmt
+	deleteOldDataStatement          *sql.Stmt
+	markAsArchivedStatement         *sql.Stmt
 
 	sqliteDataDir string
 }
@@ -150,6 +151,7 @@ func (ndb newsDatabase) initFrontpageDB() error {
 	alterStatements := []string{
 		`alter table dataset add column upvoteRateWindow int`,
 		`alter table dataset add column upvoteRate float default 0 not null`,
+		`alter table stories add column archived boolean default false not null`,
 		`update dataset set upvoteRate = ( cumulativeUpvotes + 2.3 ) / ( cumulativeExpectedUpvotes + 2.3) where upvoteRate = 0`,
 	}
 
@@ -354,6 +356,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			, flagged
 			, dupe
 			, job
+			, archived
 			-- use latest information from the last available datapoint for this story (even if it is not in the latest crawl) *except* for rank information.
 			from stories
 			JOIN dataset
@@ -388,6 +391,27 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		ndb.selectStoriesToArchiveStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
 			return ndb, errors.Wrap(err, "preparing selectStoriesToArchiveStatement")
+		}
+	}
+
+	{
+		sql := `
+			-- Delete all but the last datapoint
+			delete from dataset
+			where 
+			id = ?
+			and sampleTime < (select max(sampleTime) from dataset where id=?)
+		`
+		ndb.deleteOldDataStatement, err = ndb.db.Prepare(sql)
+		if err != nil {
+			return ndb, errors.Wrap(err, "preparing deleteOldDataStatement")
+		}
+	}
+	{
+		sql := `update stories set archived = 1 where id = ?`
+		ndb.markAsArchivedStatement, err = ndb.db.Prepare(sql)
+		if err != nil {
+			return ndb, errors.Wrap(err, "preparing markAsArchivedStatement")
 		}
 	}
 
@@ -483,28 +507,40 @@ func (ndb newsDatabase) selectStoriesToArchive() ([]int, error) {
 	return storyIDs, nil
 }
 
-func (ndb newsDatabase) deleteOldData(storyIDs []int) (int64, error) {
-	if len(storyIDs) == 0 {
-		return 0, nil
+func (ndb newsDatabase) deleteOldData(storyID int) (int64, error) {
+	// Begin transaction
+	tx, err := ndb.db.Begin()
+	if err != nil {
+		return 0, errors.Wrap(err, "starting transaction")
 	}
 
-	// Build a query with placeholders for each storyID
-	placeholders := make([]string, len(storyIDs))
-	args := make([]interface{}, len(storyIDs))
-	for i, id := range storyIDs {
-		placeholders[i] = "?"
-		args[i] = id
-	}
+	// Ensure rollback if there's an error
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p) // Re-throw panic after Rollback
+		} else if err != nil {
+			tx.Rollback() // Rollback on error
+		} else {
+			err = tx.Commit() // Commit on success
+		}
+	}()
 
-	query := fmt.Sprintf("DELETE FROM dataset WHERE id IN (%s)", strings.Join(placeholders, ","))
-	result, err := ndb.db.Exec(query, args...)
+	// Execute the delete operation
+	r, err := tx.Stmt(ndb.deleteOldDataStatement).Exec(storyID, storyID)
 	if err != nil {
 		return 0, errors.Wrap(err, "deleteOldData Exec")
 	}
 
-	rowsAffected, err := result.RowsAffected()
+	rowsAffected, err := r.RowsAffected()
 	if err != nil {
 		return 0, errors.Wrap(err, "getting RowsAffected")
+	}
+
+	// Execute the mark as archived operation
+	_, err = tx.Stmt(ndb.markAsArchivedStatement).Exec(storyID)
+	if err != nil {
+		return 0, errors.Wrap(err, "markAsArchivedStatement Exec")
 	}
 
 	return rowsAffected, nil
@@ -513,7 +549,7 @@ func (ndb newsDatabase) deleteOldData(storyIDs []int) (int64, error) {
 func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	var s Story
 
-	err := ndb.selectStoryDetailsStatement.QueryRow(id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job)
+	err := ndb.selectStoryDetailsStatement.QueryRow(id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job, &s.Archived)
 	if err != nil {
 		return s, err
 	}

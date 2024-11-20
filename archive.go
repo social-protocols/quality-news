@@ -2,12 +2,19 @@ package main
 
 import (
 	"context"
-	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
 	"net/http"
-	"strconv"
 )
+
+type StatsData struct {
+	RanksPlotData   [][]any `json:"RanksPlotData"`
+	UpvotesPlotData [][]any `json:"UpvotesPlotData"`
+	PenaltyPlotData [][]any `json:"PenaltyPlotData"`
+	MaxSampleTime   int     `json:"MaxSampleTime"`
+	SubmissionTime  int64   `json:"SubmissionTime"`
+}
 
 type responseBuffer struct {
 	header http.Header
@@ -35,36 +42,62 @@ func (r *responseBuffer) WriteHeader(statusCode int) {
 	r.status = statusCode
 }
 
-func (app app) generateStatsPageHTML(ctx context.Context, storyID int) ([]byte, error) {
-	params := StatsPageParams{
-		StoryID: storyID,
-	}
-	rb := newResponseBuffer()
-	req, err := http.NewRequestWithContext(ctx, "GET", "/stats?id="+strconv.Itoa(storyID), nil)
+func (app app) generateStatsDataJSON(ctx context.Context, storyID int) ([]byte, error) {
+	ndb := app.ndb
+	modelParams := OptionalModelParams{}.WithDefaults()
+
+	// Fetch MaxSampleTime
+	maxSampleTime, err := maxSampleTime(ndb, storyID)
 	if err != nil {
-		return nil, errors.Wrap(err, "NewRequestWithContext for /stats page")
+		return nil, errors.Wrap(err, "maxSampleTime")
 	}
 
-	// userID is not needed here
-	userID := sql.NullInt64{}
-
-	err = app.statsPage(rb, req, params, userID)
+	// Fetch RanksPlotData
+	ranksPlotData, err := rankDatapoints(ndb, storyID)
 	if err != nil {
-		return nil, errors.Wrap(err, "app.statsPage")
+		return nil, errors.Wrap(err, "rankDatapoints")
 	}
-	if rb.status != http.StatusOK {
-		return nil, fmt.Errorf("non-OK HTTP status: %d", rb.status)
+
+	// Fetch UpvotesPlotData
+	upvotesPlotData, err := upvotesDatapoints(ndb, storyID, modelParams)
+	if err != nil {
+		return nil, errors.Wrap(err, "upvotesDatapoints")
 	}
-	return rb.body, nil
+
+	// Fetch PenaltyPlotData if needed
+	penaltyPlotData := [][]any{} // Replace with actual data fetching if necessary
+
+	// Fetch Story details
+	s, err := ndb.selectStoryDetails(storyID)
+	if err != nil {
+		return nil, errors.Wrap(err, "selectStoryDetails")
+	}
+
+	// Create StatsData struct with story details
+	statsData := StatsData{
+		RanksPlotData:   ranksPlotData,
+		UpvotesPlotData: upvotesPlotData,
+		PenaltyPlotData: penaltyPlotData,
+		MaxSampleTime:   maxSampleTime,
+		SubmissionTime:  s.SubmissionTime,
+	}
+
+	// Marshal to JSON
+	jsonData, err := json.Marshal(statsData)
+	if err != nil {
+		return nil, errors.Wrap(err, "json.Marshal statsData")
+	}
+
+	return jsonData, nil
 }
 
-func (app app) archiveOldStatsPages(ctx context.Context) ([]int, error) {
+func (app app) archiveOldStatsData(ctx context.Context) ([]int, error) {
 	storyIDs, err := app.ndb.selectStoriesToArchive()
 	if err != nil {
 		return nil, errors.Wrap(err, "selectStoriesToArchive")
 	}
 
-	storyIDs = []int{42156516}
+	storyIDs = []int{42188407}
 
 	if len(storyIDs) == 0 {
 		return nil, nil // Nothing to archive
@@ -84,7 +117,7 @@ func (app app) archiveOldStatsPages(ctx context.Context) ([]int, error) {
 		default:
 		}
 
-		filename := fmt.Sprintf("%d.html", storyID)
+		filename := fmt.Sprintf("%d.json", storyID)
 
 		// Check if the file already exists before uploading
 		exists, err := sc.FileExists(ctx, filename)
@@ -98,19 +131,19 @@ func (app app) archiveOldStatsPages(ctx context.Context) ([]int, error) {
 			continue // Skip uploading if the file is already archived
 		}
 
-		content, err := app.generateStatsPageHTML(ctx, storyID)
+		jsonData, err := app.generateStatsDataJSON(ctx, storyID)
 		if err != nil {
-			app.logger.Error(fmt.Sprintf("generating stats page for storyId %d", storyID), err)
+			app.logger.Error(fmt.Sprintf("generating stats data for storyId %d", storyID), err)
 			continue // Continue with the next storyID
 		}
 
-		err = sc.UploadFile(ctx, filename, content)
+		err = sc.UploadFile(ctx, filename, jsonData, "application/json", true)
 		if err != nil {
 			app.logger.Error(fmt.Sprintf("uploading file %s", filename), err)
 			continue // Continue with the next storyID
 		}
 
-		app.logger.Debug("Archived stats page for storyID", "storyID", storyID)
+		app.logger.Debug("Archived stats data for storyID", "storyID", storyID)
 		archivedStoryIDs = append(archivedStoryIDs, storyID)
 	}
 
@@ -118,17 +151,25 @@ func (app app) archiveOldStatsPages(ctx context.Context) ([]int, error) {
 }
 
 func (app app) runArchivingTasks(ctx context.Context) error {
-	archivedStoryIDs, err := app.archiveOldStatsPages(ctx)
+	archivedStoryIDs, err := app.archiveOldStatsData(ctx)
 	if err != nil {
-		return errors.Wrap(err, "archiveOldStatsPages")
+		return errors.Wrap(err, "archiveOldStatsData")
 	}
 
 	nStories := len(archivedStoryIDs)
-	nRows, err := app.ndb.deleteOldData(archivedStoryIDs)
-	app.logger.Info(fmt.Sprintf("Deleted %d rows from DB for %d stories", nRows, nStories))
-	if err != nil {
-		return errors.Wrap(err, "deleteOldData")
+	var nDeleted int64 = 0
+
+	// loop through storeis and delete one by one
+	for _, storyID := range archivedStoryIDs {
+		n, err := app.ndb.deleteOldData(storyID)
+		if err != nil {
+			app.logger.Error(fmt.Sprintf("deleting old data for storyId %d", storyID), err)
+		} else {
+			nDeleted += n
+		}
 	}
+
+	app.logger.Info(fmt.Sprintf("Deleted %d rows from DB for %d stories", nDeleted, nStories))
 
 	return nil
 }
