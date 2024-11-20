@@ -108,8 +108,6 @@ func (app app) mainLoop(ctx context.Context) {
 
 	elapsed := int(t) - lastCrawlTime
 
-	logger.Info("Elapsed", "elapsed", elapsed)
-
 	// If it has been more than a minute since our last crawl,
 	// then crawl right away.
 	if elapsed >= 60 {

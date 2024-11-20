@@ -33,6 +33,7 @@ type Story struct {
 	Job                       bool
 	Flagged                   bool
 	Dupe                      bool
+	Archived                  bool
 	IsHNTopPage               bool
 	IsFairPage                bool
 	IsUpvoteratePage          bool

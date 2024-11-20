@@ -1,5 +1,4 @@
 
-
 google.charts.load('current', {packages: ['corechart', 'line']});
 google.charts.setOnLoadCallback(drawCharts);
 
@@ -7,10 +6,9 @@ window.addEventListener('resize', drawCharts, false);
 
 var submissionTime = {{.Story.SubmissionTime}};
 
-var ranksPlotData = {{.RanksPlotData}};
-var upvotesPlotData = {{.UpvotesPlotData}};
-var upvoteRatePlotData = upvotesPlotData; //same data
-//var penaltyPlotData = {{.PenaltyPlotData}};
+var ranksPlotData = {{.RanksPlotDataJSON}};
+var upvotesPlotData = {{.UpvotesPlotDataJSON}};
+var upvoteRatePlotData = upvotesPlotData;
 
 function drawCharts() {
   // make all charts have the same x-axis range as the ranks plot chart

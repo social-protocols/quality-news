@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"io"
 	"os"
 )
 
@@ -64,28 +65,85 @@ func NewStorageClient() (*StorageClient, error) {
 	return &StorageClient{minioClient: minioClient, bucket: bucket}, nil
 }
 
-// UploadFile uploads a file compressed with gzip and sets the correct headers
-func (sc *StorageClient) UploadFile(ctx context.Context, objectName string, content []byte) error {
-	// Compress the content using gzip
-	var compressedContent bytes.Buffer
-	gzipWriter := gzip.NewWriter(&compressedContent)
-	_, err := gzipWriter.Write(content)
-	if err != nil {
-		return fmt.Errorf("failed to compress content: %v", err)
-	}
-	gzipWriter.Close() // Make sure to close the writer to flush the data
+// UploadFile uploads a file with the specified content type and optional compression
+func (sc *StorageClient) UploadFile(ctx context.Context, objectName string, content []byte, contentType string, compress bool) error {
+	var reader *bytes.Reader
+	var size int64
 
-	// Upload the compressed content with the appropriate headers
-	_, err = sc.minioClient.PutObject(ctx, sc.bucket, objectName,
-		&compressedContent, int64(compressedContent.Len()), minio.PutObjectOptions{
-			ContentType:     "text/html", // Original content type
-			ContentEncoding: "gzip",      // Inform the browser that the content is gzipped
-		})
+	if compress {
+		// Compress the content using gzip
+		var compressedContent bytes.Buffer
+		gzipWriter := gzip.NewWriter(&compressedContent)
+		_, err := gzipWriter.Write(content)
+		if err != nil {
+			return fmt.Errorf("failed to compress content: %v", err)
+		}
+		gzipWriter.Close() // Make sure to close the writer to flush the data
+
+		reader = bytes.NewReader(compressedContent.Bytes())
+		size = int64(compressedContent.Len())
+	} else {
+		reader = bytes.NewReader(content)
+		size = int64(len(content))
+	}
+
+	// Set appropriate options
+	opts := minio.PutObjectOptions{
+		ContentType: contentType,
+	}
+	if compress {
+		opts.ContentEncoding = "gzip"
+	}
+
+	// Upload the content
+	_, err := sc.minioClient.PutObject(ctx, sc.bucket, objectName, reader, size, opts)
 	if err != nil {
 		return fmt.Errorf("failed to upload object %s: %v", objectName, err)
 	}
 
 	return nil
+}
+
+// DownloadFile downloads a file from storage and returns its content
+func (sc *StorageClient) DownloadFile(ctx context.Context, objectName string) ([]byte, error) {
+	// Get the object from storage
+	object, err := sc.minioClient.GetObject(ctx, sc.bucket, objectName, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object %s: %v", objectName, err)
+	}
+	defer object.Close()
+
+	// Read the object content
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(object)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read object %s: %v", objectName, err)
+	}
+
+	// Check if the content is compressed
+	info, err := object.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat object %s: %v", objectName, err)
+	}
+
+	content := buf.Bytes()
+	if info.Metadata.Get("Content-Encoding") == "gzip" {
+		// Decompress the content
+		gzipReader, err := gzip.NewReader(bytes.NewReader(content))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create gzip reader for object %s: %v", objectName, err)
+		}
+		defer gzipReader.Close()
+
+		decompressedContent, err := io.ReadAll(gzipReader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decompress object %s: %v", objectName, err)
+		}
+
+		content = decompressedContent
+	}
+
+	return content, nil
 }
 
 func (sc *StorageClient) FileExists(ctx context.Context, objectName string) (bool, error) {

@@ -2,13 +2,11 @@ package main
 
 import (
 	"embed"
-	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/johnwarden/httperror"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 )
@@ -87,27 +85,11 @@ func (app app) frontpageHandler(ranking string) func(http.ResponseWriter, *http.
 }
 
 func (app app) statsHandler() func(http.ResponseWriter, *http.Request, StatsPageParams) error {
-	cdnDomain := os.Getenv("R2_CDN_DOMAIN")
-	if cdnDomain == "" {
-		panic("R2_CDN_DOMAIN environment variable not set")
-	}
 	return func(w http.ResponseWriter, r *http.Request, params StatsPageParams) error {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 		userID := app.getUserID(r)
-		err := app.statsPage(w, r, params, userID)
-
-		if errors.Is(err, httperror.NotFound) {
-			app.logger.Debug("Redirecting to stats page archive", "story_id", params.StoryID)
-			// Story not found in database, fetch the archived page from the CDN
-			archivedURL := fmt.Sprintf("https://%s/%d.html", cdnDomain, params.StoryID)
-
-			// 302 redirect to archiveURL
-			http.Redirect(w, r, archivedURL, http.StatusFound)
-			return nil
-		}
-
-		return err
+		return app.statsPage(w, r, params, userID)
 	}
 }
 
