@@ -97,8 +97,6 @@ func (app app) archiveOldStatsData(ctx context.Context) ([]int, error) {
 		return nil, errors.Wrap(err, "selectStoriesToArchive")
 	}
 
-	storyIDs = []int{42188407}
-
 	if len(storyIDs) == 0 {
 		return nil, nil // Nothing to archive
 	}
