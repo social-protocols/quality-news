@@ -386,7 +386,9 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		sql := `
 			SELECT DISTINCT id
 			FROM dataset
+			join stories using (id)
 			WHERE submissionTime <= unixepoch() - 30*24*60*60
+			and archived = 0
 		`
 		ndb.selectStoriesToArchiveStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
