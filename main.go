@@ -93,7 +93,7 @@ func main() {
 func (app app) mainLoop(ctx context.Context) {
 	logger := app.logger
 
-	logger.Info("Arching old stories")
+	logger.Info("Archiving old stories")
 	err := app.runArchivingTasks(ctx)
 	if err != nil {
 		LogFatal(logger, "runArchivingTasks", err)
