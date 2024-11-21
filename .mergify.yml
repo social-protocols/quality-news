@@ -1,33 +1,7 @@
+queue_rules: []
+
 pull_request_rules:
-  - name: Merge dependency-update PRs
-    conditions:
-      - label=dependencies
-      - base=master
+  - name: refactored queue action rule
+    conditions: []
     actions:
       queue:
-        name: default
-        method: squash
-
-  - name: Merge PRs using label (rebase)
-    conditions:
-      - label=ready-to-merge-rebase
-      - base=master
-      - "#review-requested=0"
-      - "#changes-requested-reviews-by=0"
-      - "#review-threads-unresolved=0"
-    actions:
-      queue:
-        name: default
-        method: rebase
-
-  - name: Merge PRs using label (squash)
-    conditions:
-      - label=ready-to-merge-squash
-      - base=master
-      - "#review-requested=0"
-      - "#changes-requested-reviews-by=0"
-      - "#review-threads-unresolved=0"
-    actions:
-      queue:
-        name: default
-        method: squash
