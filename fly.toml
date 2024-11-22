@@ -16,6 +16,8 @@ primary_region = "ewr"
   LOG_LEVEL="DEBUG"
   CACHE_SIZE="100"
   R2_BUCKET="news-archive"
+  R2_USE_SSL="true"
+  R2_ENDPOINT="https://9e2da4e2b5c6dd05d36f399d4afc7d4c.r2.cloudflarestorage.com"
 
 [experimental]
   allowed_public_ports = []

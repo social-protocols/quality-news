@@ -154,10 +154,10 @@ func (app app) archiveOldStatsData(ctx context.Context) ([]int, error) {
 func (app app) runArchivingTasks(ctx context.Context) error {
 	app.logger.Debug("Running archiveOldStatsData")
 	archivedStoryIDs, err := app.archiveOldStatsData(ctx)
-	app.logger.Debug("Archived stories", "nStories", len(archivedStoryIDs))
 	if err != nil {
 		return errors.Wrap(err, "archiveOldStatsData")
 	}
+	app.logger.Debug("Archived stories", "nStories", len(archivedStoryIDs))
 
 	nStories := len(archivedStoryIDs)
 	var nDeleted int64 = 0
