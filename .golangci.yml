@@ -1,0 +1,8 @@
+linters:
+  disable:
+    - staticcheck
+
+run:
+  skip-dirs:
+    - "go/pkg/mod" 
+    - "/Cellar/go"
