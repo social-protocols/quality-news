@@ -13,7 +13,7 @@ primary_region = "ewr"
 [env]
   PORT = "8080"
   SQLITE_DATA_DIR="/data"
-  LOG_LEVEL="INFO"
+  LOG_LEVEL="DEBUG"
   CACHE_SIZE="100"
   R2_BUCKET="news-archive"
 
