@@ -91,30 +91,28 @@ func (app app) generateStatsDataJSON(ctx context.Context, storyID int) ([]byte, 
 	return jsonData, nil
 }
 
-func (app app) archiveOldStatsData(ctx context.Context) ([]int, error) {
+func (app app) archiveOldStatsData(ctx context.Context) error {
 	app.logger.Debug("selectStoriesToArchive")
 	storyIDs, err := app.ndb.selectStoriesToArchive(ctx)
-	app.logger.Debug("Finished selectStoriesToArchive", "nStories", len(storyIDs))
 	if err != nil {
-		return nil, errors.Wrap(err, "selectStoriesToArchive")
+		return errors.Wrap(err, "selectStoriesToArchive")
 	}
+	app.logger.Debug("Finished selectStoriesToArchive", "nStories", len(storyIDs))
 
 	if len(storyIDs) == 0 {
-		return nil, nil // Nothing to archive
+		return nil // Nothing to archive
 	}
 
 	sc, err := NewStorageClient()
 	if err != nil {
-		return nil, errors.Wrap(err, "create storage client")
+		return errors.Wrap(err, "create storage client")
 	}
-
-	var archivedStoryIDs []int
 
 	app.logger.Debug("Uploading archive JSON files")
 	for _, storyID := range storyIDs {
 		select {
 		case <-ctx.Done():
-			return archivedStoryIDs, ctx.Err()
+			return ctx.Err()
 		default:
 		}
 
@@ -123,18 +121,18 @@ func (app app) archiveOldStatsData(ctx context.Context) ([]int, error) {
 		// Check if the file already exists before uploading
 		exists, err := sc.FileExists(ctx, filename)
 		if err != nil {
-			app.logger.Error(fmt.Sprintf("checking if file %s exists", filename), err)
+			app.logger.Error("checking if file exists", err, "filename", filename)
 			continue // Continue with the next storyID
 		}
+
 		if exists {
-			app.logger.Debug("File already archived", "filename", filename)
-			archivedStoryIDs = append(archivedStoryIDs, storyID)
+			app.logger.Info("File already archived", "filename", filename)
 			continue // Skip uploading if the file is already archived
 		}
 
 		jsonData, err := app.generateStatsDataJSON(ctx, storyID)
 		if err != nil {
-			app.logger.Error(fmt.Sprintf("generating stats data for storyId %d", storyID), err)
+			app.logger.Error("generating stats data for story", err, "storyID", storyID)
 			continue // Continue with the next storyID
 		}
 
@@ -144,35 +142,15 @@ func (app app) archiveOldStatsData(ctx context.Context) ([]int, error) {
 			continue // Continue with the next storyID
 		}
 
-		app.logger.Debug("Archived stats data for storyID", "storyID", storyID)
-		archivedStoryIDs = append(archivedStoryIDs, storyID)
-	}
-
-	return archivedStoryIDs, nil
-}
-
-func (app app) runArchivingTasks(ctx context.Context) error {
-	app.logger.Debug("Running archiveOldStatsData")
-	archivedStoryIDs, err := app.archiveOldStatsData(ctx)
-	if err != nil {
-		return errors.Wrap(err, "archiveOldStatsData")
-	}
-	app.logger.Debug("Archived stories", "nStories", len(archivedStoryIDs))
-
-	nStories := len(archivedStoryIDs)
-	var nDeleted int64 = 0
-
-	// loop through storeis and delete one by one
-	for _, storyID := range archivedStoryIDs {
 		n, err := app.ndb.deleteOldData(storyID)
 		if err != nil {
-			app.logger.Error(fmt.Sprintf("deleting old data for storyId %d", storyID), err)
-		} else {
-			nDeleted += n
+			app.logger.Error("deleting old data for story", err, "rowsDeleted", n, "storyID", storyID)
+			continue // Continue with the next storyID
 		}
+
+		app.logger.Info("Archived stats data for story", "rowsDeleted", n, "storyID", storyID)
 	}
 
-	app.logger.Info(fmt.Sprintf("Deleted %d rows from DB for %d stories", nDeleted, nStories))
-
+	app.logger.Info("Finished archiving old stats data")
 	return nil
 }

@@ -93,12 +93,6 @@ func main() {
 func (app app) mainLoop(ctx context.Context) {
 	logger := app.logger
 
-	// logger.Info("Archiving old stories")
-	// err := app.runArchivingTasks(ctx)
-	// if err != nil {
-	// 	LogFatal(logger, "runArchivingTasks", err)
-	// }
-
 	lastCrawlTime, err := app.ndb.selectLastCrawlTime()
 	if err != nil {
 		LogFatal(logger, "selectLastCrawlTime", err)
@@ -163,11 +157,11 @@ func (app app) mainLoop(ctx context.Context) {
 				logger.Error("crawlAndPostprocess", err)
 			}
 
-			// logger.Info("Archiving old stories")
-			// err := app.runArchivingTasks(ctx)
-			// if err != nil {
-			// 	logger.Error("runArchivingTasks", err)
-			// }
+			logger.Info("Archiving old stats pages data")
+			err := app.archiveOldStatsData(ctx)
+			if err != nil {
+				logger.Error("archiveOldStatsData", err)
+			}
 
 			logger.Debug("Scheduling tick at next minute mark", "seconds", 60-time.Now().Unix()%60)
 
