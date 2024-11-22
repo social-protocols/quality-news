@@ -92,7 +92,9 @@ func (app app) generateStatsDataJSON(ctx context.Context, storyID int) ([]byte, 
 }
 
 func (app app) archiveOldStatsData(ctx context.Context) ([]int, error) {
-	storyIDs, err := app.ndb.selectStoriesToArchive()
+	app.logger.Debug("selectStoriesToArchive")
+	storyIDs, err := app.ndb.selectStoriesToArchive(ctx)
+	app.logger.Debug("Finished selectStoriesToArchive", "nStories", len(storyIDs))
 	if err != nil {
 		return nil, errors.Wrap(err, "selectStoriesToArchive")
 	}
@@ -108,6 +110,7 @@ func (app app) archiveOldStatsData(ctx context.Context) ([]int, error) {
 
 	var archivedStoryIDs []int
 
+	app.logger.Debug("Uploading archive JSON files")
 	for _, storyID := range storyIDs {
 		select {
 		case <-ctx.Done():
@@ -149,7 +152,9 @@ func (app app) archiveOldStatsData(ctx context.Context) ([]int, error) {
 }
 
 func (app app) runArchivingTasks(ctx context.Context) error {
+	app.logger.Debug("Running archiveOldStatsData")
 	archivedStoryIDs, err := app.archiveOldStatsData(ctx)
+	app.logger.Debug("Archived stories", "nStories", len(archivedStoryIDs))
 	if err != nil {
 		return errors.Wrap(err, "archiveOldStatsData")
 	}

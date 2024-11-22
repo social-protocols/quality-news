@@ -491,10 +491,10 @@ func (ndb newsDatabase) selectLastCrawlTime() (int, error) {
 	return sampleTime, err
 }
 
-func (ndb newsDatabase) selectStoriesToArchive() ([]int, error) {
+func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, error) {
 	var storyIDs []int
 
-	rows, err := ndb.selectStoriesToArchiveStatement.Query()
+	rows, err := ndb.selectStoriesToArchiveStatement.QueryContext(ctx)
 	if err != nil {
 		return storyIDs, errors.Wrap(err, "selectStoriesToArchiveStatement.Query")
 	}
