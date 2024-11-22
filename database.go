@@ -152,6 +152,9 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		`alter table dataset add column upvoteRateWindow int`,
 		`alter table dataset add column upvoteRate float default 0 not null`,
 		`alter table stories add column archived boolean default false not null`,
+		`CREATE INDEX IF NOT EXISTS archived ON dataset(archived)`,
+
+
 		`update dataset set upvoteRate = ( cumulativeUpvotes + 2.3 ) / ( cumulativeExpectedUpvotes + 2.3) where upvoteRate = 0`,
 	}
 
