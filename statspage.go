@@ -68,6 +68,9 @@ func (app app) statsPage(w io.Writer, r *http.Request, params StatsPageParams, u
 	}
 
 	maxSampleTime, err := maxSampleTime(ndb, params.StoryID)
+	if err != nil {
+		return errors.Wrap(err, "maxSampleTime")
+	}
 	d.MaxSampleTime = maxSampleTime
 
 	if s.Archived {
