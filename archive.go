@@ -127,21 +127,22 @@ func (app app) archiveOldStatsData(ctx context.Context) error {
 
 		if exists {
 			app.logger.Info("File already archived", "filename", filename)
-			continue // Skip uploading if the file is already archived
+		} else {
+			jsonData, err := app.generateStatsDataJSON(ctx, storyID)
+			if err != nil {
+				app.logger.Error("generating stats data for story", err, "storyID", storyID)
+				continue // Continue with the next storyID
+			}
+
+			app.logger.Debug("Uploading archive file", "storyID", storyID)
+			err = sc.UploadFile(ctx, filename, jsonData, "application/json", true)
+			if err != nil {
+				app.logger.Error(fmt.Sprintf("uploading file %s", filename), err)
+				continue // Continue with the next storyID
+			}
 		}
 
-		jsonData, err := app.generateStatsDataJSON(ctx, storyID)
-		if err != nil {
-			app.logger.Error("generating stats data for story", err, "storyID", storyID)
-			continue // Continue with the next storyID
-		}
-
-		err = sc.UploadFile(ctx, filename, jsonData, "application/json", true)
-		if err != nil {
-			app.logger.Error(fmt.Sprintf("uploading file %s", filename), err)
-			continue // Continue with the next storyID
-		}
-
+		app.logger.Debug("Deleting old statsData", "storyID", storyID)
 		n, err := app.ndb.deleteOldData(storyID)
 		if err != nil {
 			app.logger.Error("deleting old data for story", err, "rowsDeleted", n, "storyID", storyID)
