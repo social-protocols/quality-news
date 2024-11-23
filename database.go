@@ -391,7 +391,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			FROM dataset
 			join stories using (id)
 			WHERE 
-			sampleTime <= unixepoch() - 21*24*60*60
+			sampleTime <= unixepoch() - 28*24*60*60
 			and archived = 0
 			limit 200
 		`
