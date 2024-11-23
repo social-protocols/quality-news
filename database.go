@@ -156,6 +156,8 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		`CREATE INDEX IF NOT EXISTS archived ON dataset(archived, submissionTime)`,
 
 		`update dataset set upvoteRate = ( cumulativeUpvotes + 2.3 ) / ( cumulativeExpectedUpvotes + 2.3) where upvoteRate = 0`,
+
+		`update stories set archived = 0`,
 	}
 
 	for _, s := range alterStatements {
@@ -393,7 +395,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			WHERE 
 			sampleTime <= unixepoch() - 28*24*60*60
 			and archived = 0
-			limit 10
+			limit 2
 		`
 		ndb.selectStoriesToArchiveStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
