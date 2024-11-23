@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	pond "github.com/alitto/pond/v2"
 	"github.com/pkg/errors"
 	"net/http"
 )
@@ -111,50 +112,58 @@ func (app app) archiveOldStatsData(ctx context.Context) error {
 		return errors.Wrap(err, "create storage client")
 	}
 
+	// Create a pool of workers to upload stories to archive in parallel
+	pool := pond.NewPool(10, pond.WithContext(ctx))
+
 	app.logger.Debug("Uploading archive JSON files")
 	for _, storyID := range storyIDs {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		filename := fmt.Sprintf("%d.json", storyID)
-
-		// Check if the file already exists before uploading
-		exists, err := sc.FileExists(ctx, filename)
-		if err != nil {
-			app.logger.Error("checking if file exists", err, "filename", filename)
-			continue // Continue with the next storyID
-		}
-
-		if exists {
-			app.logger.Info("File already archived", "filename", filename)
-		} else {
-			jsonData, err := app.generateStatsDataJSON(ctx, storyID)
+		pool.Submit(func() {
+			app.logger.Info("Archiving stats data for story", "storyID", storyID)
+			err := app.archiveStory(ctx, sc, storyID)
 			if err != nil {
-				app.logger.Error("generating stats data for story", err, "storyID", storyID)
-				continue // Continue with the next storyID
+				app.logger.Error("archiveStory", err)
 			}
-
-			app.logger.Debug("Uploading archive file", "storyID", storyID)
-			err = sc.UploadFile(ctx, filename, jsonData, "application/json", true)
-			if err != nil {
-				app.logger.Error(fmt.Sprintf("uploading file %s", filename), err)
-				continue // Continue with the next storyID
-			}
-		}
-
-		app.logger.Debug("Deleting old statsData", "storyID", storyID)
-		n, err := app.ndb.deleteOldData(storyID)
-		if err != nil {
-			app.logger.Error("deleting old data for story", err, "rowsDeleted", n, "storyID", storyID)
-			continue // Continue with the next storyID
-		}
-
-		app.logger.Info("Archived stats data for story", "rowsDeleted", n, "storyID", storyID)
+		})
 	}
 
+	// Wait for all tasks in the group to complete or the timeout to occur, whichever comes first
+	pool.StopAndWait()
+
 	app.logger.Info("Finished archiving old stats data")
+	return nil
+}
+
+func (app app) archiveStory(ctx context.Context, sc *StorageClient, storyID int) error {
+
+	filename := fmt.Sprintf("%d.json", storyID)
+
+	// Check if the file already exists before uploading
+	exists, err := sc.FileExists(ctx, filename)
+	if err != nil {
+		return errors.Wrapf(err, "checking if file %s exists", filename)
+	}
+
+	if exists {
+		app.logger.Info("File already archived", "filename", filename)
+	} else {
+		jsonData, err := app.generateStatsDataJSON(ctx, storyID)
+		if err != nil {
+			return errors.Wrapf(err, "generating stats data for story %d", storyID)
+		}
+
+		app.logger.Debug("Uploading archive file", "storyID", storyID)
+		err = sc.UploadFile(ctx, filename, jsonData, "application/json", true)
+		if err != nil {
+			return errors.Wrapf(err, "uploading file %s", filename)
+		}
+	}
+
+	app.logger.Debug("Deleting old statsData", "storyID", storyID)
+	n, err := app.ndb.deleteOldData(storyID)
+	if err != nil {
+		return errors.Wrapf(err, "deleting %d rows of data for story %d", n, storyID)
+	}
+
+	app.logger.Info("Archived stats data for story", "rowsDeleted", n, "storyID", storyID)
 	return nil
 }
