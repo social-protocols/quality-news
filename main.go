@@ -157,10 +157,10 @@ func (app app) mainLoop(ctx context.Context) {
 				logger.Error("crawlAndPostprocess", err)
 			}
 
-			err := app.archiveOldStatsData(ctx)
-			if err != nil {
-				app.logger.Error("archiveOldStatsData", err)
-			}
+			// err := app.archiveOldStatsData(ctx)
+			// if err != nil {
+			// 	app.logger.Error("archiveOldStatsData", err)
+			// }
 
 			app.logger.Debug("Finished crawl and postprocess")
 
