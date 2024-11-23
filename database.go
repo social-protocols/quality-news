@@ -156,8 +156,6 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		`CREATE INDEX IF NOT EXISTS archived ON dataset(archived, submissionTime)`,
 
 		`update dataset set upvoteRate = ( cumulativeUpvotes + 2.3 ) / ( cumulativeExpectedUpvotes + 2.3) where upvoteRate = 0`,
-
-		`update stories set archived = 0`,
 	}
 
 	for _, s := range alterStatements {
