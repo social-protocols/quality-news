@@ -69,6 +69,11 @@ var qnRanksSQL = readSQLSource("qnranks.sql")
 func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
 	t := time.Now()
 
+	err := app.ndb.registerExtensions()
+	if err != nil {
+		return errors.Wrap(err, "registerExtensions")
+	}
+
 	d := defaultFrontPageParams
 	sql := fmt.Sprintf(qnRanksSQL, d.PriorWeight, d.OverallPriorWeight, d.Gravity, d.PenaltyWeight, d.FatigueFactor, qnRankFormulaSQL)
 
