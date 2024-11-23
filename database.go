@@ -393,7 +393,7 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			WHERE 
 			sampleTime <= unixepoch() - 21*24*60*60
 			and archived = 0
-			limit 2
+			limit 200
 		`
 		ndb.selectStoriesToArchiveStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
