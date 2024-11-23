@@ -92,16 +92,19 @@ func (app app) generateStatsDataJSON(ctx context.Context, storyID int) ([]byte, 
 }
 
 func (app app) archiveOldStatsData(ctx context.Context) error {
+	app.logger.Info("Looking for old stories to archive")
 	app.logger.Debug("selectStoriesToArchive")
 	storyIDs, err := app.ndb.selectStoriesToArchive(ctx)
 	if err != nil {
 		return errors.Wrap(err, "selectStoriesToArchive")
 	}
-	app.logger.Debug("Finished selectStoriesToArchive", "nStories", len(storyIDs))
+	app.logger.Debug("Finished selectStoriesToArchive")
 
 	if len(storyIDs) == 0 {
 		return nil // Nothing to archive
 	}
+
+	app.logger.Info("Found old stories to archive", "nStories", len(storyIDs))
 
 	sc, err := NewStorageClient()
 	if err != nil {

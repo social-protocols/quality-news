@@ -390,9 +390,10 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			SELECT DISTINCT id
 			FROM dataset
 			join stories using (id)
-			WHERE submissionTime <= unixepoch() - 28*24*60*60
+			WHERE 
+			sampleTime <= unixepoch() - 14*24*60*60
 			and archived = 0
-			limit 100
+			limit 50
 		`
 		ndb.selectStoriesToArchiveStatement, err = ndb.db.Prepare(sql)
 		if err != nil {
@@ -500,7 +501,7 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 
 	rows, err := ndb.selectStoriesToArchiveStatement.QueryContext(ctx)
 	if err != nil {
-		return storyIDs, errors.Wrap(err, "selectStoriesToArchiveStatement.Query")
+		return storyIDs, errors.Wrap(err, "selectStoriesToArchiveStatement.QueryContext")
 	}
 
 	for rows.Next() {

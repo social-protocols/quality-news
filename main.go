@@ -157,13 +157,12 @@ func (app app) mainLoop(ctx context.Context) {
 				logger.Error("crawlAndPostprocess", err)
 			}
 
-			// logger.Info("Archiving old stats pages data")
-			// err := app.archiveOldStatsData(ctx)
-			// if err != nil {
-			// 	logger.Error("archiveOldStatsData", err)
-			// }
+			err := app.archiveOldStatsData(ctx)
+			if err != nil {
+				app.logger.Error("archiveOldStatsData", err)
+			}
 
-			logger.Debug("Scheduling tick at next minute mark", "seconds", 60-time.Now().Unix()%60)
+			app.logger.Debug("Finished crawl and postprocess")
 
 		case <-ctx.Done():
 			return
