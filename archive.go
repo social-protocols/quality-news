@@ -135,6 +135,9 @@ func (app app) archiveOldStatsData(ctx context.Context) error {
 
 func (app app) archiveStory(ctx context.Context, sc *StorageClient, storyID int) error {
 
+	app.logger.Debug("Skipping archiving of story for now", "storyID", storyID)
+	return nil
+
 	filename := fmt.Sprintf("%d.json", storyID)
 
 	// Check if the file already exists before uploading
