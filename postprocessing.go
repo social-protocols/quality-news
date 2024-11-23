@@ -46,6 +46,7 @@ func (app app) crawlPostprocess(ctx context.Context, tx *sql.Tx) error {
 		"resubmissions.sql",
 		"raw-ranks.sql",
 		"penalties.sql",
+		"delete-old-data.sql",
 	} {
 		err = executeSQLFile(ctx, tx, filename)
 		if err != nil {
