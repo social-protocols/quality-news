@@ -14,22 +14,22 @@ import (
 )
 
 const (
-	// qnRankFormulaSQL = "pow(ageHours * (cumulativeUpvotes + overallPriorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + overallPriorWeight), 0.8) / pow(ageHours + 2, gravity/0.8) desc"
+	qnRankFormulaSQL = "pow(ageHours * (cumulativeUpvotes + overallPriorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + overallPriorWeight), 0.8) / pow(ageHours + 2, gravity/0.8) desc"
 
-	qnRankFormulaSQL = `
-		pow(
-			ageHours * 
-			sample_from_gamma_distribution(
-				cumulativeUpvotes + overallPriorWeight,
-				(
-						1-exp(-fatigueFactor*cumulativeExpectedUpvotes)
-				) / fatigueFactor + overallPriorWeight
-			 )
-			 , 0.8
-		) / pow(
-				ageHours + 2
-				, gravity/0.8
-		) desc`
+	// qnRankFormulaSQL = `
+	// 	pow(
+	// 		ageHours *
+	// 		sample_from_gamma_distribution(
+	// 			cumulativeUpvotes + overallPriorWeight,
+	// 			(
+	// 					1-exp(-fatigueFactor*cumulativeExpectedUpvotes)
+	// 			) / fatigueFactor + overallPriorWeight
+	// 		 )
+	// 		 , 0.8
+	// 	) / pow(
+	// 			ageHours + 2
+	// 			, gravity/0.8
+	// 	) desc`
 
 	hnRankFormulaSQL = "(score-1) / pow(ageHours + 2, gravity/0.8) desc"
 )
@@ -68,11 +68,6 @@ var qnRanksSQL = readSQLSource("qnranks.sql")
 
 func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
 	t := time.Now()
-
-	err := app.ndb.registerExtensions()
-	if err != nil {
-		return errors.Wrap(err, "registerExtensions")
-	}
 
 	d := defaultFrontPageParams
 	sql := fmt.Sprintf(qnRanksSQL, d.PriorWeight, d.OverallPriorWeight, d.Gravity, d.PenaltyWeight, d.FatigueFactor, qnRankFormulaSQL)
