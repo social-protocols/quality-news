@@ -16,18 +16,8 @@ import (
 type newsDatabase struct {
 	*sql.DB
 
-	db                              *sql.DB
-	upvotesDB                       *sql.DB
-	insertDataPointStatement        *sql.Stmt
-	insertOrReplaceStoryStatement   *sql.Stmt
-	selectLastSeenScoreStatement    *sql.Stmt
-	selectLastCrawlTimeStatement    *sql.Stmt
-	selectStoryDetailsStatement     *sql.Stmt
-	selectStoryCountStatement       *sql.Stmt
-	selectStoriesToArchiveStatement *sql.Stmt
-	deleteOldDataStatement          *sql.Stmt
-	markAsArchivedStatement         *sql.Stmt
-
+	db            *sql.DB
+	upvotesDB     *sql.DB
 	sqliteDataDir string
 }
 
@@ -271,20 +261,24 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	}
 
-	// the newsDatabase type has a few prepared statements that are defined here
-	{
-		sql := `
-		INSERT INTO stories (id, by, title, url, timestamp, job) VALUES (?, ?, ?, ?, ?, ?) 
-		ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url, job = excluded.job
-		`
-		ndb.insertOrReplaceStoryStatement, err = ndb.db.Prepare(sql)
-		if err != nil {
-			return ndb, err
-		}
-	}
+	// No need to prepare statements anymore as we're removing prepared statements
 
-	{
-		sql := `
+	err = ndb.importPenaltiesData(sqliteDataDir)
+
+	return ndb, err
+}
+
+func rankToNullableInt(rank int) (result sql.NullInt32) {
+	if rank == 0 {
+		result = sql.NullInt32{}
+	} else {
+		result = sql.NullInt32{Int32: int32(rank), Valid: true}
+	}
+	return
+}
+
+func (ndb newsDatabase) insertDataPoint(tx *sql.Tx, d dataPoint) error {
+	sqlStatement := `
 		INSERT INTO dataset (
 			id
 			, score
@@ -306,140 +300,10 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 			?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?
 		)
-		`
+	`
 
-		ndb.insertDataPointStatement, err = ndb.db.Prepare(sql) // Prepare statement.
-		if err != nil {
-			return ndb, errors.Wrap(err, "preparing insertDataPointStatement")
-		}
-	}
-
-	{
-		sql := `
-		SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes, sampleTime
-		FROM dataset
-		WHERE id = ?
-		ORDER BY sampleTime DESC LIMIT 1
-		`
-		ndb.selectLastSeenScoreStatement, err = ndb.db.Prepare(sql)
-		if err != nil {
-			return ndb, errors.Wrap(err, "preparing selectLastSeenScoreStatement")
-		}
-	}
-
-	{
-		sql := `
-		SELECT ifnull(max(sampleTime),0) from dataset
-		`
-		ndb.selectLastCrawlTimeStatement, err = ndb.db.Prepare(sql)
-		if err != nil {
-			return ndb, errors.Wrap(err, "preparing selectLastCrawlTimeStatement")
-		}
-	}
-
-	{
-		sql := `
-		SELECT
-			id
-			, by
-			, title
-			, url
-			, submissionTime
-			, timestamp as originalSubmissionTime
-			, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime)
-			, score
-			, descendants
-			, cumulativeUpvotes
-			, cumulativeExpectedUpvotes
-			-- , (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality 
-			, penalty
-			, topRank
-			, qnRank
-			, rawRank
-			, flagged
-			, dupe
-			, job
-			, archived
-			-- use latest information from the last available datapoint for this story (even if it is not in the latest crawl) *except* for rank information.
-			from stories
-			JOIN dataset
-			USING (id)
-			WHERE id = ?
-			ORDER BY sampleTime DESC
-			LIMIT 1
-		`
-
-		ndb.selectStoryDetailsStatement, err = ndb.db.Prepare(sql)
-		if err != nil {
-			return ndb, errors.Wrap(err, "preparing selectStoryDetailsStatement")
-		}
-	}
-
-	{
-		sql := `
-		SELECT count(distinct id) from dataset
-		`
-		ndb.selectStoryCountStatement, err = ndb.db.Prepare(sql)
-		if err != nil {
-			return ndb, errors.Wrap(err, "preparing selectStoryCountStatement")
-		}
-	}
-
-	{
-		sql := `
-			SELECT DISTINCT id
-			FROM dataset
-			join stories using (id)
-			WHERE 
-			sampleTime <= unixepoch() - 28*24*60*60
-			and archived = 0
-			limit 200
-		`
-		ndb.selectStoriesToArchiveStatement, err = ndb.db.Prepare(sql)
-		if err != nil {
-			return ndb, errors.Wrap(err, "preparing selectStoriesToArchiveStatement")
-		}
-	}
-
-	{
-		sql := `
-			-- Delete all but the last datapoint
-			delete from dataset
-			where 
-			id = ?
-			and sampleTime < (select max(sampleTime) from dataset where id=?)
-		`
-		ndb.deleteOldDataStatement, err = ndb.db.Prepare(sql)
-		if err != nil {
-			return ndb, errors.Wrap(err, "preparing deleteOldDataStatement")
-		}
-	}
-	{
-		sql := `update stories set archived = 1 where id = ?`
-		ndb.markAsArchivedStatement, err = ndb.db.Prepare(sql)
-		if err != nil {
-			return ndb, errors.Wrap(err, "preparing markAsArchivedStatement")
-		}
-	}
-
-	err = ndb.importPenaltiesData(sqliteDataDir)
-
-	return ndb, err
-}
-
-func rankToNullableInt(rank int) (result sql.NullInt32) {
-	if rank == 0 {
-		result = sql.NullInt32{}
-	} else {
-		result = sql.NullInt32{Int32: int32(rank), Valid: true}
-	}
-	return
-}
-
-func (ndb newsDatabase) insertDataPoint(tx *sql.Tx, d dataPoint) error {
-	stmt := tx.Stmt(ndb.insertDataPointStatement)
-
-	_, err := stmt.Exec(d.id,
+	_, err := tx.Exec(sqlStatement,
+		d.id,
 		d.score,
 		d.descendants,
 		d.sampleTime,
@@ -462,9 +326,12 @@ func (ndb newsDatabase) insertDataPoint(tx *sql.Tx, d dataPoint) error {
 }
 
 func (ndb newsDatabase) insertOrReplaceStory(tx *sql.Tx, story Story) (int64, error) {
-	stmt := tx.Stmt(ndb.insertOrReplaceStoryStatement)
+	sqlStatement := `
+		INSERT INTO stories (id, by, title, url, timestamp, job) VALUES (?, ?, ?, ?, ?, ?) 
+		ON CONFLICT DO UPDATE SET title = excluded.title, url = excluded.url, job = excluded.job
+	`
 
-	r, err := stmt.Exec(story.ID, story.By, story.Title, story.URL, story.SubmissionTime, story.Job)
+	r, err := tx.Exec(sqlStatement, story.ID, story.By, story.Title, story.URL, story.SubmissionTime, story.Job)
 	if err != nil {
 		return 0, err
 	}
@@ -478,9 +345,14 @@ func (ndb newsDatabase) selectLastSeenData(tx *sql.Tx, id int) (int, int, float6
 	var cumulativeExpectedUpvotes float64
 	var lastSeenTime int
 
-	stmt := tx.Stmt(ndb.selectLastSeenScoreStatement)
+	sqlStatement := `
+		SELECT score, cumulativeUpvotes, cumulativeExpectedUpvotes, sampleTime
+		FROM dataset
+		WHERE id = ?
+		ORDER BY sampleTime DESC LIMIT 1
+	`
 
-	err := stmt.QueryRow(id).Scan(&score, &cumulativeUpvotes, &cumulativeExpectedUpvotes, &lastSeenTime)
+	err := tx.QueryRow(sqlStatement, id).Scan(&score, &cumulativeUpvotes, &cumulativeExpectedUpvotes, &lastSeenTime)
 	if err != nil {
 		return score, cumulativeUpvotes, cumulativeExpectedUpvotes, lastSeenTime, err
 	}
@@ -491,7 +363,11 @@ func (ndb newsDatabase) selectLastSeenData(tx *sql.Tx, id int) (int, int, float6
 func (ndb newsDatabase) selectLastCrawlTime() (int, error) {
 	var sampleTime int
 
-	err := ndb.selectLastCrawlTimeStatement.QueryRow().Scan(&sampleTime)
+	sqlStatement := `
+		SELECT ifnull(max(sampleTime),0) from dataset
+	`
+
+	err := ndb.db.QueryRow(sqlStatement).Scan(&sampleTime)
 
 	return sampleTime, err
 }
@@ -499,10 +375,21 @@ func (ndb newsDatabase) selectLastCrawlTime() (int, error) {
 func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, error) {
 	var storyIDs []int
 
-	rows, err := ndb.selectStoriesToArchiveStatement.QueryContext(ctx)
+	sqlStatement := `
+		SELECT DISTINCT id
+		FROM dataset
+		join stories using (id)
+		WHERE 
+		sampleTime <= unixepoch() - 28*24*60*60
+		and archived = 0
+		limit 200
+	`
+
+	rows, err := ndb.db.QueryContext(ctx, sqlStatement)
 	if err != nil {
-		return storyIDs, errors.Wrap(err, "selectStoriesToArchiveStatement.QueryContext")
+		return storyIDs, errors.Wrap(err, "selectStoriesToArchive QueryContext")
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var storyID int
@@ -514,7 +401,7 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 	return storyIDs, nil
 }
 
-func (ndb newsDatabase) deleteOldData(storyID int) (int64, error) {
+func (ndb newsDatabase) deleteOldData(storyID int) (rowsAffected int64, err error) {
 	// Begin transaction
 	tx, err := ndb.db.Begin()
 	if err != nil {
@@ -524,30 +411,39 @@ func (ndb newsDatabase) deleteOldData(storyID int) (int64, error) {
 	// Ensure rollback if there's an error
 	defer func() {
 		if p := recover(); p != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			panic(p) // Re-throw panic after Rollback
 		} else if err != nil {
-			tx.Rollback() // Rollback on error
+			_ = tx.Rollback() // Rollback on error
 		} else {
 			err = tx.Commit() // Commit on success
 		}
 	}()
 
 	// Execute the delete operation
-	r, err := tx.Stmt(ndb.deleteOldDataStatement).Exec(storyID, storyID)
+	deleteSQL := `
+		-- Delete all but the last datapoint
+		delete from dataset
+		where 
+		id = ?
+		and sampleTime < (select max(sampleTime) from dataset where id=?)
+	`
+	r, err := tx.Exec(deleteSQL, storyID, storyID)
 	if err != nil {
 		return 0, errors.Wrap(err, "deleteOldData Exec")
 	}
 
-	rowsAffected, err := r.RowsAffected()
+	rowsAffected, err = r.RowsAffected()
 	if err != nil {
 		return 0, errors.Wrap(err, "getting RowsAffected")
 	}
 
 	// Execute the mark as archived operation
-	_, err = tx.Stmt(ndb.markAsArchivedStatement).Exec(storyID)
+	updateSQL := `update stories set archived = 1 where id = ?`
+
+	_, err = tx.Exec(updateSQL, storyID)
 	if err != nil {
-		return 0, errors.Wrap(err, "markAsArchivedStatement Exec")
+		return 0, errors.Wrap(err, "markAsArchived Exec")
 	}
 
 	return rowsAffected, nil
@@ -556,7 +452,36 @@ func (ndb newsDatabase) deleteOldData(storyID int) (int64, error) {
 func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	var s Story
 
-	err := ndb.selectStoryDetailsStatement.QueryRow(id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job, &s.Archived)
+	sqlStatement := `
+	SELECT
+		id
+		, by
+		, title
+		, url
+		, submissionTime
+		, timestamp as originalSubmissionTime
+		, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime)
+		, score
+		, descendants
+		, cumulativeUpvotes
+		, cumulativeExpectedUpvotes
+		, penalty
+		, topRank
+		, qnRank
+		, rawRank
+		, flagged
+		, dupe
+		, job
+		, archived
+	from stories
+	JOIN dataset
+	USING (id)
+	WHERE id = ?
+	ORDER BY sampleTime DESC
+	LIMIT 1
+	`
+
+	err := ndb.db.QueryRow(sqlStatement, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job, &s.Archived)
 	if err != nil {
 		return s, err
 	}
@@ -567,9 +492,11 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 func (ndb newsDatabase) storyCount(tx *sql.Tx) (int, error) {
 	var count int
 
-	stmt := tx.Stmt(ndb.selectStoryCountStatement)
+	sqlStatement := `
+		SELECT count(distinct id) from dataset
+	`
 
-	err := stmt.QueryRow().Scan(&count)
+	err := tx.QueryRow(sqlStatement).Scan(&count)
 
 	return count, err
 }
