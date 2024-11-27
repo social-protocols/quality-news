@@ -186,8 +186,9 @@ The frontpage generator queries the database and calculates the Bayesian average
 
 ## Running it locally
 
-Make sure, you have:
+We recommend using [devbox](https://www.jetify.com/docs/devbox/quickstart/), which provides all [required dependencies](devbox.json) in a development shell. Thanks to [direnv](https://direnv.net/), this shell is automatically launched when you enter the repo directory.
 
+Alternatively, you can install the required dependencies manually:
 - go 1.19+
 - [direnv](https://direnv.net/) - to set environment variables automatically
 - entr - to automatically rerun server when files change
@@ -215,18 +216,7 @@ Or, to automatically watch for source file changes:
 ./watch.sh
 ```
 
-### Using NIX
-
-There is also a [shell.nix](shell.nix) available, which provides all required dependencies.
-
-Install nix on your system, enter the news directory, and run:      
-
-```sh 
-
-nix-channel --update
-nix-shell
-./watch.sh
-```
+Then point your browser to <http://localhost:8080>.
 
 # Contributions
 
