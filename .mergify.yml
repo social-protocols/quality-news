@@ -1,8 +1,13 @@
 queue_rules:
-  - name: duplicated default from Merge PRs using label (rebase)
+  - name: Merge dependency-update PRs
     queue_conditions:
       - label=dependencies
       - base=master
+    merge_conditions: []
+    merge_method: squash
+
+  - name: Merge PRs using label (rebase)
+    queue_conditions:
       - label=ready-to-merge-rebase
       - base=master
       - "#review-requested=0"
@@ -10,10 +15,9 @@ queue_rules:
       - "#review-threads-unresolved=0"
     merge_conditions: []
     merge_method: rebase
-  - name: duplicated default from Merge PRs using label (squash)
+
+  - name: Merge PRs using label (squash)
     queue_conditions:
-      - label=dependencies
-      - base=master
       - label=ready-to-merge-squash
       - base=master
       - "#review-requested=0"
@@ -21,16 +25,9 @@ queue_rules:
       - "#review-threads-unresolved=0"
     merge_conditions: []
     merge_method: squash
-  - name: default
-    queue_conditions:
-      - label=dependencies
-      - base=master
-    merge_conditions: []
-    merge_method: squash
 
 pull_request_rules:
-  - name: Merge PRs using label (rebase) + Merge PRs using label (squash) + Merge
-      dependency-update PRs
+  - name: All PRs into queue
     conditions: []
     actions:
       queue:
