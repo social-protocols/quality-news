@@ -42,6 +42,9 @@ func (d frontPageData) IsFairPage() bool {
 func (d frontPageData) IsUpvoteratePage() bool {
 	return d.Ranking == "upvoterate"
 }
+func (d frontPageData) IsBestUpvoteratePage() bool {
+	return d.Ranking == "best-upvoterate"
+}
 
 func (d frontPageData) IsHNTopPage() bool {
 	return d.Ranking == "hntop"
@@ -53,6 +56,10 @@ func (d frontPageData) IsNewPage() bool {
 
 func (d frontPageData) IsBestPage() bool {
 	return d.Ranking == "best"
+}
+
+func (d frontPageData) IsBestUpvoteRatePage() bool {
+	return d.Ranking == "best-upvoterate"
 }
 
 func (d frontPageData) IsAskPage() bool {
@@ -328,6 +335,8 @@ func orderByStatement(ranking string) string {
 		end nulls last`
 	case "upvoterate":
 		return "qnRank nulls last"
+	case "best-upvoterate":
+		return "(cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) desc nulls last"
 	case "hntop":
 		return "topRank"
 	case "unadjusted":
@@ -357,8 +366,6 @@ func whereClause(ranking string) string {
 		return "qnRank is not null"
 	case "hntop":
 		return "topRank is not null"
-	case "unadjusted":
-		return hnRankFormulaSQL
 	case "boosts":
 		return "topRank < rawRank"
 	case "penalties":
@@ -427,6 +434,9 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		}
 		if ranking == "upvoterate" {
 			s.IsUpvoteratePage = true
+		}
+		if ranking == "best-upvoterate" {
+			s.IsBestUpvoteratePage = true
 		}
 		if ranking == "raw" {
 			s.IsRawPage = true

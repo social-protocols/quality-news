@@ -12,6 +12,10 @@ func (d DefaultPageHeaderData) IsUpvoteratePage() bool {
 	return false
 }
 
+func (d DefaultPageHeaderData) IsBestUpvoteratePage() bool {
+	return false
+}
+
 func (d DefaultPageHeaderData) IsHNTopPage() bool {
 	return false
 }
@@ -61,5 +65,5 @@ func (d DefaultPageHeaderData) IsScorePage() bool {
 }
 
 func (d DefaultPageHeaderData) IsAlternativeFrontPage() bool {
-	return d.IsHNTopPage() || d.IsRawPage() || d.IsPenaltiesPage() || d.IsBoostsPage() || d.IsResubmissionsPage() || d.IsFairPage() || d.IsUpvoteratePage()
+	return d.IsHNTopPage() || d.IsRawPage() || d.IsPenaltiesPage() || d.IsBoostsPage() || d.IsResubmissionsPage() || d.IsFairPage() || d.IsUpvoteratePage() || d.IsBestUpvoteratePage()
 }

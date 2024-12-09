@@ -52,6 +52,9 @@ var userID {{if .UserID.Valid}} = {{.UserID}} {{end}}
 
 			This is an alternative Hacker News front page based on <span class="upvoterate">×UpvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a> instead of upvotes. Ignores HN moderator boosts/penalties.
 
+	{{else if .IsBestUpvoteratePage}}
+
+			This page ranks Hacker News stories based on all-time highest <span class="upvoterate">×UpvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a>.
 
 	{{else if .IsPenaltiesPage}}
 
