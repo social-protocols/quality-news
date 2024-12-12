@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"time"
 
 	sqlite3 "github.com/mattn/go-sqlite3"
 
@@ -128,7 +129,7 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		drop view if exists previousCrawl
 		`,
 
-		`PRAGMA auto_vacuum=FULL`,
+		`PRAGMA auto_vacuum=NONE`,
 	}
 
 	for _, s := range seedStatements {
@@ -499,4 +500,58 @@ func (ndb newsDatabase) storyCount(tx *sql.Tx) (int, error) {
 	err := tx.QueryRow(sqlStatement).Scan(&count)
 
 	return count, err
+}
+
+func (ndb newsDatabase) vacuumIfNeeded(ctx context.Context, logger leveledLogger) error {
+	size, freelist, fragmentation, err := ndb.getDatabaseStats()
+	if err != nil {
+		return errors.Wrap(err, "getDatabaseStats")
+	}
+
+	logger.Info("Database stats",
+		"size_mb", float64(size)/(1024*1024),
+		"freelist_pages", freelist,
+		"fragmentation_pct", fragmentation)
+
+	if fragmentation > 20.0 {
+		logger.Info("Starting vacuum operation",
+			"fragmentation_pct", fragmentation)
+
+		startTime := time.Now()
+		_, err := ndb.db.ExecContext(ctx, "VACUUM")
+		if err != nil {
+			return errors.Wrap(err, "vacuum database")
+		}
+
+		newSize, _, newFragmentation, err := ndb.getDatabaseStats()
+		if err != nil {
+			return errors.Wrap(err, "getDatabaseStats after vacuum")
+		}
+
+		logger.Info("Vacuum completed",
+			"duration_seconds", time.Since(startTime).Seconds(),
+			"size_before_mb", float64(size)/(1024*1024),
+			"size_after_mb", float64(newSize)/(1024*1024),
+			"space_reclaimed_mb", float64(size-newSize)/(1024*1024),
+			"fragmentation_before", fragmentation,
+			"fragmentation_after", newFragmentation)
+
+		vacuumOperationsTotal.Inc()
+	}
+
+	return nil
+}
+
+func (ndb newsDatabase) getDatabaseStats() (size int64, freelist int64, fragmentation float64, err error) {
+	err = ndb.db.QueryRow(`
+		SELECT 
+			(SELECT page_count FROM pragma_page_count()) * 
+			(SELECT page_size FROM pragma_page_size()) as total_bytes,
+			(SELECT freelist_count FROM pragma_freelist_count()) as free_pages,
+			ROUND(
+				100.0 * (SELECT freelist_count FROM pragma_freelist_count()) /
+				(SELECT page_count FROM pragma_page_count()), 1
+			) as fragmentation_pct
+	`).Scan(&size, &freelist, &fragmentation)
+	return
 }

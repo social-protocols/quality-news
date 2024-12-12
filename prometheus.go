@@ -22,6 +22,10 @@ var (
 
 	upvotesTotal     = metrics.NewCounter(`upvotes_total`)
 	submissionsTotal = metrics.NewCounter(`submissions_total`)
+
+	databaseSizeBytes            *metrics.Gauge
+	databaseFragmentationPercent *metrics.Gauge
+	vacuumOperationsTotal        = metrics.NewCounter(`database_vacuum_operations_total{database="frontpage"}`)
 )
 
 func servePrometheusMetrics() func(ctx context.Context) error {
@@ -58,4 +62,24 @@ func prometheusMiddleware[P any](routeName string, h httperror.XHandler[P]) http
 
 		return err
 	}
+}
+
+func (app *app) initDatabaseMetrics() {
+	databaseSizeBytes = metrics.NewGauge(`database_size_bytes{database="frontpage"}`, func() float64 {
+		size, _, _, err := app.ndb.getDatabaseStats()
+		if err != nil {
+			app.logger.Error("getDatabaseStats", err)
+			return 0
+		}
+		return float64(size)
+	})
+
+	databaseFragmentationPercent = metrics.NewGauge(`database_fragmentation_percent{database="frontpage"}`, func() float64 {
+		_, _, fragmentation, err := app.ndb.getDatabaseStats()
+		if err != nil {
+			app.logger.Error("getDatabaseStats", err)
+			return 0
+		}
+		return fragmentation
+	})
 }

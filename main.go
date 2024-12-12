@@ -15,6 +15,7 @@ const maxShutDownTimeout = 5 * time.Second
 
 func main() {
 	app := initApp()
+	app.initDatabaseMetrics()
 	defer app.cleanup()
 
 	logger := app.logger
@@ -161,6 +162,12 @@ func (app app) mainLoop(ctx context.Context) {
 				err := app.archiveOldStatsData(ctx)
 				if err != nil {
 					app.logger.Error("archiveOldStatsData", err)
+				}
+
+				// Check fragmentation and vacuum if needed
+				err = app.ndb.vacuumIfNeeded(ctx, app.logger)
+				if err != nil {
+					app.logger.Error("vacuumIfNeeded", err)
 				}
 			}
 
