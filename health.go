@@ -12,12 +12,24 @@ const alertAfterMinutes = 5
 
 func (app app) healthHandler() func(http.ResponseWriter, *http.Request, loginParams) error {
 	return func(w http.ResponseWriter, r *http.Request, p loginParams) error {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
+		_, err := w.Write([]byte("ok"))
+		if err != nil {
+			return errors.Wrap(err, "writing response")
+		}
+
+		return nil
+	}
+}
+
+func (app app) crawlHealthHandler() func(http.ResponseWriter, *http.Request, loginParams) error {
+	return func(w http.ResponseWriter, r *http.Request, p loginParams) error {
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 		lastSampleTime, err := app.ndb.selectLastCrawlTime()
 		if err != nil {
-			// Return a 500 error
 			return errors.Wrap(err, "getting last crawl time")
 		}
 
@@ -25,7 +37,6 @@ func (app app) healthHandler() func(http.ResponseWriter, *http.Request, loginPar
 			return fmt.Errorf("last successful crawl of %d is more than %d minutes ago", lastSampleTime, alertAfterMinutes)
 		}
 
-		// write "ok"
 		_, err = w.Write([]byte("ok"))
 		if err != nil {
 			return errors.Wrap(err, "writing response")
