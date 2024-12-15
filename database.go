@@ -383,7 +383,7 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 		WHERE 
 			sampleTime <= unixepoch() - 24*24*60*60
 			AND archived = 0
-		LIMIT 10
+		LIMIT 100
 	`
 
 	rows, err := ndb.db.QueryContext(ctx, sqlStatement)
@@ -417,7 +417,7 @@ func (ndb newsDatabase) selectStoriesToPurge(ctx context.Context) ([]int, error)
 			GROUP BY id
 		)
 		WHERE max_score < 2
-		LIMIT 10
+		LIMIT 100
 	`
 
 	rows, err := ndb.db.QueryContext(ctx, sqlStatement)
