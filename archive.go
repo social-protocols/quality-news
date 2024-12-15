@@ -92,17 +92,48 @@ func (app app) generateStatsDataJSON(ctx context.Context, storyID int) ([]byte, 
 	return jsonData, nil
 }
 
+type archiveResult struct {
+	storyID  int
+	uploaded bool
+	err      error
+}
+
+func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyID int) archiveResult {
+	filename := fmt.Sprintf("%d.json", storyID)
+
+	exists, err := sc.FileExists(ctx, filename)
+	if err != nil {
+		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "checking if file %s exists", filename)}
+	}
+
+	if exists {
+		app.logger.Info("File already archived", "filename", filename)
+		return archiveResult{storyID: storyID, uploaded: true}
+	}
+
+	jsonData, err := app.generateStatsDataJSON(ctx, storyID)
+	if err != nil {
+		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "generating stats data for story %d", storyID)}
+	}
+
+	app.logger.Debug("Uploading archive file", "storyID", storyID)
+	err = sc.UploadFile(ctx, filename, jsonData, "application/json", true)
+	if err != nil {
+		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "uploading file %s", filename)}
+	}
+
+	return archiveResult{storyID: storyID, uploaded: true}
+}
+
 func (app app) archiveOldStatsData(ctx context.Context) error {
 	app.logger.Info("Looking for old stories to archive")
-	app.logger.Debug("selectStoriesToArchive")
 	storyIDs, err := app.ndb.selectStoriesToArchive(ctx)
 	if err != nil {
 		return errors.Wrap(err, "selectStoriesToArchive")
 	}
-	app.logger.Debug("Finished selectStoriesToArchive")
 
 	if len(storyIDs) == 0 {
-		return nil // Nothing to archive
+		return nil
 	}
 
 	app.logger.Info("Found old stories to archive", "nStories", len(storyIDs))
@@ -112,58 +143,55 @@ func (app app) archiveOldStatsData(ctx context.Context) error {
 		return errors.Wrap(err, "create storage client")
 	}
 
-	// Create a pool of workers to upload stories to archive in parallel
+	// Create channels for results
+	results := make(chan archiveResult, len(storyIDs))
+
+	// Create worker pool for uploads
 	pool := pond.NewPool(10, pond.WithContext(ctx))
 
-	app.logger.Debug("Uploading archive JSON files")
+	// Start upload operations in parallel
 	for _, storyID := range storyIDs {
+		sid := storyID // Create new variable for closure
 		pool.Submit(func() {
-			app.logger.Info("Archiving stats data for story", "storyID", storyID)
-			err := app.archiveStory(ctx, sc, storyID)
-			if err != nil {
-				app.logger.Error("archiveStory", err)
-			}
+			result := app.uploadStoryArchive(ctx, sc, sid)
+			results <- result
 		})
 	}
 
-	// Wait for all tasks in the group to complete or the timeout to occur, whichever comes first
-	pool.StopAndWait()
+	// Close results channel when all uploads complete
+	go func() {
+		pool.StopAndWait()
+		close(results)
+	}()
+
+	// Process results and perform DB operations sequentially
+	successfulUploads := make([]int, 0, len(storyIDs))
+	for result := range results {
+		if result.err != nil {
+			app.logger.Error("Failed to archive story",
+				result.err,
+				"storyID", result.storyID)
+			continue
+		}
+		if result.uploaded {
+			successfulUploads = append(successfulUploads, result.storyID)
+		}
+	}
+
+	// Perform DB operations sequentially for successful uploads
+	for _, storyID := range successfulUploads {
+		n, err := app.ndb.deleteOldData(storyID)
+		if err != nil {
+			app.logger.Error("Failed to delete old data",
+				err,
+				"storyID", storyID)
+			continue
+		}
+		app.logger.Info("Archived stats data for story", 
+			"rowsDeleted", n, 
+			"storyID", storyID)
+	}
 
 	app.logger.Info("Finished archiving old stats data")
-	return nil
-}
-
-func (app app) archiveStory(ctx context.Context, sc *StorageClient, storyID int) error {
-
-	filename := fmt.Sprintf("%d.json", storyID)
-
-	// Check if the file already exists before uploading
-	exists, err := sc.FileExists(ctx, filename)
-	if err != nil {
-		return errors.Wrapf(err, "checking if file %s exists", filename)
-	}
-
-	if exists {
-		app.logger.Info("File already archived", "filename", filename)
-	} else {
-		jsonData, err := app.generateStatsDataJSON(ctx, storyID)
-		if err != nil {
-			return errors.Wrapf(err, "generating stats data for story %d", storyID)
-		}
-
-		app.logger.Debug("Uploading archive file", "storyID", storyID)
-		err = sc.UploadFile(ctx, filename, jsonData, "application/json", true)
-		if err != nil {
-			return errors.Wrapf(err, "uploading file %s", filename)
-		}
-	}
-
-	app.logger.Debug("Deleting old statsData", "storyID", storyID)
-	n, err := app.ndb.deleteOldData(storyID)
-	if err != nil {
-		return errors.Wrapf(err, "deleting %d rows of data for story %d", n, storyID)
-	}
-
-	app.logger.Info("Archived stats data for story", "rowsDeleted", n, "storyID", storyID)
 	return nil
 }
