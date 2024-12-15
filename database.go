@@ -377,13 +377,20 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 	var storyIDs []int
 
 	sqlStatement := `
-		SELECT DISTINCT id
-		FROM dataset
-		join stories using (id)
+		WITH MaxScores AS (
+			SELECT id, MAX(score) as max_score
+			FROM dataset
+			GROUP BY id
+		)
+		SELECT DISTINCT d.id
+		FROM dataset d
+		JOIN stories s USING (id)
+		JOIN MaxScores m ON d.id = m.id
 		WHERE 
-		sampleTime <= unixepoch() - 24*24*60*60
-		and archived = 0
-		limit 20
+			sampleTime <= unixepoch() - 24*24*60*60
+			AND archived = 0
+			AND m.max_score >= 2
+		LIMIT 10
 	`
 
 	rows, err := ndb.db.QueryContext(ctx, sqlStatement)
@@ -400,6 +407,72 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 		storyIDs = append(storyIDs, storyID)
 	}
 	return storyIDs, nil
+}
+
+func (ndb newsDatabase) selectStoriesToPurge(ctx context.Context) ([]int, error) {
+	var storyIDs []int
+
+	sqlStatement := `
+		SELECT id
+		FROM (
+			SELECT id, MAX(score) as max_score
+			FROM dataset d
+			JOIN stories s USING (id)
+			WHERE 
+				sampleTime <= unixepoch() - 14*24*60*60
+				AND archived = 0
+			GROUP BY id
+		)
+		WHERE max_score < 2
+		LIMIT 10
+	`
+
+	rows, err := ndb.db.QueryContext(ctx, sqlStatement)
+	if err != nil {
+		return storyIDs, errors.Wrap(err, "selectStoriesToPurge QueryContext")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var storyID int
+		if err := rows.Scan(&storyID); err != nil {
+			return nil, errors.Wrap(err, "scan story ID")
+		}
+		storyIDs = append(storyIDs, storyID)
+	}
+	return storyIDs, nil
+}
+
+func (ndb newsDatabase) purgeStory(storyID int) error {
+	tx, err := ndb.db.Begin()
+	if err != nil {
+		return errors.Wrap(err, "starting transaction")
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			_ = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	// Delete all data points
+	_, err = tx.Exec(`DELETE FROM dataset WHERE id = ?`, storyID)
+	if err != nil {
+		return errors.Wrap(err, "delete from dataset")
+	}
+
+	// Delete story record
+	_, err = tx.Exec(`DELETE FROM stories WHERE id = ?`, storyID)
+	if err != nil {
+		return errors.Wrap(err, "delete from stories")
+	}
+
+	return nil
 }
 
 func (ndb newsDatabase) deleteOldData(storyID int) (rowsAffected int64, err error) {

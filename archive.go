@@ -125,73 +125,78 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 	return archiveResult{storyID: storyID, uploaded: true}
 }
 
-func (app app) archiveOldStatsData(ctx context.Context) error {
-	app.logger.Info("Looking for old stories to archive")
-	storyIDs, err := app.ndb.selectStoriesToArchive(ctx)
+func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
+	// First purge low-scoring stories
+	storyIDsToPurge, err := app.ndb.selectStoriesToPurge(ctx)
+	if err != nil {
+		return errors.Wrap(err, "selectStoriesToPurge")
+	}
+
+	for _, storyID := range storyIDsToPurge {
+		err := app.ndb.purgeStory(storyID)
+		if err != nil {
+			app.logger.Error("Failed to purge story", err,
+				"storyID", storyID)
+			continue
+		}
+	}
+	app.logger.Info("Purged low-scoring stories", "purged", len(storyIDsToPurge))
+
+	// Then archive high-scoring stories
+	storyIDsToArchive, err := app.ndb.selectStoriesToArchive(ctx)
 	if err != nil {
 		return errors.Wrap(err, "selectStoriesToArchive")
 	}
 
-	if len(storyIDs) == 0 {
-		return nil
-	}
-
-	app.logger.Info("Found old stories to archive", "nStories", len(storyIDs))
-
-	sc, err := NewStorageClient()
-	if err != nil {
-		return errors.Wrap(err, "create storage client")
-	}
-
-	// Create channels for results
-	results := make(chan archiveResult, len(storyIDs))
-
-	// Create worker pool for uploads
-	pool := pond.NewPool(10, pond.WithContext(ctx))
-
-	// Start upload operations in parallel
-	for _, storyID := range storyIDs {
-		sid := storyID // Create new variable for closure
-		pool.Submit(func() {
-			result := app.uploadStoryArchive(ctx, sc, sid)
-			results <- result
-		})
-	}
-
-	// Close results channel when all uploads complete
-	go func() {
-		pool.StopAndWait()
-		close(results)
-	}()
-
-	// Process results and perform DB operations sequentially
-	successfulUploads := make([]int, 0, len(storyIDs))
-	for result := range results {
-		if result.err != nil {
-			app.logger.Error("Failed to archive story",
-				result.err,
-				"storyID", result.storyID)
-			continue
-		}
-		if result.uploaded {
-			successfulUploads = append(successfulUploads, result.storyID)
-		}
-	}
-
-	// Perform DB operations sequentially for successful uploads
-	for _, storyID := range successfulUploads {
-		n, err := app.ndb.deleteOldData(storyID)
+	if len(storyIDsToArchive) > 0 {
+		sc, err := NewStorageClient()
 		if err != nil {
-			app.logger.Error("Failed to delete old data",
-				err,
-				"storyID", storyID)
-			continue
+			return errors.Wrap(err, "create storage client")
 		}
-		app.logger.Info("Archived stats data for story", 
-			"rowsDeleted", n, 
-			"storyID", storyID)
+
+		results := make(chan archiveResult, len(storyIDsToArchive))
+		pool := pond.NewPool(10, pond.WithContext(ctx))
+
+		for _, storyID := range storyIDsToArchive {
+			sid := storyID
+			pool.Submit(func() {
+				result := app.uploadStoryArchive(ctx, sc, sid)
+				results <- result
+			})
+		}
+
+		go func() {
+			pool.StopAndWait()
+			close(results)
+		}()
+
+		successfulUploads := make([]int, 0, len(storyIDsToArchive))
+		for result := range results {
+			if result.err != nil {
+				app.logger.Error("Failed to archive story", result.err,
+					"storyID", result.storyID)
+				continue
+			}
+			if result.uploaded {
+				successfulUploads = append(successfulUploads, result.storyID)
+			}
+		}
+
+		for _, storyID := range successfulUploads {
+			n, err := app.ndb.deleteOldData(storyID)
+			if err != nil {
+				app.logger.Error("Failed to delete old data", err,
+					"storyID", storyID)
+				continue
+			}
+			app.logger.Info("Archived stats data for story",
+				"rowsDeleted", n,
+				"storyID", storyID)
+		}
 	}
 
-	app.logger.Info("Finished archiving old stats data")
+	app.logger.Info("Finished archive and purge",
+		"purged", len(storyIDsToPurge),
+		"archived", len(storyIDsToArchive))
 	return nil
 }
