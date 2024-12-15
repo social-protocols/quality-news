@@ -156,7 +156,7 @@ func (app app) mainLoop(ctx context.Context) {
 
 			// cancel crawl if it doesn't complete 1 second before the next
 			// crawl is supposed to start
-			logger.Debug("Setting deadline ", "time", t, "deadline", t+delay-1)
+			logger.Debug("Setting deadline", "time", t, "deadline", t+delay-1)
 			ctx, cancel := context.WithDeadline(ctx, time.Unix(t+delay-1, 0))
 			defer cancel()
 

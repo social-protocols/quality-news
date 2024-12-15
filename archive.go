@@ -126,7 +126,8 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 }
 
 func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
-	// First purge low-scoring stories
+
+	app.logger.Info("Selecting stories to purge")
 	storyIDsToPurge, err := app.ndb.selectStoriesToPurge(ctx)
 	if err != nil {
 		return errors.Wrap(err, "selectStoriesToPurge")
@@ -140,15 +141,16 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 			continue
 		}
 	}
-	app.logger.Info("Purged low-scoring stories", "purged", len(storyIDsToPurge))
+	app.logger.Info("Purged", "purged", len(storyIDsToPurge))
 
-	// Then archive high-scoring stories
+	app.logger.Info("Looking for stories to archive")
 	storyIDsToArchive, err := app.ndb.selectStoriesToArchive(ctx)
 	if err != nil {
 		return errors.Wrap(err, "selectStoriesToArchive")
 	}
 
 	if len(storyIDsToArchive) > 0 {
+		app.logger.Info("Found stories to archive", "count", len(storyIDsToArchive))
 		sc, err := NewStorageClient()
 		if err != nil {
 			return errors.Wrap(err, "create storage client")

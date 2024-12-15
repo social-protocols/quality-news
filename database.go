@@ -377,19 +377,12 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 	var storyIDs []int
 
 	sqlStatement := `
-		WITH MaxScores AS (
-			SELECT id, MAX(score) as max_score
-			FROM dataset
-			GROUP BY id
-		)
-		SELECT DISTINCT d.id
-		FROM dataset d
-		JOIN stories s USING (id)
-		JOIN MaxScores m ON d.id = m.id
+		SELECT DISTINCT id
+		FROM dataset
+		JOIN stories USING (id)
 		WHERE 
 			sampleTime <= unixepoch() - 24*24*60*60
 			AND archived = 0
-			AND m.max_score >= 2
 		LIMIT 10
 	`
 
