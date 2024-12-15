@@ -88,6 +88,12 @@ func main() {
 		logger.Info("Server shut down")
 	}()
 
+	// Check fragmentation and vacuum if needed
+	err := app.ndb.vacuumIfNeeded(ctx, app.logger)
+	if err != nil {
+		app.logger.Error("vacuumIfNeeded", err)
+	}
+
 	app.mainLoop(ctx)
 }
 
@@ -162,12 +168,6 @@ func (app app) mainLoop(ctx context.Context) {
 				err := app.archiveOldStatsData(ctx)
 				if err != nil {
 					app.logger.Error("archiveOldStatsData", err)
-				}
-
-				// Check fragmentation and vacuum if needed
-				err = app.ndb.vacuumIfNeeded(ctx, app.logger)
-				if err != nil {
-					app.logger.Error("vacuumIfNeeded", err)
 				}
 			}
 
