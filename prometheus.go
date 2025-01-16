@@ -26,7 +26,20 @@ var (
 	databaseSizeBytes            *metrics.Gauge
 	databaseFragmentationPercent *metrics.Gauge
 	vacuumOperationsTotal        = metrics.NewCounter(`database_vacuum_operations_total{database="frontpage"}`)
+
+	// Store histograms per route to avoid duplicate registration
+	routeHistograms = make(map[string]*metrics.Histogram)
 )
+
+// getRouteHistogram returns an existing histogram for a route or creates a new one
+func getRouteHistogram(routeName string) *metrics.Histogram {
+	if h, exists := routeHistograms[routeName]; exists {
+		return h
+	}
+	h := metrics.NewHistogram(`requests_duration_seconds{route="` + routeName + `"}`)
+	routeHistograms[routeName] = h
+	return h
+}
 
 func servePrometheusMetrics() func(ctx context.Context) error {
 	mux := http.NewServeMux()
@@ -51,14 +64,19 @@ func servePrometheusMetrics() func(ctx context.Context) error {
 }
 
 func prometheusMiddleware[P any](routeName string, h httperror.XHandler[P]) httperror.XHandlerFunc[P] {
-	// Register summary with a single label.
-	requestDuration := metrics.NewHistogram(`requests_duration_seconds{route="` + routeName + `"}`)
+	requestDuration := getRouteHistogram(routeName)
 
 	return func(w http.ResponseWriter, r *http.Request, p P) error {
-		startTime := time.Now()
-		defer requestDuration.UpdateDuration(startTime)
+		var startTime time.Time
+		if r.Method != http.MethodHead {
+			startTime = time.Now()
+		}
 
 		err := h.Serve(w, r, p)
+
+		if r.Method != http.MethodHead {
+			requestDuration.UpdateDuration(startTime)
+		}
 
 		return err
 	}

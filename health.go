@@ -14,9 +14,11 @@ func (app app) healthHandler() func(http.ResponseWriter, *http.Request, loginPar
 	return func(w http.ResponseWriter, r *http.Request, p loginParams) error {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
-		_, err := w.Write([]byte("ok"))
-		if err != nil {
-			return errors.Wrap(err, "writing response")
+		if r.Method != http.MethodHead {
+			_, err := w.Write([]byte("ok"))
+			if err != nil {
+				return errors.Wrap(err, "writing response")
+			}
 		}
 
 		return nil
@@ -25,7 +27,6 @@ func (app app) healthHandler() func(http.ResponseWriter, *http.Request, loginPar
 
 func (app app) crawlHealthHandler() func(http.ResponseWriter, *http.Request, loginParams) error {
 	return func(w http.ResponseWriter, r *http.Request, p loginParams) error {
-
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 		lastSampleTime, err := app.ndb.selectLastCrawlTime()
@@ -37,9 +38,11 @@ func (app app) crawlHealthHandler() func(http.ResponseWriter, *http.Request, log
 			return fmt.Errorf("last successful crawl of %d is more than %d minutes ago", lastSampleTime, alertAfterMinutes)
 		}
 
-		_, err = w.Write([]byte("ok"))
-		if err != nil {
-			return errors.Wrap(err, "writing response")
+		if r.Method != http.MethodHead {
+			_, err = w.Write([]byte("ok"))
+			if err != nil {
+				return errors.Wrap(err, "writing response")
+			}
 		}
 
 		return nil
