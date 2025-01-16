@@ -70,23 +70,22 @@ func (app app) crawlAndPostprocess(ctx context.Context) (err error) {
 
 	var initialStoryCount, finalStoryCount, sitewideUpvotes int
 
-	// Use the commit/rollback in a defer pattern described in:
-	// https://stackoverflow.com/questions/16184238/database-sql-tx-detecting-commit-or-rollback
+	// Use the commit/rollback in a defer pattern
 	defer func() {
 		if err != nil {
-			// https://go.dev/doc/database/execute-transactions
-			// If the transaction succeeds, it will be committed before the function exits, making the deferred rollback call a no-op.
 			logger.Debug("Rolling back transaction")
-			e := tx.Rollback()
-			crawlErrorsTotal.Inc()
-			if e != nil {
-				logger.Error("tx.Rollback crawlAndPostprocess", e)
+			if tx != nil {
+				if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+					logger.Error("tx.Rollback crawlAndPostprocess", rbErr)
+				}
 			}
+			crawlErrorsTotal.Inc()
 			return
 		}
+
 		logger.Debug("Commit transaction")
-		err = tx.Commit() // here we are setting the return value err
-		if err != nil {
+		if err = tx.Commit(); err != nil {
+			logger.Error("tx.Commit crawlAndPostprocess", err)
 			return
 		}
 
