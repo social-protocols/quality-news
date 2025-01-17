@@ -237,10 +237,10 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 		return ndb, errors.Wrap(err, "open frontpageDatabase")
 	}
 
-	err = ndb.registerExtensions()
-	if err != nil {
-		return ndb, errors.Wrap(err, "ndb.registerExtensions()")
-	}
+	// err = ndb.registerExtensions()
+	// if err != nil {
+	// 	return ndb, errors.Wrap(err, "ndb.registerExtensions()")
+	// }
 
 	err = ndb.initFrontpageDB()
 	if err != nil {
