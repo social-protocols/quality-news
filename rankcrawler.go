@@ -68,12 +68,9 @@ func (app app) crawlAndPostprocess(ctx context.Context) (err error) {
 		return
 	}
 
-	var initialStoryCount, finalStoryCount, sitewideUpvotes int
-
 	// Use the commit/rollback in a defer pattern
 	defer func() {
 		if err != nil {
-			logger.Debug("Rolling back transaction")
 			if tx != nil {
 				if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
 					logger.Error("tx.Rollback crawlAndPostprocess", rbErr)
@@ -88,29 +85,36 @@ func (app app) crawlAndPostprocess(ctx context.Context) (err error) {
 			logger.Error("tx.Commit crawlAndPostprocess", err)
 			return
 		}
-
-		submissionsTotal.Add(finalStoryCount - initialStoryCount)
-		upvotesTotal.Add(int(sitewideUpvotes))
 	}()
 
-	initialStoryCount, err = ndb.storyCount(tx)
+	// Get initial count
+	initialStoryCount, err := ndb.storyCount(tx)
 	if err != nil {
-		return errors.Wrap(err, "storyCount")
+		return errors.Wrap(err, "initial storyCount")
 	}
 
-	sitewideUpvotes, err = app.crawl(ctx, tx)
+	// Perform crawl
+	sitewideUpvotes, err := app.crawl(ctx, tx)
 	if err != nil {
-		return
+		return errors.Wrap(err, "crawl")
 	}
 
-	finalStoryCount, err = ndb.storyCount(tx)
+	// Get final count
+	finalStoryCount, err := ndb.storyCount(tx)
 	if err != nil {
-		return errors.Wrap(err, "storyCount")
+		return errors.Wrap(err, "final storyCount")
 	}
 
-	err = app.crawlPostprocess(ctx, tx)
+	// Run post-processing
+	if err = app.crawlPostprocess(ctx, tx); err != nil {
+		return errors.Wrap(err, "crawlPostprocess")
+	}
 
-	return err
+	// Update metrics after successful transaction
+	submissionsTotal.Add(finalStoryCount - initialStoryCount)
+	upvotesTotal.Add(int(sitewideUpvotes))
+
+	return nil
 }
 
 const maxGoroutines = 50

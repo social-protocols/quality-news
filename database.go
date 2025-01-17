@@ -563,9 +563,17 @@ func (ndb newsDatabase) storyCount(tx *sql.Tx) (int, error) {
 		SELECT count(distinct id) from dataset
 	`
 
-	err := tx.QueryRow(sqlStatement).Scan(&count)
+	row := tx.QueryRow(sqlStatement)
+	if row == nil {
+		return 0, errors.New("invalid transaction state in storyCount")
+	}
 
-	return count, err
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, errors.Wrap(err, "scanning story count")
+	}
+
+	return count, nil
 }
 
 func (ndb newsDatabase) vacuumIfNeeded(ctx context.Context, logger leveledLogger) error {
