@@ -556,6 +556,28 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	return s, nil
 }
 
+func (ndb *newsDatabase) resetConnection() error {
+	// Create new connections first
+	frontpageDatabaseFilename := fmt.Sprintf("%s/%s", ndb.sqliteDataDir, sqliteDataFilename)
+	newDB, err := sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", frontpageDatabaseFilename))
+	if err != nil {
+		return errors.Wrap(err, "reopen frontpageDatabase")
+	}
+
+	upvotesDatabaseFilename := fmt.Sprintf("%s/upvotes.sqlite", ndb.sqliteDataDir)
+	newUpvotesDB, err := sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", upvotesDatabaseFilename))
+	if err != nil {
+		newDB.Close()
+		return errors.Wrap(err, "reopen upvotesDB")
+	}
+
+	// Swap to new connections
+	ndb.db = newDB
+	ndb.upvotesDB = newUpvotesDB
+
+	return nil
+}
+
 func (ndb newsDatabase) storyCount(tx *sql.Tx) (int, error) {
 	var count int
 
@@ -570,6 +592,7 @@ func (ndb newsDatabase) storyCount(tx *sql.Tx) (int, error) {
 
 	err := row.Scan(&count)
 	if err != nil {
+		// We can't reset connection during transaction, so just return the error
 		return 0, errors.Wrap(err, "scanning story count")
 	}
 
