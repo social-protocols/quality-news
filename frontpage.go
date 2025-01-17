@@ -379,11 +379,6 @@ func whereClause(ranking string) string {
 
 func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, params FrontPageParams) (stories []Story, err error) {
 
-	err = ndb.registerExtensions()
-	if err != nil {
-		return stories, errors.Wrap(err, "registerExtensions")
-	}
-
 	if statements == nil {
 		statements = make(map[string]*sql.Stmt)
 	}

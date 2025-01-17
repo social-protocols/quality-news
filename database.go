@@ -7,8 +7,6 @@ import (
 	"os"
 	"time"
 
-	sqlite3 "github.com/mattn/go-sqlite3"
-
 	stdlib "github.com/multiprocessio/go-sqlite3-stdlib"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/slog"
@@ -195,27 +193,6 @@ func (ndb newsDatabase) initUpvotesDB() error {
 	s := fmt.Sprintf("attach database 'file:%s?mode=ro' as frontpage", frontpageDatabaseFilename)
 	_, err := ndb.upvotesDB.Exec(s)
 	return errors.Wrap(err, "attach frontpage database")
-}
-
-func (ndb newsDatabase) registerExtensions() error {
-	conn, err := ndb.db.Conn(context.Background())
-	if err != nil {
-		return errors.Wrap(err, "getting connection")
-	}
-	defer conn.Close()
-
-	err = conn.Raw(func(driverConn interface{}) error {
-		if sqliteConn, ok := driverConn.(*sqlite3.SQLiteConn); ok {
-			err := sqliteConn.RegisterFunc("sample_from_gamma_distribution", sampleFromGammaDistribution, true)
-			if err != nil {
-				return errors.Wrap(err, "sqliteConn.RegisterFunc(\"sample_from_gamma_distribution\")")
-			}
-		} else {
-			return fmt.Errorf("failed to cast driverConn to *sqlite3.SQLiteConn")
-		}
-		return nil
-	})
-	return errors.Wrap(err, "registering sample_from_gamma_distribution")
 }
 
 func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
