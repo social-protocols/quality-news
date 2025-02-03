@@ -2,19 +2,36 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	pond "github.com/alitto/pond/v2"
 	"github.com/pkg/errors"
-	"net/http"
 )
 
-type StatsData struct {
+type ArchiveData struct {
 	RanksPlotData   [][]any `json:"RanksPlotData"`
 	UpvotesPlotData [][]any `json:"UpvotesPlotData"`
-	PenaltyPlotData [][]any `json:"PenaltyPlotData"`
 	MaxSampleTime   int     `json:"MaxSampleTime"`
 	SubmissionTime  int64   `json:"SubmissionTime"`
+	// Story details
+	ID                        int           `json:"ID"`
+	By                        string        `json:"By"`
+	Title                     string        `json:"Title"`
+	URL                       string        `json:"URL"`
+	OriginalSubmissionTime    int64         `json:"OriginalSubmissionTime"`
+	Score                     int           `json:"Score"`
+	Comments                  int           `json:"Comments"`
+	CumulativeUpvotes         int           `json:"CumulativeUpvotes"`
+	CumulativeExpectedUpvotes float64       `json:"CumulativeExpectedUpvotes"`
+	TopRank                   sql.NullInt32 `json:"TopRank"`
+	QNRank                    sql.NullInt32 `json:"QNRank"`
+	RawRank                   sql.NullInt32 `json:"RawRank"`
+	Flagged                   bool          `json:"Flagged"`
+	Dupe                      bool          `json:"Dupe"`
+	Job                       bool          `json:"Job"`
 }
 
 type responseBuffer struct {
@@ -43,7 +60,7 @@ func (r *responseBuffer) WriteHeader(statusCode int) {
 	r.status = statusCode
 }
 
-func (app app) generateStatsDataJSON(ctx context.Context, storyID int) ([]byte, error) {
+func (app app) generateArchiveJSON(ctx context.Context, storyID int) ([]byte, error) {
 	ndb := app.ndb
 	modelParams := OptionalModelParams{}.WithDefaults()
 
@@ -65,28 +82,38 @@ func (app app) generateStatsDataJSON(ctx context.Context, storyID int) ([]byte, 
 		return nil, errors.Wrap(err, "upvotesDatapoints")
 	}
 
-	// Fetch PenaltyPlotData if needed
-	penaltyPlotData := [][]any{} // Replace with actual data fetching if necessary
-
 	// Fetch Story details
 	s, err := ndb.selectStoryDetails(storyID)
 	if err != nil {
 		return nil, errors.Wrap(err, "selectStoryDetails")
 	}
 
-	// Create StatsData struct with story details
-	statsData := StatsData{
-		RanksPlotData:   ranksPlotData,
-		UpvotesPlotData: upvotesPlotData,
-		PenaltyPlotData: penaltyPlotData,
-		MaxSampleTime:   maxSampleTime,
-		SubmissionTime:  s.SubmissionTime,
+	// Create ArchiveData struct with story details
+	archiveData := ArchiveData{
+		RanksPlotData:             ranksPlotData,
+		UpvotesPlotData:           upvotesPlotData,
+		MaxSampleTime:             maxSampleTime,
+		SubmissionTime:            s.SubmissionTime,
+		ID:                        s.ID,
+		By:                        s.By,
+		Title:                     s.Title,
+		URL:                       s.URL,
+		OriginalSubmissionTime:    s.OriginalSubmissionTime,
+		Score:                     s.Score,
+		Comments:                  s.Comments,
+		CumulativeUpvotes:         s.CumulativeUpvotes,
+		CumulativeExpectedUpvotes: s.CumulativeExpectedUpvotes,
+		TopRank:                   s.TopRank,
+		QNRank:                    s.QNRank,
+		RawRank:                   s.RawRank,
+		Flagged:                   s.Flagged,
+		Dupe:                      s.Dupe,
+		Job:                       s.Job,
 	}
 
-	// Marshal to JSON
-	jsonData, err := json.Marshal(statsData)
+	jsonData, err := json.Marshal(archiveData)
 	if err != nil {
-		return nil, errors.Wrap(err, "json.Marshal statsData")
+		return nil, errors.Wrap(err, "json.Marshal archiveData")
 	}
 
 	return jsonData, nil
@@ -99,21 +126,29 @@ type archiveResult struct {
 }
 
 func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyID int) archiveResult {
-	filename := fmt.Sprintf("%d.json", storyID)
+	// Version 2 includes full story details and allows deletion of story record
+	const archiveVersion = 2
+	filename := fmt.Sprintf("%d.v%d.json", storyID, archiveVersion)
+
+	// Check for any version of the file
+	legacyExists, err := sc.FileExists(ctx, fmt.Sprintf("%d.json", storyID))
+	if err != nil {
+		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "checking if legacy file exists")}
+	}
 
 	exists, err := sc.FileExists(ctx, filename)
 	if err != nil {
 		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "checking if file %s exists", filename)}
 	}
 
-	if exists {
+	if exists || legacyExists {
 		app.logger.Info("File already archived", "filename", filename)
 		return archiveResult{storyID: storyID, uploaded: true}
 	}
 
-	jsonData, err := app.generateStatsDataJSON(ctx, storyID)
+	jsonData, err := app.generateArchiveJSON(ctx, storyID)
 	if err != nil {
-		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "generating stats data for story %d", storyID)}
+		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "generating archive data for story %d", storyID)}
 	}
 
 	app.logger.Debug("Uploading archive file", "storyID", storyID)
@@ -126,14 +161,13 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 }
 
 func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
-
 	app.logger.Info("Selecting stories to purge")
-	storyIDsToPurge, err := app.ndb.selectStoriesToPurge(ctx)
+	lowScoreStoriesToPurge, err := app.ndb.selectLowScoreStoriesToPurge(ctx)
 	if err != nil {
-		return errors.Wrap(err, "selectStoriesToPurge")
+		return errors.Wrap(err, "selectLowScoreStoriesToPurge")
 	}
 
-	for _, storyID := range storyIDsToPurge {
+	for _, storyID := range lowScoreStoriesToPurge {
 		err := app.ndb.purgeStory(storyID)
 		if err != nil {
 			app.logger.Error("Failed to purge story", err,
@@ -141,7 +175,7 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 			continue
 		}
 	}
-	app.logger.Info("Purged", "purged", len(storyIDsToPurge))
+	app.logger.Info("Purged low score stories", "purged", len(lowScoreStoriesToPurge))
 
 	app.logger.Info("Looking for stories to archive")
 	storyIDsToArchive, err := app.ndb.selectStoriesToArchive(ctx)
@@ -184,21 +218,25 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 			}
 		}
 
+		// Now purge all successfully archived stories
+		app.logger.Info("Purging archived stories", "count", len(successfulUploads))
+		var purged int
 		for _, storyID := range successfulUploads {
-			n, err := app.ndb.deleteOldData(storyID)
+			err := app.ndb.purgeStory(storyID)
 			if err != nil {
-				app.logger.Error("Failed to delete old data", err,
+				app.logger.Error("Failed to purge archived story", err,
 					"storyID", storyID)
 				continue
 			}
-			app.logger.Info("Archived stats data for story",
-				"rowsDeleted", n,
-				"storyID", storyID)
+			purged++
 		}
+
+		app.logger.Info("Finished archiving",
+			"archived", len(successfulUploads),
+			"purged_archived", purged)
+	} else {
+		app.logger.Info("No stories to archive")
 	}
 
-	app.logger.Info("Finished archive and purge",
-		"purged", len(storyIDsToPurge),
-		"archived", len(storyIDsToArchive))
 	return nil
 }

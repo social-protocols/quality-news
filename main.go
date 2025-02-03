@@ -165,10 +165,10 @@ func (app app) mainLoop(ctx context.Context) {
 			} else {
 				app.logger.Debug("Finished crawl and postprocess")
 
-				// err := app.archiveAndPurgeOldStatsData(ctx)
-				// if err != nil {
-				// 	app.logger.Error("archiveOldStatsData", err)
-				// }
+				err := app.archiveAndPurgeOldStatsData(ctx)
+				if err != nil {
+					app.logger.Error("archiveOldStatsData", err)
+				}
 			}
 
 		case <-ctx.Done():
