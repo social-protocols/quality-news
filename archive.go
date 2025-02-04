@@ -218,18 +218,20 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 			}
 		}
 
-		// Now purge all successfully archived stories
-		app.logger.Info("Purging archived stories", "count", len(successfulUploads))
 		var purged int
-		for _, storyID := range successfulUploads {
-			err := app.ndb.purgeStory(storyID)
-			if err != nil {
-				app.logger.Error("Failed to purge archived story", err,
-					"storyID", storyID)
-				continue
-			}
-			purged++
-		}
+
+		// Now purge all successfully archived stories
+		// app.logger.Info("Purging archived stories", "count", len(successfulUploads))
+		// for _, storyID := range successfulUploads {
+		// 	err := app.ndb.purgeStory(storyID)
+		// 	if err != nil {
+		// 		app.logger.Error("Failed to purge archived story", err,
+		// 			"storyID", storyID)
+		// 		continue
+		// 	}
+		// 	purged++
+		// }
+		app.logger.Info("Not purging archived stories")
 
 		app.logger.Info("Finished archiving",
 			"archived", len(successfulUploads),
