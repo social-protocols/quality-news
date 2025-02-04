@@ -30,7 +30,7 @@ type StatsPageData struct {
 	StatsPageParams
 	DefaultPageHeaderData
 	EstimatedUpvoteRate int
-	Story
+	StoryTemplateData
 	StatsData
 }
 
@@ -56,12 +56,18 @@ func (app app) statsPage(w io.Writer, r *http.Request, params StatsPageParams, u
 
 	modelParams := params.OptionalModelParams.WithDefaults()
 	s.UpvoteRate = modelParams.upvoteRate(s.CumulativeUpvotes, s.CumulativeExpectedUpvotes)
-	s.IsStatsPage = true
+
+	storyTemplate := StoryTemplateData{
+		Story: s,
+		PageFlags: PageFlags{
+			IsStatsPage: true,
+		},
+	}
 
 	d := StatsPageData{
 		StatsPageParams:       params,
 		EstimatedUpvoteRate:   1.0,
-		Story:                 s,
+		StoryTemplateData:     storyTemplate,
 		DefaultPageHeaderData: DefaultPageHeaderData{UserID: userID},
 		StatsData:             stats,
 	}
@@ -203,6 +209,7 @@ func (app app) loadStoryAndStats(ctx context.Context, storyID int, modelParams O
 		}
 
 		return s, stats, nil
+
 	}
 
 	// Story is not archived, get stats from DB

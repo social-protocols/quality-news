@@ -13,7 +13,7 @@ import (
 )
 
 type frontPageData struct {
-	Stories           []Story
+	Stories           []StoryTemplateData
 	AverageAge        float64
 	AverageQuality    float64
 	AverageUpvotes    float64
@@ -21,6 +21,7 @@ type frontPageData struct {
 	Params            FrontPageParams
 	PositionsJSONData any
 	UserID            sql.NullInt64
+	PageFlags
 }
 
 func (d frontPageData) AverageAgeString() string {
@@ -249,6 +250,28 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 		return frontPageData{}, errors.Wrap(err, "getFrontPageStories")
 	}
 
+	pageFlags := PageFlags{
+		IsHNTopPage:          ranking == "hntop",
+		IsFairPage:           ranking == "fair",
+		IsUpvoteratePage:     ranking == "upvoterate",
+		IsBestUpvoteratePage: ranking == "best-upvoterate",
+		IsStatsPage:          false,
+		IsPenaltiesPage:      ranking == "penalties",
+		IsBoostsPage:         ranking == "boosts",
+		IsResubmissionsPage:  ranking == "resubmissions",
+		IsRawPage:            ranking == "raw",
+	}
+
+	// Wrap each story in StoryTemplateData with page context
+	var storyTemplates []StoryTemplateData
+	for _, story := range stories {
+		template := StoryTemplateData{
+			Story:     story,
+			PageFlags: pageFlags,
+		}
+		storyTemplates = append(storyTemplates, template)
+	}
+
 	nStories := len(stories)
 
 	var totalAgeSeconds int64
@@ -307,7 +330,7 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 	}
 
 	d := frontPageData{
-		stories,
+		storyTemplates,
 		float64(totalAgeSeconds) / float64(nStories),
 		weightedAverageQuality,
 		float64(totalUpvotes) / float64(nStories),
@@ -315,6 +338,7 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 		params,
 		positions,
 		userID,
+		pageFlags,
 	}
 
 	return d, nil
@@ -420,31 +444,6 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job)
 
 		s.UpvoteRate = params.ModelParams.upvoteRate(s.CumulativeUpvotes, float64(s.CumulativeExpectedUpvotes))
-
-		if ranking == "hntop" {
-			s.IsHNTopPage = true
-		}
-		if ranking == "fair" {
-			s.IsFairPage = true
-		}
-		if ranking == "upvoterate" {
-			s.IsUpvoteratePage = true
-		}
-		if ranking == "best-upvoterate" {
-			s.IsBestUpvoteratePage = true
-		}
-		if ranking == "raw" {
-			s.IsRawPage = true
-		}
-		if ranking == "penalties" {
-			s.IsPenaltiesPage = true
-		}
-		if ranking == "boosts" {
-			s.IsBoostsPage = true
-		}
-		if ranking == "resubmissions" {
-			s.IsResubmissionsPage = true
-		}
 
 		if err != nil {
 			return stories, errors.Wrap(err, "Scanning row")

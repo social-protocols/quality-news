@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"math"
 	"net/url"
-	"strings"
 	"time"
+	"strings"
 
 	"github.com/weppos/publicsuffix-go/publicsuffix"
 
@@ -34,15 +34,29 @@ type Story struct {
 	Flagged                   bool
 	Dupe                      bool
 	Archived                  bool
-	IsHNTopPage               bool
-	IsFairPage                bool
-	IsUpvoteratePage          bool
-	IsBestUpvoteratePage      bool
-	IsStatsPage               bool
-	IsPenaltiesPage           bool
-	IsBoostsPage              bool
-	IsResubmissionsPage       bool
-	IsRawPage                 bool
+}
+
+type PageFlags struct {
+	IsHNTopPage          bool
+	IsFairPage           bool
+	IsUpvoteratePage     bool
+	IsBestUpvoteratePage bool
+	IsStatsPage          bool
+	IsPenaltiesPage      bool
+	IsBoostsPage         bool
+	IsResubmissionsPage  bool
+	IsRawPage            bool
+}
+
+// StoryTemplateData combines a Story with page context for use in templates
+type StoryTemplateData struct {
+	Story // embed Story instead of having it as a named field
+	PageFlags
+}
+
+// Page-specific methods
+func (s PageFlags) IsAlternativeFrontPage() bool {
+	return s.IsHNTopPage || s.IsRawPage || s.IsPenaltiesPage || s.IsBoostsPage || s.IsResubmissionsPage || s.IsFairPage || s.IsUpvoteratePage || s.IsBestUpvoteratePage
 }
 
 func (s Story) AgeString() string {
@@ -62,25 +76,20 @@ func (s Story) UpvoteRateString() string {
 	return fmt.Sprintf("%.2f", s.UpvoteRate)
 }
 
-func (s Story) RankDiff() int32 {
-	// return s.RawRank.Int32 - int32(math.Exp(s.Penalty) * float64(s.RawRank.Int32))
 
+ func (s Story) RankDiff() int32 {	
 	if !s.RawRank.Valid {
-		return 0
-	}
+            return 0
+    }
 	rawRank := s.RawRank.Int32
 	topRank := s.TopRank.Int32
 
-	if !s.TopRank.Valid {
-		topRank = 91
-	}
+   if !s.TopRank.Valid {
+           topRank = 91
+   }
 
-	return rawRank - topRank
-}
-
-func (s Story) IsAlternativeFrontPage() bool {
-	return s.IsHNTopPage || s.IsRawPage || s.IsPenaltiesPage || s.IsBoostsPage || s.IsResubmissionsPage || s.IsFairPage || s.IsUpvoteratePage || s.IsBestUpvoteratePage
-}
+    return rawRank - topRank
+ }
 
 func abs(a int32) int32 {
 	if a >= 0 {
@@ -127,17 +136,16 @@ func (s Story) Domain() string {
 	if u.Host == "news.ycombinator.com" {
 		return ""
 	}
-
 	if domain == "twitter.com" || domain == "github.com" {
-		// keep first part of path
-		return domain + "/" + strings.Split(u.Path, "/")[1]
+	       // keep first part of path
+	       return domain + "/" + strings.Split(u.Path, "/")[1]
 	}
-
+	
 	if domain == "substack.com" || domain == "notion.site" || domain == "dreamhosters.com" {
-		// keep subdomain
-		return strings.Split(u.Host, ".")[0] + "." + domain
+	       // keep subdomain
+	       return strings.Split(u.Host, ".")[0] + "." + domain
 	}
-
+	
 	return domain
 }
 
