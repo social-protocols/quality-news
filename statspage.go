@@ -163,8 +163,6 @@ func (app app) loadStoryAndStats(ctx context.Context, storyID int, modelParams O
 		return Story{}, StatsData{}, err
 	}
 
-	app.logger.Debug("Story found in DB", "storyID", storyID, "archived", s.Archived)
-
 	// Story found in DB
 	if s.Archived {
 		// Story is archived in legacy format (v2 format deletes from DB)
@@ -207,7 +205,6 @@ func (app app) loadStoryAndStats(ctx context.Context, storyID int, modelParams O
 		return s, stats, nil
 	}
 
-	app.logger.Debug("Loading stats from DB", "storyID", storyID)
 	// Story is not archived, get stats from DB
 	maxSampleTime, err := maxSampleTime(ndb, storyID)
 	if err != nil {

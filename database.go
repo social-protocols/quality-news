@@ -361,7 +361,7 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 			sampleTime <= unixepoch() - 21*24*60*60
 			AND archived = 0
 			AND score > 2
-		LIMIT 1
+		LIMIT 10
 	`
 
 	rows, err := ndb.db.QueryContext(ctx, sqlStatement)
