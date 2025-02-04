@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -57,84 +56,75 @@ const maxElapsedTime = 120
 func (app app) crawlAndPostprocess(ctx context.Context) error {
 	ndb := app.ndb
 	logger := app.logger
-	maxRetries := 3
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		// Use a closure with its own local error variable, txErr.
-		err := func() (txErr error) {
-			tx, e := ndb.db.BeginTx(ctx, nil)
-			if e != nil {
-				return errors.Wrap(e, "BeginTX")
-			}
+	// Use a closure with its own local error variable, txErr.
+	err := func() (txErr error) {
+		tx, e := ndb.db.BeginTx(ctx, nil)
+		if e != nil {
+			return errors.Wrap(e, "BeginTX")
+		}
 
-			// Defer commit/rollback based on txErr.
-			defer func() {
-				if txErr != nil {
-					// If an error occurred, rollback.
-					if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-						logger.Error("tx.Rollback crawlAndPostprocess", rbErr)
-					}
-					return
+		// Defer commit/rollback based on txErr.
+		defer func() {
+			if txErr != nil {
+				// If an error occurred, rollback.
+				if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+					logger.Error("tx.Rollback crawlAndPostprocess", rbErr)
 				}
-
-				// Otherwise, attempt to commit.
-				logger.Debug("Commit transaction")
-				if cmErr := tx.Commit(); cmErr != nil {
-					logger.Error("tx.Commit crawlAndPostprocess", cmErr)
-					txErr = errors.Wrap(cmErr, "commit failed")
-				}
-			}()
-
-			// Get initial story count.
-			initialStoryCount, err := ndb.storyCount(tx)
-			if err != nil {
-				return errors.Wrap(err, "initial storyCount")
+				return
 			}
 
-			// Perform the crawl.
-			sitewideUpvotes, err := app.crawl(ctx, tx)
-			if err != nil {
-				return errors.Wrap(err, "crawl")
+			// Otherwise, attempt to commit.
+			logger.Debug("Commit transaction")
+			if cmErr := tx.Commit(); cmErr != nil {
+				logger.Error("tx.Commit crawlAndPostprocess", cmErr)
+				txErr = errors.Wrap(cmErr, "commit failed")
 			}
-
-			// Get final story count.
-			finalStoryCount, err := ndb.storyCount(tx)
-			if err != nil {
-				return errors.Wrap(err, "final storyCount")
-			}
-
-			// Run post-processing.
-			if err = app.crawlPostprocess(ctx, tx); err != nil {
-				return errors.Wrap(err, "crawlPostprocess")
-			}
-
-			// Update metrics after successful transaction.
-			submissionsTotal.Add(finalStoryCount - initialStoryCount)
-			upvotesTotal.Add(int(sitewideUpvotes))
-
-			return nil
 		}()
 
+		// Get initial story count.
+		initialStoryCount, err := ndb.storyCount(tx)
 		if err != nil {
-			// If the error is due to closed rows, try resetting the connection.
-			if strings.Contains(err.Error(), "sql: Rows are closed") {
-				if attempt < maxRetries-1 {
-					logger.Info("Resetting database connection due to closed rows", "attempt", attempt+1)
-					if resetErr := ndb.resetConnection(); resetErr != nil {
-						return errors.Wrap(resetErr, "reset connection failed")
-					}
-					continue
-				}
-			}
-
-			// Increment the error metric and return the error.
-			crawlErrorsTotal.Inc()
-			return err
+			return errors.Wrap(err, "initial storyCount")
 		}
+
+		// Perform the crawl.
+		sitewideUpvotes, err := app.crawl(ctx, tx)
+		if err != nil {
+			return errors.Wrap(err, "crawl")
+		}
+
+		// Get final story count.
+		finalStoryCount, err := ndb.storyCount(tx)
+		if err != nil {
+			return errors.Wrap(err, "final storyCount")
+		}
+
+		// Run post-processing.
+		if err = app.crawlPostprocess(ctx, tx); err != nil {
+			return errors.Wrap(err, "crawlPostprocess")
+		}
+
+		// Update metrics after successful transaction.
+		submissionsTotal.Add(finalStoryCount - initialStoryCount)
+		upvotesTotal.Add(int(sitewideUpvotes))
+
 		return nil
+	}()
+
+	if err != nil {
+		// If the error is due to closed rows error
+		// reset the connection for the next crawl attempt
+		logger.Info("Resetting database connection due to closed rows")
+		if resetErr := ndb.resetConnection(); resetErr != nil {
+			logger.Error("Failed to reset connection", resetErr)
+		}
+
+		// Increment the error metric and return the error
+		crawlErrorsTotal.Inc()
 	}
 
-	return errors.New("exceeded maximum retry attempts for crawlAndPostprocess")
+	return err
 }
 
 const maxGoroutines = 50

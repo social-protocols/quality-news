@@ -223,7 +223,6 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 			}
 			purged++
 		}
-		app.logger.Info("Not purging archived stories")
 
 		app.logger.Info("Finished archiving",
 			"archived", len(successfulUploads),
