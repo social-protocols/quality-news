@@ -3,10 +3,9 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"math"
 	"net/url"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/weppos/publicsuffix-go/publicsuffix"
 
@@ -26,7 +25,6 @@ type Story struct {
 	CumulativeUpvotes         int
 	CumulativeExpectedUpvotes float64
 	UpvoteRate                float64
-	Penalty                   float64
 	TopRank                   sql.NullInt32
 	QNRank                    sql.NullInt32
 	RawRank                   sql.NullInt32
@@ -108,10 +106,6 @@ func (s Story) OverRanked() bool {
 
 func (s Story) UnderRanked() bool {
 	return s.RankDiff() < 0
-}
-
-func (s Story) PenaltyString() string {
-	return fmt.Sprintf("%.2f", math.Exp(s.Penalty))
 }
 
 func (s Story) Domain() string {

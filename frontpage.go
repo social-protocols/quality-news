@@ -206,7 +206,6 @@ const pageSQL = `
 		, cumulativeUpvotes
 		, cumulativeExpectedUpvotes
 		-- , (cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) as quality
-		, penalty
 		, topRank
 		, qnRank
 		, rawRank
@@ -441,7 +440,7 @@ func getFrontPageStories(ctx context.Context, ndb newsDatabase, ranking string, 
 
 		var s Story
 
-		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job)
+		err = rows.Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job)
 
 		s.UpvoteRate = params.ModelParams.upvoteRate(s.CumulativeUpvotes, float64(s.CumulativeExpectedUpvotes))
 

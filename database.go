@@ -476,7 +476,6 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 		, descendants
 		, cumulativeUpvotes
 		, cumulativeExpectedUpvotes
-		, penalty
 		, topRank
 		, qnRank
 		, rawRank
@@ -492,7 +491,7 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	LIMIT 1
 	`
 
-	err := ndb.db.QueryRow(sqlStatement, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.Penalty, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job, &s.Archived)
+	err := ndb.db.QueryRow(sqlStatement, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job, &s.Archived)
 	if err != nil {
 		return s, err
 	}
