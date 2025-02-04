@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,23 +14,7 @@ type ArchiveData struct {
 	RanksPlotData   [][]any `json:"RanksPlotData"`
 	UpvotesPlotData [][]any `json:"UpvotesPlotData"`
 	MaxSampleTime   int     `json:"MaxSampleTime"`
-	SubmissionTime  int64   `json:"SubmissionTime"`
-	// Story details
-	ID                        int           `json:"ID"`
-	By                        string        `json:"By"`
-	Title                     string        `json:"Title"`
-	URL                       string        `json:"URL"`
-	OriginalSubmissionTime    int64         `json:"OriginalSubmissionTime"`
-	Score                     int           `json:"Score"`
-	Comments                  int           `json:"Comments"`
-	CumulativeUpvotes         int           `json:"CumulativeUpvotes"`
-	CumulativeExpectedUpvotes float64       `json:"CumulativeExpectedUpvotes"`
-	TopRank                   sql.NullInt32 `json:"TopRank"`
-	QNRank                    sql.NullInt32 `json:"QNRank"`
-	RawRank                   sql.NullInt32 `json:"RawRank"`
-	Flagged                   bool          `json:"Flagged"`
-	Dupe                      bool          `json:"Dupe"`
-	Job                       bool          `json:"Job"`
+	Story                   // embed Story
 }
 
 type responseBuffer struct {
@@ -90,25 +73,10 @@ func (app app) generateArchiveJSON(ctx context.Context, storyID int) ([]byte, er
 
 	// Create ArchiveData struct with story details
 	archiveData := ArchiveData{
-		RanksPlotData:             ranksPlotData,
-		UpvotesPlotData:           upvotesPlotData,
-		MaxSampleTime:             maxSampleTime,
-		SubmissionTime:            s.SubmissionTime,
-		ID:                        s.ID,
-		By:                        s.By,
-		Title:                     s.Title,
-		URL:                       s.URL,
-		OriginalSubmissionTime:    s.OriginalSubmissionTime,
-		Score:                     s.Score,
-		Comments:                  s.Comments,
-		CumulativeUpvotes:         s.CumulativeUpvotes,
-		CumulativeExpectedUpvotes: s.CumulativeExpectedUpvotes,
-		TopRank:                   s.TopRank,
-		QNRank:                    s.QNRank,
-		RawRank:                   s.RawRank,
-		Flagged:                   s.Flagged,
-		Dupe:                      s.Dupe,
-		Job:                       s.Job,
+		RanksPlotData:   ranksPlotData,
+		UpvotesPlotData: upvotesPlotData,
+		MaxSampleTime:   maxSampleTime,
+		Story:           s,
 	}
 
 	jsonData, err := json.Marshal(archiveData)
