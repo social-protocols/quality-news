@@ -358,10 +358,10 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 		FROM dataset
 		JOIN stories USING (id)
 		WHERE 
-			sampleTime <= unixepoch() - 14*24*60*60
+			sampleTime <= unixepoch() - 21*24*60*60
 			AND archived = 0
 			AND score > 2
-		LIMIT 10
+		LIMIT 100
 	`
 
 	rows, err := ndb.db.QueryContext(ctx, sqlStatement)
