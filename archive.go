@@ -161,24 +161,6 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 }
 
 func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
-	app.logger.Info("Selecting stories to purge")
-	lowScoreStoriesToPurge, err := app.ndb.selectLowScoreStoriesToPurge(ctx)
-	if err != nil {
-		return errors.Wrap(err, "selectLowScoreStoriesToPurge")
-	}
-
-	app.logger.Info("Found low-score stories", "count", len(lowScoreStoriesToPurge))
-
-	for _, storyID := range lowScoreStoriesToPurge {
-		err := app.ndb.purgeStory(storyID)
-		if err != nil {
-			app.logger.Error("Failed to purge story", err,
-				"storyID", storyID)
-			continue
-		}
-	}
-	app.logger.Info("Purged low-score stories", "count", len(lowScoreStoriesToPurge))
-
 	app.logger.Info("Looking for stories to archive")
 	storyIDsToArchive, err := app.ndb.selectStoriesToArchive(ctx)
 	if err != nil {
