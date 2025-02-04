@@ -141,9 +141,17 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "checking if file %s exists", filename)}
 	}
 
-	if exists || legacyExists {
+	if exists {
 		app.logger.Info("File already archived", "filename", filename)
 		return archiveResult{storyID: storyID, uploaded: true}
+	}
+
+	if legacyExists {
+		app.logger.Warn("Legacy archive already exists", "storyID", storyID)
+		err = sc.DeleteFile(ctx, fmt.Sprintf("%d.json", storyID))
+		if err != nil {
+			return archiveResult{storyID: storyID, err: errors.Wrapf(err, "deleting legacy archive file")}
+		}
 	}
 
 	jsonData, err := app.generateArchiveJSON(ctx, storyID)
@@ -205,16 +213,16 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		var purged int
 
 		// Now purge all successfully archived stories
-		// app.logger.Info("Purging archived stories", "count", len(successfulUploads))
-		// for _, storyID := range successfulUploads {
-		// 	err := app.ndb.purgeStory(storyID)
-		// 	if err != nil {
-		// 		app.logger.Error("Failed to purge archived story", err,
-		// 			"storyID", storyID)
-		// 		continue
-		// 	}
-		// 	purged++
-		// }
+		app.logger.Info("Purging archived stories", "count", len(successfulUploads))
+		for _, storyID := range successfulUploads {
+			err := app.ndb.purgeStory(storyID)
+			if err != nil {
+				app.logger.Error("Failed to purge archived story", err,
+					"storyID", storyID)
+				continue
+			}
+			purged++
+		}
 		app.logger.Info("Not purging archived stories")
 
 		app.logger.Info("Finished archiving",

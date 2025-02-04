@@ -5,10 +5,11 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	minio "github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 	"io"
 	"os"
+
+	minio "github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 type StorageClient struct {
@@ -159,6 +160,15 @@ func (sc *StorageClient) FileExists(ctx context.Context, objectName string) (boo
 	}
 	// If no error, the object exists
 	return true, nil
+}
+
+// DeleteFile deletes a file from storage
+func (sc *StorageClient) DeleteFile(ctx context.Context, objectName string) error {
+	err := sc.minioClient.RemoveObject(ctx, sc.bucket, objectName, minio.RemoveObjectOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete object %s: %v", objectName, err)
+	}
+	return nil
 }
 
 // Helper function to trim scheme from endpoint
