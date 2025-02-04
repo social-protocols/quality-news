@@ -237,12 +237,9 @@ func (app app) serveFrontPage(r *http.Request, w http.ResponseWriter, ranking st
 }
 
 func (app app) getFrontPageData(ctx context.Context, ranking string, params FrontPageParams, userID sql.NullInt64) (frontPageData, error) {
-	logger := app.logger
 	ndb := app.ndb
 
 	var sampleTime int64 = time.Now().Unix()
-
-	logger.Info("Fetching front page stories from DB", "ranking", ranking)
 
 	stories, err := getFrontPageStories(ctx, ndb, ranking, params)
 	if err != nil {
