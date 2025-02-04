@@ -358,7 +358,7 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 		FROM dataset
 		JOIN stories USING (id)
 		WHERE 
-			sampleTime <= unixepoch() - 14*24*60*60
+			sampleTime <= unixepoch() - 21*24*60*60
 			AND archived = 0
 		LIMIT 1
 	`
@@ -389,7 +389,7 @@ func (ndb newsDatabase) selectLowScoreStoriesToPurge(ctx context.Context) ([]int
 			FROM dataset d
 			JOIN stories s USING (id)
 			WHERE 
-				sampleTime <= unixepoch() - 14*24*60*60
+				sampleTime <= unixepoch() - 21*24*60*60
 				AND archived = 0
 			GROUP BY id
 		)

@@ -167,7 +167,7 @@ func (app app) mainLoop(ctx context.Context) {
 
 				err := app.archiveAndPurgeOldStatsData(ctx)
 				if err != nil {
-					app.logger.Error("archiveOldStatsData", err)
+					app.logger.Error("archiveAndPurgeOldStatsData", err)
 				}
 			}
 

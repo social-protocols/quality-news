@@ -167,6 +167,8 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		return errors.Wrap(err, "selectLowScoreStoriesToPurge")
 	}
 
+	app.logger.Info("Found low-score stories", "count", len(lowScoreStoriesToPurge))
+
 	for _, storyID := range lowScoreStoriesToPurge {
 		err := app.ndb.purgeStory(storyID)
 		if err != nil {
@@ -175,7 +177,7 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 			continue
 		}
 	}
-	app.logger.Info("Purged low score stories", "purged", len(lowScoreStoriesToPurge))
+	app.logger.Info("Purged low-score stories", "count", len(lowScoreStoriesToPurge))
 
 	app.logger.Info("Looking for stories to archive")
 	storyIDsToArchive, err := app.ndb.selectStoriesToArchive(ctx)
