@@ -74,20 +74,19 @@ func (s Story) UpvoteRateString() string {
 	return fmt.Sprintf("%.2f", s.UpvoteRate)
 }
 
-
- func (s Story) RankDiff() int32 {	
+func (s Story) RankDiff() int32 {
 	if !s.RawRank.Valid {
-            return 0
-    }
+		return 0
+	}
 	rawRank := s.RawRank.Int32
 	topRank := s.TopRank.Int32
 
-   if !s.TopRank.Valid {
-           topRank = 91
-   }
+	if !s.TopRank.Valid {
+		topRank = 91
+	}
 
-    return rawRank - topRank
- }
+	return rawRank - topRank
+}
 
 func abs(a int32) int32 {
 	if a >= 0 {
@@ -131,15 +130,15 @@ func (s Story) Domain() string {
 		return ""
 	}
 	if domain == "twitter.com" || domain == "github.com" {
-	       // keep first part of path
-	       return domain + "/" + strings.Split(u.Path, "/")[1]
+		// keep first part of path
+		return domain + "/" + strings.Split(u.Path, "/")[1]
 	}
-	
+
 	if domain == "substack.com" || domain == "notion.site" || domain == "dreamhosters.com" {
-	       // keep subdomain
-	       return strings.Split(u.Host, ".")[0] + "." + domain
+		// keep subdomain
+		return strings.Split(u.Host, ".")[0] + "." + domain
 	}
-	
+
 	return domain
 }
 
