@@ -54,64 +54,61 @@ type dataPoint struct {
 // become less and less reasonable
 const maxElapsedTime = 120
 
-func (app app) crawlAndPostprocess(ctx context.Context) (err error) {
-	// this function is called every minute. It crawls the hacker news
-	// website, collects all stories which appear on a rank < 90 and stores
-	// its ranks for all different pageTypes, and updates the story in the DB
-
+func (app app) crawlAndPostprocess(ctx context.Context) error {
 	ndb := app.ndb
 	logger := app.logger
 	maxRetries := 3
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		err = func() error {
+		// Use a closure with its own local error variable, txErr.
+		err := func() (txErr error) {
 			tx, e := ndb.db.BeginTx(ctx, nil)
 			if e != nil {
 				return errors.Wrap(e, "BeginTX")
 			}
 
-			// Use the commit/rollback in a defer pattern
+			// Defer commit/rollback based on txErr.
 			defer func() {
-				if err != nil {
-					if tx != nil {
-						if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-							logger.Error("tx.Rollback crawlAndPostprocess", rbErr)
-						}
+				if txErr != nil {
+					// If an error occurred, rollback.
+					if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+						logger.Error("tx.Rollback crawlAndPostprocess", rbErr)
 					}
 					return
 				}
 
+				// Otherwise, attempt to commit.
 				logger.Debug("Commit transaction")
-				if err = tx.Commit(); err != nil {
-					logger.Error("tx.Commit crawlAndPostprocess", err)
-					return
+				if cmErr := tx.Commit(); cmErr != nil {
+					logger.Error("tx.Commit crawlAndPostprocess", cmErr)
+					txErr = errors.Wrap(cmErr, "commit failed")
 				}
 			}()
 
-			// Get initial count
+			// Get initial story count.
 			initialStoryCount, err := ndb.storyCount(tx)
 			if err != nil {
 				return errors.Wrap(err, "initial storyCount")
 			}
 
-			// Perform crawl
+			// Perform the crawl.
 			sitewideUpvotes, err := app.crawl(ctx, tx)
 			if err != nil {
 				return errors.Wrap(err, "crawl")
 			}
 
-			// Get final count
+			// Get final story count.
 			finalStoryCount, err := ndb.storyCount(tx)
 			if err != nil {
 				return errors.Wrap(err, "final storyCount")
 			}
 
-			// Run post-processing
+			// Run post-processing.
 			if err = app.crawlPostprocess(ctx, tx); err != nil {
 				return errors.Wrap(err, "crawlPostprocess")
 			}
 
-			// Update metrics after successful transaction
+			// Update metrics after successful transaction.
 			submissionsTotal.Add(finalStoryCount - initialStoryCount)
 			upvotesTotal.Add(int(sitewideUpvotes))
 
@@ -119,8 +116,8 @@ func (app app) crawlAndPostprocess(ctx context.Context) (err error) {
 		}()
 
 		if err != nil {
+			// If the error is due to closed rows, try resetting the connection.
 			if strings.Contains(err.Error(), "sql: Rows are closed") {
-				// If this is not the last attempt, try resetting the connection
 				if attempt < maxRetries-1 {
 					logger.Info("Resetting database connection due to closed rows", "attempt", attempt+1)
 					if resetErr := ndb.resetConnection(); resetErr != nil {
@@ -129,6 +126,8 @@ func (app app) crawlAndPostprocess(ctx context.Context) (err error) {
 					continue
 				}
 			}
+
+			// Increment the error metric and return the error.
 			crawlErrorsTotal.Inc()
 			return err
 		}
