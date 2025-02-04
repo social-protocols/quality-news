@@ -380,40 +380,6 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 	return storyIDs, nil
 }
 
-func (ndb newsDatabase) selectLowScoreStoriesToPurge(ctx context.Context) ([]int, error) {
-	var storyIDs []int
-
-	sqlStatement := `
-		SELECT id
-		FROM (
-			SELECT id, MAX(score) as max_score
-			FROM dataset d
-			JOIN stories s USING (id)
-			WHERE 
-				sampleTime <= unixepoch() - 21*24*60*60
-				AND archived = 0
-			GROUP BY id
-		)
-		WHERE max_score < 2
-		LIMIT 100
-	`
-
-	rows, err := ndb.db.QueryContext(ctx, sqlStatement)
-	if err != nil {
-		return storyIDs, errors.Wrap(err, "selectLowScoreStoriesToPurge QueryContext")
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var storyID int
-		if err := rows.Scan(&storyID); err != nil {
-			return nil, errors.Wrap(err, "scan story ID")
-		}
-		storyIDs = append(storyIDs, storyID)
-	}
-	return storyIDs, nil
-}
-
 func (ndb newsDatabase) purgeStory(storyID int) error {
 	tx, err := ndb.db.Begin()
 	if err != nil {
