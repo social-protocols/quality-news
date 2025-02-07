@@ -53,7 +53,7 @@ primary_region = "ewr"
 
 # flyctl volumes create data --region ewr --size 3
 [[mounts]]
-  source = "data2"
+  source = "data3"
   destination = "/data"
 
 # prometheus metrics
