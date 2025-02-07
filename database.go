@@ -380,7 +380,7 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 	return storyIDs, nil
 }
 
-func (ndb newsDatabase) purgeStory(storyID int) error {
+func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) error {
 	tx, err := ndb.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "starting transaction")
@@ -398,13 +398,13 @@ func (ndb newsDatabase) purgeStory(storyID int) error {
 	}()
 
 	// Delete all data points
-	_, err = tx.Exec(`DELETE FROM dataset WHERE id = ?`, storyID)
+	_, err = tx.ExecContext(ctx, `DELETE FROM dataset WHERE id = ?`, storyID)
 	if err != nil {
 		return errors.Wrap(err, "delete from dataset")
 	}
 
 	// Delete story record
-	_, err = tx.Exec(`DELETE FROM stories WHERE id = ?`, storyID)
+	_, err = tx.ExecContext(ctx, `DELETE FROM stories WHERE id = ?`, storyID)
 	if err != nil {
 		return errors.Wrap(err, "delete from stories")
 	}
