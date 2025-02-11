@@ -34,7 +34,7 @@ func middleware[P any](routeName string, logger leveledLogger, onPanic func(erro
 
 	handleError := func(w http.ResponseWriter, err error) {
 		if errors.Is(err, httperror.Panic) {
-			// do this in a goroutine otherwise we get deadline if onPanic shutdowns the HTTP server
+			// do this in a goroutine otherwise we get deadlock if onPanic shuts downs the HTTP server
 			// because the http server shutdown function will wait for all requests to terminate,
 			// including this one!
 			go onPanic(err)
