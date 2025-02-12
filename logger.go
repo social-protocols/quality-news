@@ -8,13 +8,6 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-type leveledLogger = interface {
-	Error(msg string, err error, keysAndValues ...interface{})
-	Info(msg string, keysAndValues ...interface{})
-	Debug(msg string, keysAndValues ...interface{})
-	Warn(msg string, keysAndValues ...interface{})
-}
-
 func newLogger(levelString, formatString string) *slog.Logger {
 	if levelString == "" {
 		levelString = "DEBUG"
@@ -41,21 +34,24 @@ func newLogger(levelString, formatString string) *slog.Logger {
 	}
 
 	logger := slog.New(lh)
-
 	slog.SetDefault(logger)
 	return logger
 }
 
-func LogErrorf(l leveledLogger, msg string, args ...interface{}) {
-	l.Error(fmt.Sprintf(msg, args...), nil)
+func LogErrorf(logger *slog.Logger, msg string, args ...interface{}) {
+	logger.Error(fmt.Sprintf(msg, args...), nil)
 }
 
-func Debugf(l leveledLogger, msg string, args ...interface{}) {
-	l.Debug(fmt.Sprintf(msg, args...))
+func Debugf(logger *slog.Logger, msg string, args ...interface{}) {
+	logger.Debug(fmt.Sprintf(msg, args...))
 }
 
-func LogFatal(l leveledLogger, msg string, err error, args ...interface{}) {
-	l.Error(msg, err, args...)
+func LogFatal(logger *slog.Logger, msg string, err error, args ...interface{}) {
+	if len(args) > 0 {
+		logger.Error(msg, err, args...)
+	} else {
+		logger.Error(msg, err)
+	}
 	os.Exit(2)
 }
 
@@ -71,7 +67,7 @@ func (l retryableHTTPClientloggerWrapper) Debug(msg string, keysAndValues ...int
 	// ignore very verbose debug output from retryableHTTPClientloggerWrapper
 }
 
-// wrapLoggerForRetryableHTTPClient a logger so that it implements an interface required by retryableHTTPClient
+// wrapLoggerForRetryableHTTPClient wraps a logger so that it implements an interface required by retryableHTTPClient
 func wrapLoggerForRetryableHTTPClient(logger *slog.Logger) retryableHTTPClientloggerWrapper {
 	// ignore debug messages from this retry client.
 	l := slog.New(logger.Handler())

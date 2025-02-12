@@ -494,7 +494,7 @@ func (ndb newsDatabase) storyCount(tx *sql.Tx) (int, error) {
 	return count, nil
 }
 
-func (ndb newsDatabase) vacuumIfNeeded(ctx context.Context, logger leveledLogger) error {
+func (ndb newsDatabase) vacuumIfNeeded(ctx context.Context, logger *slog.Logger) error {
 	size, freelist, fragmentation, err := ndb.getDatabaseStats()
 	if err != nil {
 		return errors.Wrap(err, "getDatabaseStats")

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/johnwarden/hn"
+	"golang.org/x/exp/slog"
 
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
 )
@@ -15,7 +16,7 @@ type app struct {
 	ndb        newsDatabase
 	hnClient   *hn.Client
 	httpClient *http.Client
-	logger     leveledLogger
+	logger     *slog.Logger
 	cacheSize  int
 }
 

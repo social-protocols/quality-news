@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slog"
 
 	"github.com/julienschmidt/httprouter"
 
@@ -27,7 +28,7 @@ import (
 // So we wrap our httperror.XHandlerFunc[P], parsing the URL parameters to
 // produce the parameter struct, passing it to the inner handler, then
 // handling any errors that are returned.
-func middleware[P any](routeName string, logger leveledLogger, onPanic func(error), h httperror.XHandlerFunc[P]) httprouter.Handle {
+func middleware[P any](routeName string, logger *slog.Logger, onPanic func(error), h httperror.XHandlerFunc[P]) httprouter.Handle {
 	h = httperror.XPanicMiddleware[P](h)
 
 	h = prometheusMiddleware[P](routeName, h)
