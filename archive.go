@@ -134,11 +134,17 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "uploading file %s", filename)}
 	}
 
+	// Check if context was cancelled during/after upload
+	if err := ctx.Err(); err != nil {
+		return archiveResult{storyID: storyID, err: errors.Wrap(err, "context cancelled after upload")}
+	}
+
 	return archiveResult{storyID: storyID}
 }
 
 func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 	app.logger.Info("Looking for stories to archive")
+
 	storyIDsToArchive, err := app.ndb.selectStoriesToArchive(ctx)
 	if err != nil {
 		return errors.Wrap(err, "selectStoriesToArchive")
@@ -146,6 +152,7 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 
 	if len(storyIDsToArchive) > 0 {
 		app.logger.Info("Found stories to archive", "count", len(storyIDsToArchive))
+
 		sc, err := NewStorageClient()
 		if err != nil {
 			return errors.Wrap(err, "create storage client")
@@ -157,8 +164,7 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		for _, storyID := range storyIDsToArchive {
 			sid := storyID
 			pool.Submit(func() {
-				result := app.uploadStoryArchive(ctx, sc, sid)
-				results <- result
+				results <- app.uploadStoryArchive(ctx, sc, sid)
 			})
 		}
 
@@ -168,8 +174,10 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		}()
 
 		successfulUploads := make([]int, 0, len(storyIDsToArchive))
+		uploadErrors := 0
 		for result := range results {
 			if result.err != nil {
+				uploadErrors++
 				app.logger.Error("Failed to archive story", result.err,
 					"storyID", result.storyID)
 				continue
@@ -178,9 +186,11 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		}
 
 		var purged int
+		purgeErrors := 0
 
 		// Now purge all successfully archived stories
 		app.logger.Info("Purging archived stories", "count", len(successfulUploads))
+
 		for _, storyID := range successfulUploads {
 			// Check if context was cancelled before each purge
 			if err := ctx.Err(); err != nil {
@@ -192,6 +202,7 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 
 			err := app.ndb.purgeStory(ctx, storyID)
 			if err != nil {
+				purgeErrors++
 				app.logger.Error("Failed to purge archived story", err,
 					"storyID", storyID)
 				continue
@@ -200,14 +211,22 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		}
 
 		app.logger.Info("Finished archiving",
+			"found", len(storyIDsToArchive),
 			"archived", len(successfulUploads),
-			"purged_archived", purged)
+			"archive_errors", uploadErrors,
+			"purged", purged,
+			"purge_errors", purgeErrors)
 	} else {
 		app.logger.Info("No stories to archive")
 	}
 
 	// Delete old data
 	app.logger.Info("Deleting old data")
+
+	if err := ctx.Err(); err != nil {
+		return errors.Wrap(err, "context cancelled before deleteOldData")
+	}
+
 	rowsDeleted, err := app.ndb.deleteOldData(ctx)
 	if err != nil {
 		return errors.Wrap(err, "deleteOldData")
