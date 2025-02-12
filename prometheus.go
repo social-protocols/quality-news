@@ -66,7 +66,6 @@ func servePrometheusMetrics() func(ctx context.Context) error {
 func prometheusMiddleware[P any](routeName string, h httperror.XHandler[P]) httperror.XHandlerFunc[P] {
 	requestDuration := getRouteHistogram(routeName)
 
-
 	return func(w http.ResponseWriter, r *http.Request, p P) error {
 		var startTime time.Time
 		if r.Method != http.MethodHead {
