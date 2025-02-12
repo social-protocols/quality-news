@@ -90,9 +90,8 @@ func (app app) generateArchiveJSON(ctx context.Context, storyID int) ([]byte, er
 }
 
 type archiveResult struct {
-	storyID  int
-	uploaded bool
-	err      error
+	storyID int
+	err     error
 }
 
 func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyID int) archiveResult {
@@ -113,7 +112,7 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 
 	if exists {
 		app.logger.Info("File already archived", "filename", filename)
-		return archiveResult{storyID: storyID, uploaded: true}
+		return archiveResult{storyID: storyID}
 	}
 
 	if legacyExists {
@@ -135,7 +134,7 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "uploading file %s", filename)}
 	}
 
-	return archiveResult{storyID: storyID, uploaded: true}
+	return archiveResult{storyID: storyID}
 }
 
 func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
@@ -175,9 +174,7 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 					"storyID", result.storyID)
 				continue
 			}
-			if result.uploaded {
-				successfulUploads = append(successfulUploads, result.storyID)
-			}
+			successfulUploads = append(successfulUploads, result.storyID)
 		}
 
 		var purged int

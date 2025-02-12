@@ -364,18 +364,37 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 		LIMIT 100
 	`
 
+	// Check context before query
+	if err := ctx.Err(); err != nil {
+		return nil, errors.Wrap(err, "context cancelled before query")
+	}
+
 	rows, err := ndb.db.QueryContext(ctx, sqlStatement)
 	if err != nil {
+		if err == context.DeadlineExceeded || err == context.Canceled {
+			return nil, errors.Wrap(err, "context cancelled during query")
+		}
 		return storyIDs, errors.Wrap(err, "selectStoriesToArchive QueryContext")
 	}
 	defer rows.Close()
 
 	for rows.Next() {
+		// Check context in loop
+		if err := ctx.Err(); err != nil {
+			return nil, errors.Wrap(err, "context cancelled during row iteration")
+		}
+
 		var storyID int
 		if err := rows.Scan(&storyID); err != nil {
 			return nil, errors.Wrap(err, "scan story ID")
 		}
 		storyIDs = append(storyIDs, storyID)
+	}
+	if err := rows.Err(); err != nil {
+		if err == context.DeadlineExceeded || err == context.Canceled {
+			return nil, errors.Wrap(err, "context cancelled after row iteration")
+		}
+		return nil, errors.Wrap(err, "iterating story IDs")
 	}
 	return storyIDs, nil
 }
