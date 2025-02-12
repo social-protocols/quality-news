@@ -412,54 +412,6 @@ func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) error {
 	return nil
 }
 
-func (ndb newsDatabase) deleteOldData(storyID int) (rowsAffected int64, err error) {
-	// Begin transaction
-	tx, err := ndb.db.Begin()
-	if err != nil {
-		return 0, errors.Wrap(err, "starting transaction")
-	}
-
-	// Ensure rollback if there's an error
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p) // Re-throw panic after Rollback
-		} else if err != nil {
-			_ = tx.Rollback() // Rollback on error
-		} else {
-			err = tx.Commit() // Commit on success
-		}
-	}()
-
-	// Execute the delete operation
-	deleteSQL := `
-		-- Delete all but the last datapoint
-		delete from dataset
-		where 
-		id = ?
-		and sampleTime < (select max(sampleTime) from dataset where id=?)
-	`
-	r, err := tx.Exec(deleteSQL, storyID, storyID)
-	if err != nil {
-		return 0, errors.Wrap(err, "deleteOldData Exec")
-	}
-
-	rowsAffected, err = r.RowsAffected()
-	if err != nil {
-		return 0, errors.Wrap(err, "getting RowsAffected")
-	}
-
-	// Execute the mark as archived operation
-	updateSQL := `update stories set archived = 1 where id = ?`
-
-	_, err = tx.Exec(updateSQL, storyID)
-	if err != nil {
-		return 0, errors.Wrap(err, "markAsArchived Exec")
-	}
-
-	return rowsAffected, nil
-}
-
 func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	var s Story
 
@@ -594,4 +546,26 @@ func (ndb newsDatabase) getDatabaseStats() (size int64, freelist int64, fragment
 			) as fragmentation_pct
 	`).Scan(&size, &freelist, &fragmentation)
 	return
+}
+
+func (ndb newsDatabase) deleteOldData(ctx context.Context) (int64, error) {
+	// Delete data older than one month. It's taking about 18 days to fill a gig, and we have
+	// 3 gig volume currently. That gives us 54 days. But 30 days is plenty and this gives us margin
+	// in case the rate of growth of data increases.
+	sqlStatement := `
+		delete from dataset where id in
+		(select distinct id from dataset join stories using (id) where timestamp <= unixepoch()-30*24*60*60)
+	`
+
+	result, err := ndb.db.ExecContext(ctx, sqlStatement)
+	if err != nil {
+		return 0, errors.Wrap(err, "executing delete old data query")
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, errors.Wrap(err, "getting rows affected")
+	}
+
+	return rowsAffected, nil
 }
