@@ -105,6 +105,8 @@ func (app app) crawlAndPostprocess(ctx context.Context) error {
 			return errors.Wrap(err, "crawlPostprocess")
 		}
 
+		logger.Debug("Story count", slog.Int("initialStoryCount", initialStoryCount), slog.Int("finalStoryCount", finalStoryCount))
+
 		// Update metrics after successful transaction.
 		submissionsTotal.Add(finalStoryCount - initialStoryCount)
 		upvotesTotal.Add(int(sitewideUpvotes))
@@ -113,9 +115,7 @@ func (app app) crawlAndPostprocess(ctx context.Context) error {
 	}()
 
 	if err != nil {
-		// If the error is due to closed rows error
-		// reset the connection for the next crawl attempt
-		logger.Info("Resetting database connection due to closed rows")
+		logger.Info("Resetting database connection after error")
 		if resetErr := ndb.resetConnection(); resetErr != nil {
 			logger.Error("Failed to reset connection", resetErr)
 		}

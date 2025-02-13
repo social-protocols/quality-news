@@ -220,20 +220,18 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		app.logger.Info("No stories to archive")
 	}
 
-	// Delete old data
-	app.logger.Info("Deleting old data")
-
 	if err := ctx.Err(); err != nil {
 		return errors.Wrap(err, "context cancelled before deleteOldData")
 	}
+
+	// Delete old data
+	app.logger.Info("Deleting old data")
 
 	rowsDeleted, err := app.ndb.deleteOldData(ctx)
 	if err != nil {
 		return errors.Wrap(err, "deleteOldData")
 	}
-	if rowsDeleted > 0 {
-		app.logger.Info("Deleted old data", slog.Int64("rows_deleted", rowsDeleted))
-	}
+	app.logger.Info("Deleted old data", slog.Int64("rows_deleted", rowsDeleted))
 
 	return nil
 }
