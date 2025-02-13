@@ -362,11 +362,11 @@ func orderByStatement(ranking string) string {
 	case "unadjusted":
 		return hnRankFormulaSQL
 	case "boosts":
-		// The qn ranking formula but subsituting rank delta for upvoteRate
-		return "pow((sampleTime-submissionTime) * (rawRank - topRank), 0.8) / pow(cast(sampleTime-submissionTime as real)/3600+2,0.8) desc nulls last"
+		// The qn ranking formula but substituting rank delta for upvoteRate
+		return "pow((sampleTime-submissionTime) * (rawRank - ifnull(topRank,91)), 0.8) / pow(cast(sampleTime-submissionTime as real)/3600+2,0.8) desc nulls last"
 	case "penalties":
-		// The qn ranking formula but subsituting rank delta for upvoteRate
-		return "pow((sampleTime-submissionTime) * (topRank - rawRank), 0.8) / pow(cast(sampleTime-submissionTime as real)/3600+2,0.8) desc nulls last"
+		// The qn ranking formula but substituting rank delta for upvoteRate
+		return "pow((sampleTime-submissionTime) * (ifnull(topRank,91) - rawRank), 0.8) / pow(cast(sampleTime-submissionTime as real)/3600+2,0.8) desc nulls last"
 	case "resubmissions":
 		return "submissionTime desc"
 	default:
@@ -389,7 +389,7 @@ func whereClause(ranking string) string {
 	case "boosts":
 		return "topRank < rawRank"
 	case "penalties":
-		return "topRank > rawRank"
+		return "ifnull(topRank,91) > rawRank"
 	case "resubmissions":
 		return "submissionTime != timestamp"
 	default:
