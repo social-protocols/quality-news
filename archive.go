@@ -199,7 +199,7 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		for _, storyID := range storyIDsToArchive {
 			sid := storyID
 			pool.Submit(func() {
-				app.logger.Debug("Archive job for",slog.Int("storyID", sid))
+				app.logger.Debug("Archive job for", slog.Int("storyID", sid))
 				// Check context before starting work
 				if err := ctx.Err(); err != nil {
 					results <- archiveResult{storyID: sid, err: errors.Wrap(err, "context cancelled before starting upload")}
