@@ -167,6 +167,7 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		// Start goroutine to process results
 		go func() {
 			for result := range results {
+				app.logger.Debug("Got archive result")
 				if result.err != nil {
 					uploadErrors++
 					app.logger.Error("Failed to archive story", result.err,
@@ -198,13 +199,19 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		for _, storyID := range storyIDsToArchive {
 			sid := storyID
 			pool.Submit(func() {
+				app.logger.Debug("Archive job for",slog.Int("storyID", sid))
+				// Check context before starting work
+				if err := ctx.Err(); err != nil {
+					results <- archiveResult{storyID: sid, err: errors.Wrap(err, "context cancelled before starting upload")}
+					return
+				}
 				results <- app.uploadStoryArchive(ctx, sc, sid)
 			})
 		}
 
-		// Wait for all workers to finish
+		// Wait for all tasks to complete or be cancelled
 		pool.StopAndWait()
-		// Safe to close results after StopAndWait since it's buffered
+		// Then close results channel
 		close(results)
 
 		app.logger.Info("Finished archiving",
