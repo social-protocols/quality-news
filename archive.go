@@ -180,7 +180,7 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 					app.logger.Error("Context cancelled during purge", err,
 						"stories_archived", archived,
 						"stories_purged", purged)
-					return
+					continue // Continue processing uploads, just skip purging
 				}
 
 				// Purge the successfully archived story
