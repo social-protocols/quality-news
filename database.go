@@ -496,7 +496,7 @@ func (ndb newsDatabase) storyCount(tx *sql.Tx) (int, error) {
 	var count int
 
 	sqlStatement := `
-		SELECT count(distinct id) from dataset
+		SELECT count(distinct id) from stories
 	`
 
 	row := tx.QueryRow(sqlStatement)
