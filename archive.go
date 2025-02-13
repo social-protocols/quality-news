@@ -161,6 +161,40 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		results := make(chan archiveResult, len(storyIDsToArchive))
 		pool := pond.NewPool(10, pond.WithContext(ctx))
 
+		var archived, purged int
+		var uploadErrors, purgeErrors int
+
+		// Start goroutine to process results
+		go func() {
+			for result := range results {
+				if result.err != nil {
+					uploadErrors++
+					app.logger.Error("Failed to archive story", result.err,
+						"storyID", result.storyID)
+					continue
+				}
+				archived++
+
+				// Check context before purging
+				if err := ctx.Err(); err != nil {
+					app.logger.Error("Context cancelled during purge", err,
+						"stories_archived", archived,
+						"stories_purged", purged)
+					return
+				}
+
+				// Purge the successfully archived story
+				if err := app.ndb.purgeStory(ctx, result.storyID); err != nil {
+					purgeErrors++
+					app.logger.Error("Failed to purge archived story", err,
+						"storyID", result.storyID)
+					continue
+				}
+				purged++
+			}
+		}()
+
+		// Submit all work
 		for _, storyID := range storyIDsToArchive {
 			sid := storyID
 			pool.Submit(func() {
@@ -168,38 +202,9 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 			})
 		}
 
-		var archived, purged int
-		var uploadErrors, purgeErrors int
-
-		// Process results as they come in and purge successful uploads immediately
-		for result := range results {
-			if result.err != nil {
-				uploadErrors++
-				app.logger.Error("Failed to archive story", result.err,
-					"storyID", result.storyID)
-				continue
-			}
-			archived++
-
-			// Check context before purging
-			if err := ctx.Err(); err != nil {
-				app.logger.Error("Context cancelled during purge", err,
-					"stories_archived", archived,
-					"stories_purged", purged)
-				return errors.Wrap(err, "context cancelled during purge")
-			}
-
-			// Purge the successfully archived story
-			if err := app.ndb.purgeStory(ctx, result.storyID); err != nil {
-				purgeErrors++
-				app.logger.Error("Failed to purge archived story", err,
-					"storyID", result.storyID)
-				continue
-			}
-			purged++
-		}
-
+		// Wait for all workers to finish
 		pool.StopAndWait()
+		// Safe to close results after StopAndWait since it's buffered
 		close(results)
 
 		app.logger.Info("Finished archiving",
