@@ -170,11 +170,13 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 				app.logger.Debug("Got archive result")
 				if result.err != nil {
 					uploadErrors++
+					archiveErrorsTotal.Inc()
 					app.logger.Error("Failed to archive story", result.err,
 						"storyID", result.storyID)
 					continue
 				}
 				archived++
+				storiesArchivedTotal.Inc()
 
 				// Check context before purging
 				if err := ctx.Err(); err != nil {

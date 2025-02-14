@@ -16,12 +16,14 @@ import (
 
 var (
 	crawlErrorsTotal            = metrics.NewCounter(`errors_total{type="crawl"}`)
+	archiveErrorsTotal          = metrics.NewCounter(`errors_total{type="archive"}`)
 	requestErrorsTotal          = metrics.NewCounter(`errors_total{type="request"}`)
 	crawlDuration               = metrics.NewHistogram("crawl_duration_seconds")
 	crawlPostprocessingDuration = metrics.NewHistogram("crawl_postprocessing_duration_seconds")
 
-	upvotesTotal     = metrics.NewCounter(`upvotes_total`)
-	submissionsTotal = metrics.NewCounter(`submissions_total`)
+	upvotesTotal         = metrics.NewCounter(`upvotes_total`)
+	submissionsTotal     = metrics.NewCounter(`submissions_total`)
+	storiesArchivedTotal = metrics.NewCounter(`stories_archived_total`)
 
 	databaseSizeBytes            *metrics.Gauge
 	databaseFragmentationPercent *metrics.Gauge
