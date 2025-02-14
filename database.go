@@ -122,11 +122,9 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		CREATE INDEX IF NOT EXISTS dataset_id
 		ON dataset(id);
 		`,
-
 		`
 		drop view if exists previousCrawl
 		`,
-
 		`PRAGMA auto_vacuum=NONE`,
 	}
 
@@ -354,13 +352,13 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 	var storyIDs []int
 
 	sqlStatement := `
-		SELECT DISTINCT id
-		FROM dataset
-		JOIN stories USING (id)
+		SELECT s.id
+		FROM stories s
+		JOIN previousCrawl pc ON s.id = pc.id
 		WHERE 
-			sampleTime <= unixepoch() - 21*24*60*60
-			AND archived = 0
-			AND score > 2
+			pc.sampleTime <= unixepoch() - 21*24*60*60
+			AND s.archived = 0
+			AND s.score > 2
 		LIMIT 10
 	`
 
