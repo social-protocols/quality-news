@@ -352,15 +352,15 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 	var storyIDs []int
 
 	sqlStatement := `
-		WITH last_samples AS (
-			SELECT id, MAX(sampleTime) as last_sample
+		WITH first_samples AS (
+			SELECT id, MIN(sampleTime) as first_sample
 			FROM dataset
 			GROUP BY id
 		)
 		SELECT DISTINCT s.id
 		FROM stories s
-		JOIN last_samples ls ON s.id = ls.id
-		WHERE ls.last_sample <= unixepoch() - 21*24*60*60
+		JOIN first_samples ls ON s.id = ls.id
+		WHERE ls.first_sample <= unixepoch() - 21*24*60*60
 			AND s.archived = 0
 			AND EXISTS (
 				SELECT 1 FROM dataset d 
