@@ -358,7 +358,7 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 		WHERE 
 			pc.sampleTime <= unixepoch() - 21*24*60*60
 			AND s.archived = 0
-			AND s.score > 2
+			AND pc.score > 2
 		LIMIT 10
 	`
 
