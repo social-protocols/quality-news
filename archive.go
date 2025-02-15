@@ -192,6 +192,7 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 
 				// Check context before purging
 				if err := ctx.Err(); err != nil {
+					archiveErrorsTotal.Inc()
 					app.logger.Error("Context cancelled during purge", err,
 						"stories_archived", archived,
 						"stories_purged", purged)
@@ -201,6 +202,7 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 				// Purge the successfully archived story
 				if err := app.ndb.purgeStory(ctx, result.storyID); err != nil {
 					purgeErrors++
+					archiveErrorsTotal.Inc()
 					app.logger.Error("Failed to purge archived story", err,
 						"storyID", result.storyID)
 					continue
@@ -215,6 +217,7 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 			pool.Submit(func() {
 				// Check context before starting work
 				if err := ctx.Err(); err != nil {
+					archiveErrorsTotal.Inc()
 					results <- archiveResult{storyID: sid, err: errors.Wrap(err, "context cancelled before starting upload")}
 					return
 				}
