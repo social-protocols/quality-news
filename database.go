@@ -568,7 +568,7 @@ func (ndb newsDatabase) deleteOldData(ctx context.Context) (int64, error) {
 	// Delete data older than one month. Stories whose first datapoint is more than 21 days old with score greater than 2 are already being archived. So this
 	// should delete what's left -- as long as archiving is working!
 	sqlStatement := `
-		delete from dataset where timestamp <= unixepoch()-30*24*60*60
+		delete from dataset where sampleTime <= unixepoch()-30*24*60*60
 	`
 
 	result, err := ndb.db.ExecContext(ctx, sqlStatement)
