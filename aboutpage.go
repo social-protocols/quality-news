@@ -7,7 +7,7 @@ import (
 )
 
 type AboutPageData struct {
-	DefaultPageHeaderData
+	PageTemplateData
 }
 
 func (d AboutPageData) IsAboutPage() bool {
@@ -18,7 +18,7 @@ func (app app) aboutHandler() func(http.ResponseWriter, *http.Request, struct{})
 	return func(w http.ResponseWriter, r *http.Request, p struct{}) error {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-		err := templates.ExecuteTemplate(w, "about.html.tmpl", AboutPageData{DefaultPageHeaderData{UserID: app.getUserID(r)}})
+		err := templates.ExecuteTemplate(w, "about.html.tmpl", AboutPageData{PageTemplateData{UserID: app.getUserID(r)}})
 
 		return errors.Wrap(err, "executing algorithms page template")
 	}

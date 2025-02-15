@@ -17,11 +17,9 @@ type frontPageData struct {
 	AverageAge        float64
 	AverageQuality    float64
 	AverageUpvotes    float64
-	Ranking           string
 	Params            FrontPageParams
 	PositionsJSONData any
-	UserID            sql.NullInt64
-	PageFlags
+	PageTemplateData
 }
 
 func (d frontPageData) AverageAgeString() string {
@@ -59,10 +57,6 @@ func (d frontPageData) IsBestPage() bool {
 	return d.Ranking == "best"
 }
 
-func (d frontPageData) IsBestUpvoteRatePage() bool {
-	return d.Ranking == "best-upvoterate"
-}
-
 func (d frontPageData) IsAskPage() bool {
 	return d.Ranking == "ask"
 }
@@ -93,6 +87,14 @@ func (d frontPageData) IsBoostsPage() bool {
 
 func (d frontPageData) IsResubmissionsPage() bool {
 	return d.Ranking == "resubmissions"
+}
+
+func (d frontPageData) IsAlltimePage() bool {
+	return d.Ranking == "alltime"
+}
+
+func (d frontPageData) IsAlltimeUpvoteratePage() bool {
+	return d.Ranking == "alltime-upvoterate"
 }
 
 func (d frontPageData) IsScorePage() bool {
@@ -246,24 +248,17 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 		return frontPageData{}, errors.Wrap(err, "getFrontPageStories")
 	}
 
-	pageFlags := PageFlags{
-		IsHNTopPage:          ranking == "hntop",
-		IsFairPage:           ranking == "fair",
-		IsUpvoteratePage:     ranking == "upvoterate",
-		IsBestUpvoteratePage: ranking == "best-upvoterate",
-		IsStatsPage:          false,
-		IsPenaltiesPage:      ranking == "penalties",
-		IsBoostsPage:         ranking == "boosts",
-		IsResubmissionsPage:  ranking == "resubmissions",
-		IsRawPage:            ranking == "raw",
+	pageTemplate := PageTemplateData{
+		Ranking: ranking,
+		UserID:  userID,
 	}
 
 	// Wrap each story in StoryTemplateData with page context
 	var storyTemplates []StoryTemplateData
 	for _, story := range stories {
 		template := StoryTemplateData{
-			Story:     story,
-			PageFlags: pageFlags,
+			Story:            story,
+			PageTemplateData: pageTemplate,
 		}
 		storyTemplates = append(storyTemplates, template)
 	}
@@ -304,7 +299,6 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 					Valid:   true,
 				}
 			}
-
 		}
 
 		positions = mapSlice(
@@ -322,7 +316,6 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 				LogErrorf(app.logger, "Got bad positions record %v", p)
 			}
 		}
-
 	}
 
 	d := frontPageData{
@@ -330,11 +323,9 @@ func (app app) getFrontPageData(ctx context.Context, ranking string, params Fron
 		float64(totalAgeSeconds) / float64(nStories),
 		weightedAverageQuality,
 		float64(totalUpvotes) / float64(nStories),
-		ranking,
 		params,
 		positions,
-		userID,
-		pageFlags,
+		pageTemplate,
 	}
 
 	return d, nil
@@ -356,6 +347,10 @@ func orderByStatement(ranking string) string {
 	case "upvoterate":
 		return "qnRank nulls last"
 	case "best-upvoterate":
+		return "(cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) desc nulls last"
+	case "alltime":
+		return "score desc nulls last"
+	case "alltime-upvoterate":
 		return "(cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) desc nulls last"
 	case "hntop":
 		return "topRank"

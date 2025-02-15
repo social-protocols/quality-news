@@ -7,7 +7,7 @@ import (
 )
 
 type AlgorithmsPageData struct {
-	DefaultPageHeaderData
+	PageTemplateData
 }
 
 func (d AlgorithmsPageData) IsAlgorithmsPage() bool {
@@ -18,7 +18,7 @@ func (app app) algorithmsHandler() func(http.ResponseWriter, *http.Request, stru
 	return func(w http.ResponseWriter, r *http.Request, p struct{}) error {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-		err := templates.ExecuteTemplate(w, "about.html.tmpl", AlgorithmsPageData{DefaultPageHeaderData{UserID: app.getUserID(r)}})
+		err := templates.ExecuteTemplate(w, "about.html.tmpl", AlgorithmsPageData{PageTemplateData{UserID: app.getUserID(r)}})
 
 		return errors.Wrap(err, "executing Algorithms page template")
 	}

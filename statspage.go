@@ -28,7 +28,6 @@ type StatsData struct {
 
 type StatsPageData struct {
 	StatsPageParams
-	DefaultPageHeaderData
 	EstimatedUpvoteRate int
 	StoryTemplateData
 	StatsData
@@ -57,19 +56,20 @@ func (app app) statsPage(w io.Writer, r *http.Request, params StatsPageParams, u
 	modelParams := params.OptionalModelParams.WithDefaults()
 	s.UpvoteRate = modelParams.upvoteRate(s.CumulativeUpvotes, s.CumulativeExpectedUpvotes)
 
+	pageTemplate := PageTemplateData{
+		UserID: userID,
+	}
+
 	storyTemplate := StoryTemplateData{
-		Story: s,
-		PageFlags: PageFlags{
-			IsStatsPage: true,
-		},
+		Story:            s,
+		PageTemplateData: pageTemplate,
 	}
 
 	d := StatsPageData{
-		StatsPageParams:       params,
-		EstimatedUpvoteRate:   1.0,
-		StoryTemplateData:     storyTemplate,
-		DefaultPageHeaderData: DefaultPageHeaderData{UserID: userID},
-		StatsData:             stats,
+		StatsPageParams:     params,
+		EstimatedUpvoteRate: 1.0,
+		StoryTemplateData:   storyTemplate,
+		StatsData:           stats,
 	}
 
 	err = templates.ExecuteTemplate(w, "stats.html.tmpl", d)

@@ -56,6 +56,14 @@ var userID {{if .UserID.Valid}} = {{.UserID}} {{end}}
 
 			This page ranks Hacker News stories based on all-time highest <span class="upvoterate">×UpvoteRate</span> <a class="question-mark" href="/about#upvote-rate">(?)</a>.
 
+	{{else if .IsAlltimePage}}
+
+			This page shows the highest scoring stories of all time.
+
+	{{else if .IsAlltimeUpvoteratePage}}
+
+		This shows stories with the highest <span class="upvoterate">×UpvoteRates</span> <a class="question-mark" href="/about#upvote-rate">(?)</a> of all time.
+
 	{{else if .IsPenaltiesPage}}
 
 			This page shows stories whose rank on the Hacker News front page is significantly lower than their <a href="/about#raw-rank">raw rank</a>, indicating that they have been penalized by Hacker News moderators. See <a href="https://www.righto.com/2013/11/how-hacker-news-ranking-really-works.html">this blog post</a> for a discussion of how Hacker News applies penalties.

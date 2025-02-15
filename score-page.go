@@ -10,12 +10,13 @@ import (
 )
 
 type ScorePageData struct {
-	DefaultPageHeaderData
+	PageTemplateData
 	Positions     []Position
 	Score         float64
 	ScorePlotData [][]any
 }
 
+// Override IsScorePage since it's not determined by Ranking
 func (d ScorePageData) IsScorePage() bool {
 	return true
 }
@@ -97,7 +98,15 @@ func (app app) scoreHandler() func(http.ResponseWriter, *http.Request, ScorePage
 			n = pageSize
 		}
 
-		d := ScorePageData{DefaultPageHeaderData{nullUserID}, positions[0:n], score, scorePlotData}
+		d := ScorePageData{
+			PageTemplateData: PageTemplateData{
+				UserID:  nullUserID,
+				Ranking: "score",
+			},
+			Positions:     positions[0:n],
+			Score:         score,
+			ScorePlotData: scorePlotData,
+		}
 
 		if err = templates.ExecuteTemplate(w, "score.html.tmpl", d); err != nil {
 			return errors.Wrap(err, "executing score template")

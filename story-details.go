@@ -34,27 +34,94 @@ type Story struct {
 	Archived                  bool
 }
 
-type PageFlags struct {
-	IsHNTopPage          bool
-	IsFairPage           bool
-	IsUpvoteratePage     bool
-	IsBestUpvoteratePage bool
-	IsStatsPage          bool
-	IsPenaltiesPage      bool
-	IsBoostsPage         bool
-	IsResubmissionsPage  bool
-	IsRawPage            bool
+// PageTemplateData contains the common template data for all pages
+type PageTemplateData struct {
+	Ranking string
+	UserID  sql.NullInt64
 }
 
 // StoryTemplateData combines a Story with page context for use in templates
 type StoryTemplateData struct {
 	Story // embed Story instead of having it as a named field
-	PageFlags
+	PageTemplateData
 }
 
-// Page-specific methods
-func (s PageFlags) IsAlternativeFrontPage() bool {
-	return s.IsHNTopPage || s.IsRawPage || s.IsPenaltiesPage || s.IsBoostsPage || s.IsResubmissionsPage || s.IsFairPage || s.IsUpvoteratePage || s.IsBestUpvoteratePage
+// Page-specific methods for ranking-based pages
+func (p PageTemplateData) IsHNTopPage() bool {
+	return p.Ranking == "hntop"
+}
+
+func (p PageTemplateData) IsFairPage() bool {
+	return p.Ranking == "fair"
+}
+
+func (p PageTemplateData) IsUpvoteratePage() bool {
+	return p.Ranking == "upvoterate"
+}
+
+func (p PageTemplateData) IsBestUpvoteratePage() bool {
+	return p.Ranking == "best-upvoterate"
+}
+
+func (p PageTemplateData) IsNewPage() bool {
+	return p.Ranking == "new"
+}
+
+func (p PageTemplateData) IsBestPage() bool {
+	return p.Ranking == "best"
+}
+
+func (p PageTemplateData) IsAskPage() bool {
+	return p.Ranking == "ask"
+}
+
+func (p PageTemplateData) IsShowPage() bool {
+	return p.Ranking == "show"
+}
+
+func (p PageTemplateData) IsRawPage() bool {
+	return p.Ranking == "raw"
+}
+
+func (p PageTemplateData) IsPenaltiesPage() bool {
+	return p.Ranking == "penalties"
+}
+
+func (p PageTemplateData) IsBoostsPage() bool {
+	return p.Ranking == "boosts"
+}
+
+func (p PageTemplateData) IsResubmissionsPage() bool {
+	return p.Ranking == "resubmissions"
+}
+
+func (p PageTemplateData) IsAlltimePage() bool {
+	return p.Ranking == "alltime"
+}
+
+func (p PageTemplateData) IsAlltimeUpvoteratePage() bool {
+	return p.Ranking == "alltime-upvoterate"
+}
+
+// Default implementations for non-ranking based pages
+func (p PageTemplateData) IsAboutPage() bool {
+	return false
+}
+
+func (p PageTemplateData) IsAlgorithmsPage() bool {
+	return false
+}
+
+func (p PageTemplateData) IsScorePage() bool {
+	return false
+}
+
+func (p PageTemplateData) IsStatsPage() bool {
+	return false
+}
+
+func (p PageTemplateData) IsAlternativeFrontPage() bool {
+	return p.IsHNTopPage() || p.IsRawPage() || p.IsPenaltiesPage() || p.IsBoostsPage() || p.IsResubmissionsPage() || p.IsFairPage() || p.IsUpvoteratePage() || p.IsBestUpvoteratePage() || p.IsAlltimePage() || p.IsAlltimeUpvoteratePage()
 }
 
 func (s Story) AgeString() string {
