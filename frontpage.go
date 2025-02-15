@@ -89,14 +89,6 @@ func (d frontPageData) IsResubmissionsPage() bool {
 	return d.Ranking == "resubmissions"
 }
 
-func (d frontPageData) IsAlltimePage() bool {
-	return d.Ranking == "alltime"
-}
-
-func (d frontPageData) IsAlltimeUpvoteratePage() bool {
-	return d.Ranking == "alltime-upvoterate"
-}
-
 func (d frontPageData) IsScorePage() bool {
 	return false
 }
@@ -347,10 +339,6 @@ func orderByStatement(ranking string) string {
 	case "upvoterate":
 		return "qnRank nulls last"
 	case "best-upvoterate":
-		return "(cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) desc nulls last"
-	case "alltime":
-		return "score desc nulls last"
-	case "alltime-upvoterate":
 		return "(cumulativeUpvotes + priorWeight)/((1-exp(-fatigueFactor*cumulativeExpectedUpvotes))/fatigueFactor + priorWeight) desc nulls last"
 	case "hntop":
 		return "topRank"

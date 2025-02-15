@@ -95,14 +95,6 @@ func (p PageTemplateData) IsResubmissionsPage() bool {
 	return p.Ranking == "resubmissions"
 }
 
-func (p PageTemplateData) IsAlltimePage() bool {
-	return p.Ranking == "alltime"
-}
-
-func (p PageTemplateData) IsAlltimeUpvoteratePage() bool {
-	return p.Ranking == "alltime-upvoterate"
-}
-
 // Default implementations for non-ranking based pages
 func (p PageTemplateData) IsAboutPage() bool {
 	return false
@@ -121,7 +113,7 @@ func (p PageTemplateData) IsStatsPage() bool {
 }
 
 func (p PageTemplateData) IsAlternativeFrontPage() bool {
-	return p.IsHNTopPage() || p.IsRawPage() || p.IsPenaltiesPage() || p.IsBoostsPage() || p.IsResubmissionsPage() || p.IsFairPage() || p.IsUpvoteratePage() || p.IsBestUpvoteratePage() || p.IsAlltimePage() || p.IsAlltimeUpvoteratePage()
+	return p.IsHNTopPage() || p.IsRawPage() || p.IsPenaltiesPage() || p.IsBoostsPage() || p.IsResubmissionsPage() || p.IsFairPage() || p.IsUpvoteratePage() || p.IsBestUpvoteratePage() || p.IsNewPage() || p.IsBestPage() || p.IsAskPage() || p.IsShowPage()
 }
 
 func (s Story) AgeString() string {
