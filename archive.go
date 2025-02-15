@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"golang.org/x/exp/slog"
 
@@ -150,24 +151,31 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		return errors.Wrap(err, "selectStoriesToArchive")
 	}
 
-	if len(storyIDsToArchive) > 0 {
-		app.logger.Info("Found stories to archive", "count", len(storyIDsToArchive))
+	n := len(storyIDsToArchive)
+
+	if n > 0 {
+		app.logger.Info("Found stories to archive", "count", n)
 
 		sc, err := NewStorageClient()
 		if err != nil {
 			return errors.Wrap(err, "create storage client")
 		}
 
-		results := make(chan archiveResult, len(storyIDsToArchive))
+		results := make(chan archiveResult, n)
+		defer close(results)
+
 		pool := pond.NewPool(10, pond.WithContext(ctx))
 
 		var archived, purged int
 		var uploadErrors, purgeErrors int
+		var wg sync.WaitGroup
+		wg.Add(1)
 
 		// Start goroutine to process results
 		go func() {
-			for result := range results {
-				app.logger.Debug("Got archive result")
+			defer wg.Done()
+			for i := 0; i < n; i++ {
+				result := <-results
 				if result.err != nil {
 					uploadErrors++
 					archiveErrorsTotal.Inc()
@@ -201,7 +209,6 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 		for _, storyID := range storyIDsToArchive {
 			sid := storyID
 			pool.Submit(func() {
-				app.logger.Debug("Archive job for", slog.Int("storyID", sid))
 				// Check context before starting work
 				if err := ctx.Err(); err != nil {
 					results <- archiveResult{storyID: sid, err: errors.Wrap(err, "context cancelled before starting upload")}
@@ -213,21 +220,20 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 
 		// Wait for all tasks to complete or be cancelled
 		pool.StopAndWait()
-		// Then close results channel
-		close(results)
+		wg.Wait()
+
+		if err := ctx.Err(); err != nil {
+			return errors.Wrap(err, "context cancelled during archiving")
+		}
 
 		app.logger.Info("Finished archiving",
-			"found", len(storyIDsToArchive),
+			"found", n,
 			"archived", archived,
 			"archive_errors", uploadErrors,
 			"purged", purged,
 			"purge_errors", purgeErrors)
 	} else {
 		app.logger.Info("No stories to archive")
-	}
-
-	if err := ctx.Err(); err != nil {
-		return errors.Wrap(err, "context cancelled before deleteOldData")
 	}
 
 	// Delete old data
