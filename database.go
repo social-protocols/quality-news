@@ -111,6 +111,30 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		);
 		`,
 		`
+		CREATE TABLE IF NOT EXISTS latest_story_stats (
+			id INTEGER PRIMARY KEY,
+			cumulativeUpvotes INTEGER NOT NULL,
+			cumulativeExpectedUpvotes REAL NOT NULL,
+			score INTEGER NOT NULL,
+			highestTopRank INTEGER,
+			highestBestRank INTEGER,
+			highestAskRank INTEGER,
+			highestShowRank INTEGER,
+			highestQNRank INTEGER,
+			flagged BOOLEAN NOT NULL DEFAULT FALSE,
+			dupe BOOLEAN NOT NULL DEFAULT FALSE
+		);
+		`,
+		`
+		CREATE INDEX IF NOT EXISTS latest_story_stats_score_idx ON latest_story_stats(score);
+		`,
+		`
+		CREATE INDEX IF NOT EXISTS latest_story_stats_upvotes_idx ON latest_story_stats(cumulativeUpvotes);
+		`,
+		`
+		CREATE INDEX IF NOT EXISTS latest_story_stats_expected_upvotes_idx ON latest_story_stats(cumulativeExpectedUpvotes);
+		`,
+		`
 		CREATE INDEX IF NOT EXISTS dataset_sampletime_id
 		ON dataset(sampletime, id);
 		`,
@@ -141,7 +165,6 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		`alter table stories add column archived boolean default false not null`,
 		`DROP INDEX if exists archived`,
 		`CREATE INDEX IF NOT EXISTS dataset_sampletime on dataset(sampletime)`,
-
 		`update dataset set upvoteRate = ( cumulativeUpvotes + 2.3 ) / ( cumulativeExpectedUpvotes + 2.3) where upvoteRate = 0`,
 	}
 
@@ -442,24 +465,54 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 		, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime)
 		, score
 		, descendants
-		, cumulativeUpvotes
-		, cumulativeExpectedUpvotes
+		, lst.cumulativeUpvotes
+		, lst.cumulativeExpectedUpvotes
 		, topRank
 		, qnRank
 		, rawRank
-		, flagged
-		, dupe
+		, lst.highestTopRank
+		, lst.highestBestRank
+		, lst.highestAskRank
+		, lst.highestShowRank
+		, lst.highestQNRank
+		, lst.flagged
+		, lst.dupe
 		, job
 		, archived
 	from stories
 	JOIN dataset
+	USING (id)
+	JOIN latest_story_stats lst
 	USING (id)
 	WHERE id = ?
 	ORDER BY sampleTime DESC
 	LIMIT 1
 	`
 
-	err := ndb.db.QueryRow(sqlStatement, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job, &s.Archived)
+	err := ndb.db.QueryRow(sqlStatement, id).Scan(
+		&s.ID,
+		&s.By,
+		&s.Title,
+		&s.URL,
+		&s.SubmissionTime,
+		&s.OriginalSubmissionTime,
+		&s.AgeApprox,
+		&s.Score,
+		&s.Comments,
+		&s.CumulativeUpvotes,
+		&s.CumulativeExpectedUpvotes,
+		&s.TopRank,
+		&s.QNRank,
+		&s.RawRank,
+		&s.HighestTopRank,
+		&s.HighestBestRank,
+		&s.HighestAskRank,
+		&s.HighestShowRank,
+		&s.HighestQNRank,
+		&s.Flagged,
+		&s.Dupe,
+		&s.Job,
+		&s.Archived)
 	if err != nil {
 		return s, err
 	}
