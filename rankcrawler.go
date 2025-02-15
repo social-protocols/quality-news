@@ -75,7 +75,6 @@ func (app app) crawlAndPostprocess(ctx context.Context) error {
 			}
 
 			// Otherwise, attempt to commit.
-			logger.Debug("Commit transaction")
 			if cmErr := tx.Commit(); cmErr != nil {
 				logger.Error("tx.Commit crawlAndPostprocess", cmErr)
 				txErr = errors.Wrap(cmErr, "commit failed")
@@ -104,8 +103,6 @@ func (app app) crawlAndPostprocess(ctx context.Context) error {
 		if err = app.crawlPostprocess(ctx, tx); err != nil {
 			return errors.Wrap(err, "crawlPostprocess")
 		}
-
-		logger.Debug("Story count", slog.Int("initialStoryCount", initialStoryCount), slog.Int("finalStoryCount", finalStoryCount))
 
 		// Update metrics after successful transaction.
 		submissionsTotal.Add(finalStoryCount - initialStoryCount)

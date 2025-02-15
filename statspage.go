@@ -87,7 +87,6 @@ func (app app) loadStoryAndStats(ctx context.Context, storyID int, modelParams O
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			app.logger.Debug("Story not found in DB, trying archives", "storyID", storyID)
 			// Story not in DB, try to load from archive
 			sc, err := NewStorageClient()
 			if err != nil {
@@ -99,17 +98,12 @@ func (app app) loadStoryAndStats(ctx context.Context, storyID int, modelParams O
 			jsonData, err := sc.DownloadFile(ctx, filename)
 			isV2 := err == nil
 			if err != nil {
-				app.logger.Debug("V2 archive not found, trying legacy format", "storyID", storyID)
 				// Try legacy archive
 				filename = fmt.Sprintf("%d.json", storyID)
 				jsonData, err = sc.DownloadFile(ctx, filename)
 				if err != nil {
-					app.logger.Debug("Story not found in any archive", "storyID", storyID)
 					return Story{}, StatsData{}, ErrStoryIDNotFound
 				}
-				app.logger.Debug("Found story in legacy archive", "storyID", storyID)
-			} else {
-				app.logger.Debug("Found story in v2 archive", "storyID", storyID)
 			}
 
 			var archiveData ArchiveData

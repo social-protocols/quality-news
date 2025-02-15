@@ -130,7 +130,7 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "generating archive data for story %d", storyID)}
 	}
 
-	app.logger.Debug("Uploading archive file", "storyID", storyID)
+	app.logger.Info("Uploading archive file", "storyID", storyID)
 	err = sc.UploadFile(ctx, filename, jsonData, "application/json", true)
 	if err != nil {
 		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "uploading file %s", filename)}

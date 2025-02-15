@@ -132,7 +132,6 @@ func (app app) mainLoop(ctx context.Context) {
 	go func() {
 		t := time.Now().Unix()
 		delay := 60 - t%60
-		logger.Debug("Scheduling tick at next minute mark", "seconds", delay, "now", t, "nextTick", t+delay)
 		<-time.After(time.Duration(delay) * time.Second)
 		ticker <- t + delay
 	}()
@@ -147,7 +146,6 @@ func (app app) mainLoop(ctx context.Context) {
 			// want to see all the timestamps in the DB as multiples of 60.
 			delay := 60 - t%60
 			go func() {
-				logger.Debug("Scheduling tick at next minute mark", "seconds", delay, "lastTick", t, "nextTick", t+delay)
 				<-time.After(time.Duration(delay) * time.Second)
 				ticker <- t + delay
 			}()
@@ -156,14 +154,13 @@ func (app app) mainLoop(ctx context.Context) {
 
 			// cancel crawl if it doesn't complete 1 second before the next
 			// crawl is supposed to start
-			logger.Debug("Setting deadline", "time", t, "deadline", t+delay-1)
 			ctx, cancel := context.WithDeadline(ctx, time.Unix(t+delay-1, 0))
 			defer cancel()
 
 			if err = app.crawlAndPostprocess(ctx); err != nil {
 				logger.Error("crawlAndPostprocess", err)
 			} else {
-				app.logger.Debug("Finished crawl and postprocess")
+				app.logger.Info("Finished crawl and postprocess")
 
 				err := app.archiveAndPurgeOldStatsData(ctx)
 				if err != nil {

@@ -130,16 +130,13 @@ func (app app) vote(ctx context.Context, userID int64, storyID int, direction in
 		if err != nil {
 			// https://go.dev/doc/database/execute-transactions
 			// If the transaction succeeds, it will be committed before the function exits, making the deferred rollback call a no-op.
-			app.logger.Debug("Rolling back transaction")
 			e := tx.Rollback()
 			if e != nil {
 				app.logger.Error("tx.Rollback in vote", e)
 			}
 			return
 		}
-		app.logger.Debug("Commit transaction")
 		err = tx.Commit() // here we are setting the return value err
-		app.logger.Debug("Committed")
 		if err != nil {
 			return
 		}
@@ -166,7 +163,6 @@ func (app app) vote(ctx context.Context, userID int64, storyID int, direction in
 		return 0, 0, errors.Wrapf(err, "getLastVoteStatement %v %d %d", userID, storyID, direction)
 	}
 	entryUpvoteRate := defaultModelParams.upvoteRate(entryUpvotes, entryExpectedUpvotes)
-	app.logger.Debug("Got last vote", "entryUpvoteRate", entryUpvoteRate)
 
 	return entryUpvoteRate, entryTime, nil
 }
@@ -179,7 +175,6 @@ func (app app) voteHandler() func(http.ResponseWriter, *http.Request, voteParams
 			return httperror.PublicErrorf(http.StatusUnauthorized, "not logged in")
 		}
 
-		app.logger.Debug("Called upvote handler")
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 		storyID := p.StoryID

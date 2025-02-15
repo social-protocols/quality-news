@@ -78,7 +78,7 @@ func (app app) updateQNRanks(ctx context.Context, tx *sql.Tx) error {
 
 	_, err = stmt.ExecContext(ctx)
 
-	app.logger.Debug("Finished executing updateQNRanks", slog.Duration("elapsed", time.Since(t)))
+	app.logger.Info("Finished executing updateQNRanks", slog.Duration("elapsed", time.Since(t)))
 
 	return errors.Wrap(err, "executing updateQNRanksSQL")
 }
