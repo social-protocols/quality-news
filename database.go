@@ -420,10 +420,10 @@ func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) error {
 	}
 
 	// Delete story record
-	_, err = tx.ExecContext(ctx, `DELETE FROM stories WHERE id = ?`, storyID)
-	if err != nil {
-		return errors.Wrap(err, "delete from stories")
-	}
+	// _, err = tx.ExecContext(ctx, `DELETE FROM stories WHERE id = ?`, storyID)
+	// if err != nil {
+	// 	return errors.Wrap(err, "delete from stories")
+	// }
 
 	return nil
 }
@@ -567,19 +567,39 @@ func (ndb newsDatabase) getDatabaseStats() (size int64, freelist int64, fragment
 func (ndb newsDatabase) deleteOldData(ctx context.Context) (int64, error) {
 	// Delete data older than one month. Stories whose first datapoint is more than 21 days old with score greater than 2 are already being archived. So this
 	// should delete what's left -- as long as archiving is working!
-	sqlStatement := `
-		delete from dataset where sampleTime <= unixepoch()-30*24*60*60
-	`
+	var rowsAffected int64 = 0
+	{
+		sqlStatement := `
+			delete from dataset where sampleTime <= unixepoch()-30*24*60*60
+		`
 
-	result, err := ndb.db.ExecContext(ctx, sqlStatement)
-	if err != nil {
-		return 0, errors.Wrap(err, "executing delete old data query")
+		result, err := ndb.db.ExecContext(ctx, sqlStatement)
+		if err != nil {
+			return 0, errors.Wrap(err, "executing delete old data query")
+		}
+
+		rowsAffected, err = result.RowsAffected()
+		if err != nil {
+			return 0, errors.Wrap(err, "getting number of rows of data deleted")
+		}
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return 0, errors.Wrap(err, "getting rows affected")
-	}
+	// {
+	// 	sqlStatement := `
+	// 		delete from stories where archived = 0 and timestamp < unixepoch()-30*24*60*60
+	// 	`
+
+	// 	result, err := ndb.db.ExecContext(ctx, sqlStatement)
+	// 	if err != nil {
+	// 		return 0, errors.Wrap(err, "executing delete old stories query")
+	// 	}
+
+	// 	rowsAffectedStories, err := result.RowsAffected()
+	// 	if err != nil {
+	// 		return 0, errors.Wrap(err, "getting number of stories deleted")
+	// 	}
+	// 	rowsAffected += rowsAffectedStories
+	// }
 
 	return rowsAffected, nil
 }
