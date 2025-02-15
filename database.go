@@ -139,8 +139,7 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		`alter table dataset add column upvoteRateWindow int`,
 		`alter table dataset add column upvoteRate float default 0 not null`,
 		`alter table stories add column archived boolean default false not null`,
-		`CREATE INDEX IF NOT EXISTS archived ON dataset(archived)`,
-		`CREATE INDEX IF NOT EXISTS archived ON dataset(archived, submissionTime)`,
+		`DROP INDEX if exists archived`,
 
 		`update dataset set upvoteRate = ( cumulativeUpvotes + 2.3 ) / ( cumulativeExpectedUpvotes + 2.3) where upvoteRate = 0`,
 	}
@@ -352,22 +351,14 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 	var storyIDs []int
 
 	sqlStatement := `
-		WITH first_samples AS (
-			SELECT id, MIN(sampleTime) as first_sample
-			FROM dataset
-			GROUP BY id
-		)
-		SELECT DISTINCT s.id
-		FROM stories s
-		JOIN first_samples ls ON s.id = ls.id
-		WHERE ls.first_sample <= unixepoch() - 21*24*60*60
-			AND s.archived = 0
-			AND EXISTS (
-				SELECT 1 FROM dataset d 
-				WHERE d.id = s.id 
-				AND d.score > 2
+			with latest as (
+				select id, score, sampleTime from dataset
+				where sampleTime <= unixepoch() - 21*24*60*60
+				and score > 2
+				order by sampleTime
+				limit 100
 			)
-		LIMIT 10
+			select distinct id from latest limit 10
 	`
 
 	// Check context before query
