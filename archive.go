@@ -238,16 +238,17 @@ func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
 			"purge_errors", purgeErrors)
 	} else {
 		app.logger.Info("No stories to archive")
-	}
 
-	// Delete old data
-	app.logger.Info("Deleting old data")
+		// Delete old data
+		app.logger.Info("Deleting old data")
 
-	rowsDeleted, err := app.ndb.deleteOldData(ctx)
-	if err != nil {
-		return errors.Wrap(err, "deleteOldData")
+		rowsDeleted, err := app.ndb.deleteOldData(ctx)
+		if err != nil {
+			return errors.Wrap(err, "deleteOldData")
+		}
+		app.logger.Info("Deleted old data", slog.Int64("rows_deleted", rowsDeleted))
+
 	}
-	app.logger.Info("Deleted old data", slog.Int64("rows_deleted", rowsDeleted))
 
 	return nil
 }

@@ -565,12 +565,10 @@ func (ndb newsDatabase) getDatabaseStats() (size int64, freelist int64, fragment
 }
 
 func (ndb newsDatabase) deleteOldData(ctx context.Context) (int64, error) {
-	// Delete data older than one month. It's taking about 18 days to fill a gig, and we have
-	// 3 gig volume currently. That gives us 54 days. But 30 days is plenty and this gives us margin
-	// in case the rate of growth of data increases.
+	// Delete data older than one month. Stories whose first datapoint is more than 21 days old with score greater than 2 are already being archived. So this
+	// should delete what's left -- as long as archiving is working!
 	sqlStatement := `
-		delete from dataset where id in
-		(select distinct id from dataset join stories using (id) where timestamp <= unixepoch()-30*24*60*60)
+		delete from dataset where timestamp <= unixepoch()-30*24*60*60)
 	`
 
 	result, err := ndb.db.ExecContext(ctx, sqlStatement)
