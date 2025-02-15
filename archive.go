@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"golang.org/x/exp/slog"
 
@@ -144,6 +145,9 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 }
 
 func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
+	t := time.Now()
+	defer archivingAndPurgeDuration.UpdateDuration(t)
+
 	app.logger.Info("Looking for stories to archive")
 
 	storyIDsToArchive, err := app.ndb.selectStoriesToArchive(ctx)

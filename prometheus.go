@@ -20,6 +20,7 @@ var (
 	requestErrorsTotal          = metrics.NewCounter(`errors_total{type="request"}`)
 	crawlDuration               = metrics.NewHistogram("crawl_duration_seconds")
 	crawlPostprocessingDuration = metrics.NewHistogram("crawl_postprocessing_duration_seconds")
+	archivingAndPurgeDuration   = metrics.NewHistogram("archiving_and_purge_duration_seconds")
 
 	upvotesTotal         = metrics.NewCounter(`upvotes_total`)
 	submissionsTotal     = metrics.NewCounter(`submissions_total`)
