@@ -45,6 +45,7 @@ func (app app) crawlPostprocess(ctx context.Context, tx *sql.Tx) error {
 		"previous-crawl.sql",
 		"resubmissions.sql",
 		"raw-ranks.sql",
+		"latest-story-stats.sql",
 	} {
 		app.logger.Info("Processing SQL file", slog.String("filename", filename))
 		err = executeSQLFile(ctx, tx, filename)
