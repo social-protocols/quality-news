@@ -28,6 +28,11 @@ type Story struct {
 	TopRank                   sql.NullInt32
 	QNRank                    sql.NullInt32
 	RawRank                   sql.NullInt32
+	HighestTopRank            sql.NullInt32
+	HighestBestRank           sql.NullInt32
+	HighestAskRank            sql.NullInt32
+	HighestShowRank           sql.NullInt32
+	HighestQNRank             sql.NullInt32
 	Job                       bool
 	Flagged                   bool
 	Dupe                      bool

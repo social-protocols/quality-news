@@ -111,6 +111,30 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		);
 		`,
 		`
+		CREATE TABLE IF NOT EXISTS latest_story_stats (
+			id INTEGER PRIMARY KEY,
+			cumulativeUpvotes INTEGER NOT NULL,
+			cumulativeExpectedUpvotes REAL NOT NULL,
+			score INTEGER NOT NULL,
+			highestTopRank INTEGER,
+			highestBestRank INTEGER,
+			highestAskRank INTEGER,
+			highestShowRank INTEGER,
+			highestQNRank INTEGER,
+			flagged BOOLEAN NOT NULL DEFAULT FALSE,
+			dupe BOOLEAN NOT NULL DEFAULT FALSE
+		);
+		`,
+		`
+		CREATE INDEX IF NOT EXISTS latest_story_stats_score_idx ON latest_story_stats(score);
+		`,
+		`
+		CREATE INDEX IF NOT EXISTS latest_story_stats_upvotes_idx ON latest_story_stats(cumulativeUpvotes);
+		`,
+		`
+		CREATE INDEX IF NOT EXISTS latest_story_stats_expected_upvotes_idx ON latest_story_stats(cumulativeExpectedUpvotes);
+		`,
+		`
 		CREATE INDEX IF NOT EXISTS dataset_sampletime_id
 		ON dataset(sampletime, id);
 		`,
@@ -141,7 +165,6 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		`alter table stories add column archived boolean default false not null`,
 		`DROP INDEX if exists archived`,
 		`CREATE INDEX IF NOT EXISTS dataset_sampletime on dataset(sampletime)`,
-
 		`update dataset set upvoteRate = ( cumulativeUpvotes + 2.3 ) / ( cumulativeExpectedUpvotes + 2.3) where upvoteRate = 0`,
 	}
 
@@ -420,10 +443,10 @@ func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) error {
 	}
 
 	// Delete story record
-	_, err = tx.ExecContext(ctx, `DELETE FROM stories WHERE id = ?`, storyID)
-	if err != nil {
-		return errors.Wrap(err, "delete from stories")
-	}
+	// _, err = tx.ExecContext(ctx, `DELETE FROM stories WHERE id = ?`, storyID)
+	// if err != nil {
+	// 	return errors.Wrap(err, "delete from stories")
+	// }
 
 	return nil
 }
@@ -442,24 +465,54 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 		, unixepoch() - sampleTime + coalesce(ageApprox, sampleTime - submissionTime)
 		, score
 		, descendants
-		, cumulativeUpvotes
-		, cumulativeExpectedUpvotes
+		, lst.cumulativeUpvotes
+		, lst.cumulativeExpectedUpvotes
 		, topRank
 		, qnRank
 		, rawRank
-		, flagged
-		, dupe
+		, lst.highestTopRank
+		, lst.highestBestRank
+		, lst.highestAskRank
+		, lst.highestShowRank
+		, lst.highestQNRank
+		, lst.flagged
+		, lst.dupe
 		, job
 		, archived
 	from stories
 	JOIN dataset
+	USING (id)
+	JOIN latest_story_stats lst
 	USING (id)
 	WHERE id = ?
 	ORDER BY sampleTime DESC
 	LIMIT 1
 	`
 
-	err := ndb.db.QueryRow(sqlStatement, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job, &s.Archived)
+	err := ndb.db.QueryRow(sqlStatement, id).Scan(
+		&s.ID,
+		&s.By,
+		&s.Title,
+		&s.URL,
+		&s.SubmissionTime,
+		&s.OriginalSubmissionTime,
+		&s.AgeApprox,
+		&s.Score,
+		&s.Comments,
+		&s.CumulativeUpvotes,
+		&s.CumulativeExpectedUpvotes,
+		&s.TopRank,
+		&s.QNRank,
+		&s.RawRank,
+		&s.HighestTopRank,
+		&s.HighestBestRank,
+		&s.HighestAskRank,
+		&s.HighestShowRank,
+		&s.HighestQNRank,
+		&s.Flagged,
+		&s.Dupe,
+		&s.Job,
+		&s.Archived)
 	if err != nil {
 		return s, err
 	}
@@ -567,19 +620,39 @@ func (ndb newsDatabase) getDatabaseStats() (size int64, freelist int64, fragment
 func (ndb newsDatabase) deleteOldData(ctx context.Context) (int64, error) {
 	// Delete data older than one month. Stories whose first datapoint is more than 21 days old with score greater than 2 are already being archived. So this
 	// should delete what's left -- as long as archiving is working!
-	sqlStatement := `
-		delete from dataset where sampleTime <= unixepoch()-30*24*60*60
-	`
+	var rowsAffected int64 = 0
+	{
+		sqlStatement := `
+			delete from dataset where sampleTime <= unixepoch()-30*24*60*60
+		`
 
-	result, err := ndb.db.ExecContext(ctx, sqlStatement)
-	if err != nil {
-		return 0, errors.Wrap(err, "executing delete old data query")
+		result, err := ndb.db.ExecContext(ctx, sqlStatement)
+		if err != nil {
+			return 0, errors.Wrap(err, "executing delete old data query")
+		}
+
+		rowsAffected, err = result.RowsAffected()
+		if err != nil {
+			return 0, errors.Wrap(err, "getting number of rows of data deleted")
+		}
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return 0, errors.Wrap(err, "getting rows affected")
-	}
+	// {
+	// 	sqlStatement := `
+	// 		delete from stories where archived = 0 and timestamp < unixepoch()-30*24*60*60
+	// 	`
+
+	// 	result, err := ndb.db.ExecContext(ctx, sqlStatement)
+	// 	if err != nil {
+	// 		return 0, errors.Wrap(err, "executing delete old stories query")
+	// 	}
+
+	// 	rowsAffectedStories, err := result.RowsAffected()
+	// 	if err != nil {
+	// 		return 0, errors.Wrap(err, "getting number of stories deleted")
+	// 	}
+	// 	rowsAffected += rowsAffectedStories
+	// }
 
 	return rowsAffected, nil
 }
