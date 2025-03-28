@@ -162,11 +162,11 @@ func (app app) mainLoop(ctx context.Context) {
 			} else {
 				app.logger.Info("Finished crawl and postprocess")
 
-				err := app.archiveAndPurgeOldStatsData(ctx)
-				if err != nil {
-					archiveErrorsTotal.Inc()
-					app.logger.Error("archiveAndPurgeOldStatsData", err)
-				}
+				// err := app.archiveAndPurgeOldStatsData(ctx)
+				// if err != nil {
+				// 	archiveErrorsTotal.Inc()
+				// 	app.logger.Error("archiveAndPurgeOldStatsData", err)
+				// }
 			}
 
 		case <-ctx.Done():
