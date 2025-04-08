@@ -439,7 +439,6 @@ func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) error {
 	return nil
 }
 
-
 func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	var s Story
 
