@@ -396,36 +396,49 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 }
 
 func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) error {
-	tx, err := ndb.db.Begin()
-	if err != nil {
-		return errors.Wrap(err, "starting transaction")
-	}
+	const batchSize = 1000
 
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		} else if err != nil {
-			_ = tx.Rollback()
-		} else {
-			err = tx.Commit()
+	for {
+		tx, err := ndb.db.Begin()
+		if err != nil {
+			return errors.Wrap(err, "starting transaction")
 		}
-	}()
 
-	// Delete all data points
-	_, err = tx.ExecContext(ctx, `DELETE FROM dataset WHERE id = ?`, storyID)
-	if err != nil {
-		return errors.Wrap(err, "delete from dataset")
+		result, err := tx.ExecContext(ctx, `
+			DELETE FROM dataset
+			WHERE rowid IN (
+				SELECT rowid FROM dataset WHERE id = ? LIMIT ?
+			)`, storyID, batchSize)
+		if err != nil {
+			_ = tx.Rollback()
+			return errors.Wrap(err, "batch delete from dataset")
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			_ = tx.Rollback()
+			return errors.Wrap(err, "getting rows affected")
+		}
+
+		if err := tx.Commit(); err != nil {
+			return errors.Wrap(err, "commit transaction")
+		}
+
+		// No more rows left to delete
+		if rowsAffected < batchSize {
+			break
+		}
 	}
 
-	// Delete story record
-	_, err = tx.ExecContext(ctx, `DELETE FROM stories WHERE id = ?`, storyID)
+	// Finally, delete the story record
+	_, err := ndb.db.ExecContext(ctx, `DELETE FROM stories WHERE id = ?`, storyID)
 	if err != nil {
 		return errors.Wrap(err, "delete from stories")
 	}
 
 	return nil
 }
+
 
 func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	var s Story
