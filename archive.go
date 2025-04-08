@@ -98,6 +98,9 @@ type archiveResult struct {
 
 func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyID int) archiveResult {
 	// Version 2 includes full story details and allows deletion of story record
+
+	app.logger.Debug("uploadStoryArchive", "storyID", storyID)
+
 	const archiveVersion = 2
 	filename := fmt.Sprintf("%d.v%d.json", storyID, archiveVersion)
 
