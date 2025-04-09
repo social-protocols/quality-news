@@ -358,7 +358,7 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 			where sampleTime <= strftime('%s', 'now') - 21*24*60*60
 			and score > 2
 		)
-		select distinct(id) from latest limit 2
+		select distinct(id) from latest limit 4
 	`
 
 	// Check context before query
