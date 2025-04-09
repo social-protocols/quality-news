@@ -305,18 +305,18 @@ func (app app) processPurgeOperations(ctx context.Context) {
 		}
 
 		// If no story to purge, try to delete old data
-		rowsDeleted, err := app.ndb.deleteOldData(ctx)
-		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				logger.Info("Delete old data operation cancelled due to deadline")
-				return
-			}
-			logger.Error("Failed to delete old data", err)
-		}
+		// rowsDeleted, err := app.ndb.deleteOldData(ctx)
+		// if err != nil {
+		// 	if errors.Is(err, context.DeadlineExceeded) {
+		// 		logger.Info("Delete old data operation cancelled due to deadline")
+		// 		return
+		// 	}
+		// 	logger.Error("Failed to delete old data", err)
+		// }
 
-		if rowsDeleted > 0 {
-			logger.Info("Deleted old data", "rowsDeleted", rowsDeleted)
-		}
+		// if rowsDeleted > 0 {
+		// 	logger.Info("Deleted old data", "rowsDeleted", rowsDeleted)
+		// }
 
 		return
 	}
