@@ -147,33 +147,34 @@ func (app app) mainLoop(ctx context.Context) {
 			// time.NewTicker because in dev mode our app can be suspended, and I
 			// want to see all the timestamps in the DB as multiples of 60.
 			delay := 60 - t%60
+			nextTickTime := t + delay
 			go func() {
 				<-time.After(time.Duration(delay) * time.Second)
-				ticker <- t + delay
+				ticker <- nextTickTime
 			}()
 
 			logger.Info("Beginning crawl")
 
-			// cancel crawl if it doesn't complete 1 second before the next
-			// crawl is supposed to start
-			ctx, cancel := context.WithDeadline(ctx, time.Unix(t+delay-1, 0))
+			// Create a context with deadline for both crawl and idle period
+			crawlCtx, cancel := context.WithDeadline(ctx, time.Unix(nextTickTime-1, 0))
 			defer cancel()
 
-			if err = app.crawlAndPostprocess(ctx); err != nil {
+			if err = app.crawlAndPostprocess(crawlCtx); err != nil {
 				logger.Error("crawlAndPostprocess", err)
 			} else {
 				app.logger.Info("Finished crawl and postprocess")
 
-				// Create a context for the idle period
-				idleCtx, idleCancel := context.WithDeadline(ctx, time.Unix(t+delay-1, 0))
-				defer idleCancel()
-
-				// Try to send the idle context to the archive worker
-				select {
-				case app.archiveTriggerChan <- idleCtx:
-					app.logger.Debug("Sent idle context to archive worker")
-				default:
-					app.logger.Debug("Archive trigger channel full, skipping signal")
+				// Only send idle context if we have enough time (at least 10 seconds)
+				if delay >= 5 {
+					// Try to send the same context to the archive worker
+					select {
+					case app.archiveTriggerChan <- crawlCtx:
+						app.logger.Debug("Sent idle context to archive worker")
+					default:
+						app.logger.Debug("Archive trigger channel full, skipping signal")
+					}
+				} else {
+					app.logger.Debug("Skipping idle context - not enough time", "delay", delay)
 				}
 			}
 
