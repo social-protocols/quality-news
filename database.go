@@ -581,23 +581,46 @@ func (ndb newsDatabase) getDatabaseStats() (size int64, freelist int64, fragment
 }
 
 func (ndb newsDatabase) deleteOldData(ctx context.Context) (int64, error) {
-	// Delete data older than one month. Stories whose first datapoint is more than 21 days old with score greater than 2 are already being archived. So this
-	// should delete what's left -- as long as archiving is working!
-	sqlStatement := `
-		delete from dataset where sampleTime <= unixepoch()-30*24*60*60
-	`
+	const batchSize = 1000
+	var totalRowsAffected int64
 
-	result, err := ndb.db.ExecContext(ctx, sqlStatement)
-	if err != nil {
-		return 0, errors.Wrap(err, "executing delete old data query")
+	for {
+		tx, err := ndb.db.Begin()
+		if err != nil {
+			return totalRowsAffected, errors.Wrap(err, "starting transaction")
+		}
+
+		result, err := tx.ExecContext(ctx, `
+			DELETE FROM dataset 
+			WHERE rowid IN (
+				SELECT rowid FROM dataset 
+				WHERE sampleTime <= unixepoch()-30*24*60*60 
+				LIMIT ?
+			)`, batchSize)
+		if err != nil {
+			_ = tx.Rollback()
+			return totalRowsAffected, errors.Wrap(err, "batch delete from dataset")
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			_ = tx.Rollback()
+			return totalRowsAffected, errors.Wrap(err, "getting rows affected")
+		}
+
+		if err := tx.Commit(); err != nil {
+			return totalRowsAffected, errors.Wrap(err, "commit transaction")
+		}
+
+		totalRowsAffected += rowsAffected
+
+		// No more rows left to delete
+		if rowsAffected < batchSize {
+			break
+		}
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return 0, errors.Wrap(err, "getting rows affected")
-	}
-
-	return rowsAffected, nil
+	return totalRowsAffected, nil
 }
 
 // markStoryArchived marks a story as archived in the database.

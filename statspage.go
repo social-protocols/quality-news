@@ -103,7 +103,7 @@ func (app app) loadStoryAndStats(ctx context.Context, storyID int, modelParams O
 			jsonData, err = sc.DownloadFile(ctx, filename)
 			if err != nil {
 				if !dbRecordExists {
-					return Story{}, StatsData{}, fmt.Errorf("Missing database record and archive file for story id %d", storyID)
+					return Story{}, StatsData{}, ErrStoryIDNotFound
 				}
 				return Story{}, StatsData{}, errors.Wrapf(err, "failed to load archive file %s for story marked as archived", filename)
 			}
