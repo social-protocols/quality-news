@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"strconv"
@@ -13,11 +14,12 @@ import (
 )
 
 type app struct {
-	ndb        newsDatabase
-	hnClient   *hn.Client
-	httpClient *http.Client
-	logger     *slog.Logger
-	cacheSize  int
+	ndb                newsDatabase
+	hnClient           *hn.Client
+	httpClient         *http.Client
+	logger             *slog.Logger
+	cacheSize          int
+	archiveTriggerChan chan context.Context
 }
 
 func initApp() app {
@@ -28,7 +30,7 @@ func initApp() app {
 		if s != "" {
 			cacheSize, err = strconv.Atoi(s)
 			if err != nil {
-				panic("Couldn't parse CACHE_SIZE")
+				LogFatal(slog.Default(), "CACHE_SIZE", err)
 			}
 		}
 	}
@@ -59,11 +61,12 @@ func initApp() app {
 	hnClient := hn.NewClient(httpClient)
 
 	return app{
-		httpClient: httpClient,
-		hnClient:   hnClient,
-		logger:     logger,
-		ndb:        db,
-		cacheSize:  cacheSize,
+		httpClient:         httpClient,
+		hnClient:           hnClient,
+		logger:             logger,
+		ndb:                db,
+		cacheSize:          cacheSize,
+		archiveTriggerChan: make(chan context.Context, 1),
 	}
 }
 

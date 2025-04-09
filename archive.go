@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/exp/slog"
-
 	pond "github.com/alitto/pond/v2"
 	"github.com/pkg/errors"
 )
@@ -52,25 +50,25 @@ func (app app) generateArchiveJSON(ctx context.Context, storyID int) ([]byte, er
 	modelParams := OptionalModelParams{}.WithDefaults()
 
 	// Fetch MaxSampleTime
-	maxSampleTime, err := maxSampleTime(ndb, storyID)
+	maxSampleTime, err := maxSampleTime(ctx, ndb, storyID)
 	if err != nil {
 		return nil, errors.Wrap(err, "maxSampleTime")
 	}
 
 	// Fetch RanksPlotData
-	ranksPlotData, err := rankDatapoints(ndb, storyID)
+	ranksPlotData, err := rankDatapoints(ctx, ndb, storyID)
 	if err != nil {
 		return nil, errors.Wrap(err, "rankDatapoints")
 	}
 
 	// Fetch UpvotesPlotData
-	upvotesPlotData, err := upvotesDatapoints(ndb, storyID, modelParams)
+	upvotesPlotData, err := upvotesDatapoints(ctx, ndb, storyID, modelParams)
 	if err != nil {
 		return nil, errors.Wrap(err, "upvotesDatapoints")
 	}
 
 	// Fetch Story details
-	s, err := ndb.selectStoryDetails(storyID)
+	s, err := ndb.selectStoryDetails(ctx, storyID)
 	if err != nil {
 		return nil, errors.Wrap(err, "selectStoryDetails")
 	}
@@ -147,114 +145,181 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 	return archiveResult{storyID: storyID}
 }
 
-func (app app) archiveAndPurgeOldStatsData(ctx context.Context) error {
-	t := time.Now()
-	defer archivingAndPurgeDuration.UpdateDuration(t)
 
-	app.logger.Info("Looking for stories to archive")
+// processArchivingOperations handles a batch of archiving operations using a worker pool.
+// It selects stories eligible for archiving, then processes
+// each story in parallel using the provided worker pool.
+//
+// The function handles errors at both the batch and individual story level, ensuring
+// that failures in one story don't prevent others from being processed.
+func (app app) processArchivingOperations(ctx context.Context) {
+	logger := app.logger
 
-	storyIDsToArchive, err := app.ndb.selectStoriesToArchive(ctx)
+	// Get stories to archive
+	storyIDs, err := app.ndb.selectStoriesToArchive(ctx)
 	if err != nil {
-		return errors.Wrap(err, "selectStoriesToArchive")
+		archiveErrorsTotal.Inc()
+		logger.Error("Failed to select stories for archiving", err)
+		return
 	}
 
-	n := len(storyIDsToArchive)
+	if len(storyIDs) == 0 {
+		return
+	}
 
-	if n > 0 {
-		app.logger.Info("Found stories to archive", "count", n)
+	logger.Info("Found stories to archive", "count", len(storyIDs))
 
-		sc, err := NewStorageClient()
+	// Create storage client
+	sc, err := NewStorageClient()
+	if err != nil {
+		archiveErrorsTotal.Inc()
+		logger.Error("Failed to create storage client", err)
+		return
+	}
+
+	results := make(chan archiveResult, len(storyIDs))
+	defer close(results)
+
+	pool := pond.NewPool(10, pond.WithContext(ctx))
+
+	var archived int
+	var uploadErrors int
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// Start goroutine to process results
+	go func() {
+		defer wg.Done()
+		for i := 0; i < len(storyIDs); i++ {
+			result := <-results
+			if result.err != nil {
+				uploadErrors++
+				archiveErrorsTotal.Inc()
+				logger.Error("Failed to archive story", result.err, "storyID", result.storyID)
+				continue
+			}
+			archived++
+
+			// Mark story as archived in database
+			if err := app.ndb.markStoryArchived(ctx, result.storyID); err != nil {
+				archiveErrorsTotal.Inc()
+				logger.Error("Failed to mark story as archived", err, "storyID", result.storyID)
+				continue
+			}
+
+			storiesArchivedTotal.Inc()
+		}
+	}()
+
+	// Submit all work to the pool
+	for _, storyID := range storyIDs {
+		sid := storyID
+		pool.Submit(func() {
+
+			// Perform the upload
+            if err := ctx.Err(); err != nil {
+                archiveErrorsTotal.Inc()
+                results <- archiveResult{storyID: sid, err: errors.Wrap(err, "context cancelled before starting upload")}
+                return
+            }
+			results <- app.uploadStoryArchive(ctx, sc, sid)
+		})
+	}
+
+	pool.StopAndWait()
+	wg.Wait()
+
+    app.logger.Info("Finished archiving",
+	    "found", len(storyIDs),
+	    "archived", archived,
+	    "archive_errors", uploadErrors,
+	)
+}
+
+
+// archiveWorker runs in a separate goroutine and handles both archiving and purging operations.
+// It processes archiving tasks continuously using a worker pool, and handles purging operations
+// during idle periods signaled by the main loop.
+//
+// The worker maintains two main operations:
+// 1. Continuous archiving: Runs every 5 minutes to archive eligible stories
+// 2. Triggered purging: Runs during idle periods between crawls to purge archived data
+//
+// The worker respects context cancellation and properly handles task timeouts.
+func (app app) archiveWorker(ctx context.Context) {
+	logger := app.logger
+
+	app.processArchivingOperations(ctx)
+
+	// Create a ticker for periodic archiving
+	archiveTicker := time.NewTicker(5 * time.Minute)
+	defer archiveTicker.Stop()
+
+	for {
+		select {
+		case idleCtx := <-app.archiveTriggerChan:
+			app.processPurgeOperations(idleCtx)
+
+		case <-archiveTicker.C:
+			app.processArchivingOperations(ctx)
+
+		case <-ctx.Done():
+			logger.Info("Archive worker shutting down")
+			return
+		}
+	}
+}
+
+// processPurgeOperations handles purge operations during an idle period.
+// It attempts to purge as many archived stories as possible before the context is cancelled.
+// If no stories are found to purge, it attempts to delete old generic data.
+//
+// The operation respects the provided context's deadline and properly handles
+// cancellation and timeout scenarios.
+func (app app) processPurgeOperations(ctx context.Context) {
+	logger := app.logger
+	var purgedCount int
+
+	// Keep processing purge operations until context is cancelled
+	// or until nothing is to be done.
+	for {
+		// Try to purge one story first
+		storyID, err := app.ndb.selectStoryToPurge(ctx)
 		if err != nil {
-			return errors.Wrap(err, "create storage client")
+			logger.Error("Failed to select story for purging", err)
+			return
 		}
 
-		results := make(chan archiveResult, n)
-		defer close(results)
-
-		pool := pond.NewPool(10, pond.WithContext(ctx))
-
-		var archived, purged int
-		var uploadErrors, purgeErrors int
-		var wg sync.WaitGroup
-		wg.Add(1)
-
-		// Start goroutine to process results
-		go func() {
-			defer wg.Done()
-			for i := 0; i < n; i++ {
-				result := <-results
-				if result.err != nil {
-					uploadErrors++
-					archiveErrorsTotal.Inc()
-					app.logger.Error("Failed to archive story", result.err,
-						"storyID", result.storyID)
-					continue
-				}
-				archived++
-				storiesArchivedTotal.Inc()
-
-				// Check context before purging
-				if err := ctx.Err(); err != nil {
-					archiveErrorsTotal.Inc()
-					app.logger.Error("Context cancelled during purge", err,
-						"stories_archived", archived,
-						"stories_purged", purged)
-					continue // Continue processing uploads, just skip purging
-				}
-
-				// Purge the successfully archived story
-				if err := app.ndb.purgeStory(ctx, result.storyID); err != nil {
-					purgeErrors++
-					archiveErrorsTotal.Inc()
-					app.logger.Error("Failed to purge archived story", err,
-						"storyID", result.storyID)
-					continue
-				}
-				purged++
-			}
-		}()
-
-		// Submit all work
-		for _, storyID := range storyIDsToArchive {
-			sid := storyID
-			pool.Submit(func() {
-				// Check context before starting work
-				if err := ctx.Err(); err != nil {
-					archiveErrorsTotal.Inc()
-					results <- archiveResult{storyID: sid, err: errors.Wrap(err, "context cancelled before starting upload")}
+		if storyID != 0 {
+			// Found a story to purge
+			if err := app.ndb.purgeStory(ctx, storyID); err != nil {
+				if errors.Is(err, context.DeadlineExceeded) {
+					logger.Info("Purge operation cancelled due to deadline", "storyID", storyID)
 					return
 				}
-				results <- app.uploadStoryArchive(ctx, sc, sid)
-			})
+				logger.Error("Failed to purge story", err, "storyID", storyID)
+				// Continue to next story on error
+				continue
+			}
+			purgedCount++
+			logger.Info("Successfully purged story", "storyID", storyID, "totalPurged", purgedCount)
+			continue
 		}
 
-		// Wait for all tasks to complete or be cancelled
-		pool.StopAndWait()
-		wg.Wait()
-
-		if err := ctx.Err(); err != nil {
-			return errors.Wrap(err, "context cancelled during archiving")
-		}
-
-		app.logger.Info("Finished archiving",
-			"found", n,
-			"archived", archived,
-			"archive_errors", uploadErrors,
-			"purged", purged,
-			"purge_errors", purgeErrors)
-	} else {
-		app.logger.Info("No stories to archive")
-
-		// Delete old data
-		app.logger.Info("Deleting old data")
-
+		// If no story to purge, try to delete old data
 		rowsDeleted, err := app.ndb.deleteOldData(ctx)
 		if err != nil {
-			return errors.Wrap(err, "deleteOldData")
+			if errors.Is(err, context.DeadlineExceeded) {
+				logger.Info("Delete old data operation cancelled due to deadline")
+				return
+			}
+			logger.Error("Failed to delete old data", err)
 		}
-		app.logger.Info("Deleted old data", slog.Int64("rows_deleted", rowsDeleted))
 
+		if rowsDeleted > 0 {
+			logger.Info("Deleted old data", "rowsDeleted", rowsDeleted)
+		}
+
+		return
 	}
-
-	return nil
 }

@@ -25,6 +25,9 @@ func main() {
 
 	shutdownPrometheusServer := servePrometheusMetrics()
 
+	// Start the archive worker
+	go app.archiveWorker(ctx)
+
 	// Listen for a soft kill signal (INT, TERM, HUP)
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
@@ -139,7 +142,6 @@ func (app app) mainLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ticker:
-
 			t := time.Now().Unix()
 			// Set the next tick at the minute mark. We use this instead of using
 			// time.NewTicker because in dev mode our app can be suspended, and I
@@ -162,11 +164,17 @@ func (app app) mainLoop(ctx context.Context) {
 			} else {
 				app.logger.Info("Finished crawl and postprocess")
 
-				// err := app.archiveAndPurgeOldStatsData(ctx)
-				// if err != nil {
-				// 	archiveErrorsTotal.Inc()
-				// 	app.logger.Error("archiveAndPurgeOldStatsData", err)
-				// }
+				// Create a context for the idle period
+				idleCtx, idleCancel := context.WithDeadline(ctx, time.Unix(t+delay-1, 0))
+				defer idleCancel()
+
+				// Try to send the idle context to the archive worker
+				select {
+				case app.archiveTriggerChan <- idleCtx:
+					app.logger.Debug("Sent idle context to archive worker")
+				default:
+					app.logger.Debug("Archive trigger channel full, skipping signal")
+				}
 			}
 
 		case <-ctx.Done():

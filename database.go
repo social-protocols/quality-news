@@ -83,6 +83,7 @@ func (ndb newsDatabase) initFrontpageDB() error {
 			, url text not null
 			, timestamp int not null
 			, job boolean not null default false
+			, archived boolean not null default false
 		);
 		`,
 		`
@@ -439,7 +440,7 @@ func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) error {
 	return nil
 }
 
-func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
+func (ndb newsDatabase) selectStoryDetails(ctx context.Context, id int) (Story, error) {
 	var s Story
 
 	sqlStatement := `
@@ -470,7 +471,11 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 	LIMIT 1
 	`
 
-	err := ndb.db.QueryRow(sqlStatement, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job, &s.Archived)
+	err := ndb.db.QueryRowContext(ctx, sqlStatement, id).Scan(
+		&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime,
+		&s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes,
+		&s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job, &s.Archived,
+	)
 	if err != nil {
 		return s, err
 	}
@@ -593,4 +598,50 @@ func (ndb newsDatabase) deleteOldData(ctx context.Context) (int64, error) {
 	}
 
 	return rowsAffected, nil
+}
+
+// markStoryArchived marks a story as archived in the database.
+// If the story is already archived, this is a no-op and returns nil.
+func (ndb *newsDatabase) markStoryArchived(ctx context.Context, storyID int) error {
+	result, err := ndb.db.ExecContext(ctx, `
+		UPDATE stories 
+		SET archived = 1
+		WHERE id = ? AND archived = 0`, storyID)
+	if err != nil {
+		return fmt.Errorf("failed to mark story as archived: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	// If no rows were affected, the story was already archived
+	// This is not an error condition
+	if rowsAffected == 0 {
+		return nil
+	}
+
+	return nil
+}
+
+func (ndb newsDatabase) selectStoryToPurge(ctx context.Context) (int, error) {
+	var storyID int
+
+	sqlStatement := `
+		SELECT id FROM stories 
+		join dataset using (id)
+		WHERE archived = true
+		LIMIT 1
+	`
+
+	err := ndb.db.QueryRowContext(ctx, sqlStatement).Scan(&storyID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, errors.Wrap(err, "selectStoryToPurge")
+	}
+
+	return storyID, nil
 }
