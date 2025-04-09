@@ -145,7 +145,6 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 	return archiveResult{storyID: storyID}
 }
 
-
 // processArchivingOperations handles a batch of archiving operations using a worker pool.
 // It selects stories eligible for archiving, then processes
 // each story in parallel using the provided worker pool.
@@ -217,11 +216,11 @@ func (app app) processArchivingOperations(ctx context.Context) {
 		pool.Submit(func() {
 
 			// Perform the upload
-            if err := ctx.Err(); err != nil {
-                archiveErrorsTotal.Inc()
-                results <- archiveResult{storyID: sid, err: errors.Wrap(err, "context cancelled before starting upload")}
-                return
-            }
+			if err := ctx.Err(); err != nil {
+				archiveErrorsTotal.Inc()
+				results <- archiveResult{storyID: sid, err: errors.Wrap(err, "context cancelled before starting upload")}
+				return
+			}
 			results <- app.uploadStoryArchive(ctx, sc, sid)
 		})
 	}
@@ -229,13 +228,12 @@ func (app app) processArchivingOperations(ctx context.Context) {
 	pool.StopAndWait()
 	wg.Wait()
 
-    app.logger.Info("Finished archiving",
-	    "found", len(storyIDs),
-	    "archived", archived,
-	    "archive_errors", uploadErrors,
+	app.logger.Info("Finished archiving",
+		"found", len(storyIDs),
+		"archived", archived,
+		"archive_errors", uploadErrors,
 	)
 }
-
 
 // archiveWorker runs in a separate goroutine and handles both archiving and purging operations.
 // It processes archiving tasks continuously using a worker pool, and handles purging operations
