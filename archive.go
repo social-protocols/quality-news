@@ -126,6 +126,7 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 		}
 	}
 
+	app.logger.Debug("generateArchiveJSON", "storyID", storyID)
 	jsonData, err := app.generateArchiveJSON(ctx, storyID)
 	if err != nil {
 		return archiveResult{storyID: storyID, err: errors.Wrapf(err, "generating archive data for story %d", storyID)}
@@ -154,6 +155,8 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 func (app app) processArchivingOperations(ctx context.Context) {
 	logger := app.logger
 
+	logger.Info("Selecting stories to archive")
+
 	// Get stories to archive
 	storyIDs, err := app.ndb.selectStoriesToArchive(ctx)
 	if err != nil {
@@ -162,11 +165,11 @@ func (app app) processArchivingOperations(ctx context.Context) {
 		return
 	}
 
+	logger.Info("Found stories to archive", "count", len(storyIDs))
+
 	if len(storyIDs) == 0 {
 		return
 	}
-
-	logger.Info("Found stories to archive", "count", len(storyIDs))
 
 	// Create storage client
 	sc, err := NewStorageClient()
@@ -200,11 +203,13 @@ func (app app) processArchivingOperations(ctx context.Context) {
 			archived++
 
 			// Mark story as archived in database
+			logger.Debug("Marking story as archived", "storyID", result.storyID)
 			if err := app.ndb.markStoryArchived(ctx, result.storyID); err != nil {
 				archiveErrorsTotal.Inc()
 				logger.Error("Failed to mark story as archived", err, "storyID", result.storyID)
 				continue
 			}
+			logger.Debug("Marked story as archived", "storyID", result.storyID)
 
 			storiesArchivedTotal.Inc()
 		}
