@@ -241,22 +241,31 @@ func (app app) processArchivingOperations(ctx context.Context) {
 }
 
 // archiveWorker runs in a separate goroutine and handles both archiving and purging operations.
-// It processes archiving tasks continuously using a worker pool, and handles purging operations
-// during idle periods signaled by the main loop.
+// It processes archiving tasks on a 5-minute schedule with a 30-second offset from the minute mark,
+// and handles purging operations during idle periods signaled by the main loop.
 //
 // The worker maintains two main operations:
-// 1. Continuous archiving: Runs every 5 minutes to archive eligible stories
+// 1. Scheduled archiving: Runs every 5 minutes at :30 seconds past the minute
 // 2. Triggered purging: Runs during idle periods between crawls to purge archived data
 //
 // The worker respects context cancellation and properly handles task timeouts.
 func (app app) archiveWorker(ctx context.Context) {
 	logger := app.logger
 
-	app.processArchivingOperations(ctx)
+	// Calculate initial delay until 30 seconds after the minute
+	now := time.Now()
+	nextRun := now.Truncate(1 * time.Minute).Add(30 * time.Second)
+	initialDelay := nextRun.Sub(now)
+
+	<-time.After(initialDelay)
 
 	// Create a ticker for periodic archiving
 	archiveTicker := time.NewTicker(5 * time.Minute)
 	defer archiveTicker.Stop()
+
+	// Run initial archiving after delay
+	app.processArchivingOperations(ctx)
+
 
 	for {
 		select {
