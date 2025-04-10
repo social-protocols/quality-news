@@ -152,13 +152,20 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 //
 // The function handles errors at both the batch and individual story level, ensuring
 // that failures in one story don't prevent others from being processed.
+//
+// The operation has a 4 minute and 30 second timeout to ensure it completes before
+// the next scheduled run.
 func (app app) processArchivingOperations(ctx context.Context) {
 	logger := app.logger
+
+	// Create a timeout context for the entire operation
+	timeoutCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
 
 	logger.Info("Selecting stories to archive")
 
 	// Get stories to archive
-	storyIDs, err := app.ndb.selectStoriesToArchive(ctx)
+	storyIDs, err := app.ndb.selectStoriesToArchive(timeoutCtx)
 	if err != nil {
 		archiveErrorsTotal.Inc()
 		logger.Error("Failed to select stories for archiving", err)
@@ -182,7 +189,7 @@ func (app app) processArchivingOperations(ctx context.Context) {
 	results := make(chan archiveResult, len(storyIDs))
 	defer close(results)
 
-	pool := pond.NewPool(10, pond.WithContext(ctx))
+	pool := pond.NewPool(10, pond.WithContext(timeoutCtx))
 
 	var archived int
 	var uploadErrors int
@@ -204,7 +211,7 @@ func (app app) processArchivingOperations(ctx context.Context) {
 
 			// Mark story as archived in database
 			logger.Debug("Marking story as archived", "storyID", result.storyID)
-			if err := app.ndb.markStoryArchived(ctx, result.storyID); err != nil {
+			if err := app.ndb.markStoryArchived(timeoutCtx, result.storyID); err != nil {
 				archiveErrorsTotal.Inc()
 				logger.Error("Failed to mark story as archived", err, "storyID", result.storyID)
 				continue
@@ -219,14 +226,13 @@ func (app app) processArchivingOperations(ctx context.Context) {
 	for _, storyID := range storyIDs {
 		sid := storyID
 		pool.Submit(func() {
-
 			// Perform the upload
-			if err := ctx.Err(); err != nil {
+			if err := timeoutCtx.Err(); err != nil {
 				archiveErrorsTotal.Inc()
 				results <- archiveResult{storyID: sid, err: errors.Wrap(err, "context cancelled before starting upload")}
 				return
 			}
-			results <- app.uploadStoryArchive(ctx, sc, sid)
+			results <- app.uploadStoryArchive(timeoutCtx, sc, sid)
 		})
 	}
 
