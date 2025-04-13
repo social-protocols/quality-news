@@ -257,10 +257,11 @@ func (app app) processArchivingOperations(ctx context.Context) error {
 // 2. Triggered purging: Runs during idle periods between crawls to purge archived data
 //
 // The worker respects context cancellation and properly handles task timeouts.
+// If the worker encounters a fatal error, it will log the error and restart itself.
 func (app app) archiveWorker(ctx context.Context) {
 	logger := app.logger
 
-	// Calculate initial delay until 30 seconds after the minute
+	// Calculate initial delay until next 1-minute mark + 30 seconds
 	now := time.Now()
 	nextRun := now.Truncate(1 * time.Minute).Add(30 * time.Second)
 	initialDelay := nextRun.Sub(now)
@@ -272,16 +273,24 @@ func (app app) archiveWorker(ctx context.Context) {
 	defer archiveTicker.Stop()
 
 	// Run initial archiving after delay
-	app.processArchivingOperations(ctx)
-
+	if err := app.processArchivingOperations(ctx); err != nil {
+		logger.Error("Initial archiving operation failed", err)
+	}
 
 	for {
 		select {
 		case idleCtx := <-app.archiveTriggerChan:
-			app.processPurgeOperations(idleCtx)
+			if err := app.processPurgeOperations(idleCtx); err != nil {
+				logger.Error("Purge operation failed", err)
+			}
 
 		case <-archiveTicker.C:
-			app.processArchivingOperations(ctx)
+			if err := app.processArchivingOperations(ctx); err != nil {
+				logger.Error("Scheduled archiving operation failed", err)
+				// If archiving fails, we should restart the worker
+				// This will be handled by the main loop
+				return
+			}
 
 		case <-ctx.Done():
 			logger.Info("Archive worker shutting down")
@@ -296,7 +305,7 @@ func (app app) archiveWorker(ctx context.Context) {
 //
 // The operation respects the provided context's deadline and properly handles
 // cancellation and timeout scenarios.
-func (app app) processPurgeOperations(ctx context.Context) {
+func (app app) processPurgeOperations(ctx context.Context) error {
 	logger := app.logger
 	var purgedCount int
 
@@ -307,7 +316,7 @@ func (app app) processPurgeOperations(ctx context.Context) {
 		storyID, err := app.ndb.selectStoryToPurge(ctx)
 		if err != nil {
 			logger.Error("Failed to select story for purging", err)
-			return
+			return err
 		}
 
 		if storyID != 0 {
@@ -315,7 +324,7 @@ func (app app) processPurgeOperations(ctx context.Context) {
 			if err := app.ndb.purgeStory(ctx, storyID); err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
 					logger.Info("Purge operation cancelled due to deadline", "storyID", storyID)
-					return
+					return nil
 				}
 				logger.Error("Failed to purge story", err, "storyID", storyID)
 				// Continue to next story on error
@@ -339,7 +348,7 @@ func (app app) processPurgeOperations(ctx context.Context) {
 		// if rowsDeleted > 0 {
 		// 	logger.Info("Deleted old data", "rowsDeleted", rowsDeleted)
 		// }
+		return nil
 
-		return
 	}
 }
