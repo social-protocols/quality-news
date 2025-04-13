@@ -464,7 +464,7 @@ func (ndb newsDatabase) selectStoryDetails(ctx context.Context, id int) (Story, 
 		, job
 		, archived
 	from stories
-	JOIN dataset
+	LEFT JOIN dataset
 	USING (id)
 	WHERE id = ?
 	ORDER BY sampleTime DESC
