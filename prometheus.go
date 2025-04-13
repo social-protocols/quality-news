@@ -25,6 +25,7 @@ var (
 	upvotesTotal         = metrics.NewCounter(`upvotes_total`)
 	submissionsTotal     = metrics.NewCounter(`submissions_total`)
 	storiesArchivedTotal = metrics.NewCounter(`stories_archived_total`)
+	storiesPurgedTotal   = metrics.NewCounter(`stories_purged_total`)
 
 	databaseSizeBytes            *metrics.Gauge
 	databaseFragmentationPercent *metrics.Gauge

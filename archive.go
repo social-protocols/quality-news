@@ -331,6 +331,7 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 				continue
 			}
 			purgedCount++
+			storiesPurgedTotal.Inc()
 			logger.Info("Successfully purged story", "storyID", storyID, "totalPurged", purgedCount)
 			continue
 		}
@@ -349,6 +350,5 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 		// 	logger.Info("Deleted old data", "rowsDeleted", rowsDeleted)
 		// }
 		return nil
-
 	}
 }
