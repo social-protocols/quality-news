@@ -155,11 +155,11 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 //
 // The operation has a 4 minute and 30 second timeout to ensure it completes before
 // the next scheduled run.
-func (app app) processArchivingOperations(ctx context.Context) {
+func (app app) processArchivingOperations(ctx context.Context) error {
 	logger := app.logger
 
 	// Create a timeout context for the entire operation
-	timeoutCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 4*time.Minute+30*time.Second)
 	defer cancel()
 
 	logger.Info("Selecting stories to archive")
@@ -169,13 +169,13 @@ func (app app) processArchivingOperations(ctx context.Context) {
 	if err != nil {
 		archiveErrorsTotal.Inc()
 		logger.Error("Failed to select stories for archiving", err)
-		return
+		return err
 	}
 
 	logger.Info("Found stories to archive", "count", len(storyIDs))
 
 	if len(storyIDs) == 0 {
-		return
+		return nil
 	}
 
 	// Create storage client
@@ -183,7 +183,7 @@ func (app app) processArchivingOperations(ctx context.Context) {
 	if err != nil {
 		archiveErrorsTotal.Inc()
 		logger.Error("Failed to create storage client", err)
-		return
+		return err
 	}
 
 	results := make(chan archiveResult, len(storyIDs))
@@ -244,6 +244,8 @@ func (app app) processArchivingOperations(ctx context.Context) {
 		"archived", archived,
 		"archive_errors", uploadErrors,
 	)
+
+	return nil
 }
 
 // archiveWorker runs in a separate goroutine and handles both archiving and purging operations.
