@@ -396,13 +396,14 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 	return storyIDs, nil
 }
 
-func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) error {
+func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) (int64, error) {
 	const batchSize = 1000
+	var totalRowsAffected int64
 
 	for {
 		tx, err := ndb.db.Begin()
 		if err != nil {
-			return errors.Wrap(err, "starting transaction")
+			return totalRowsAffected, errors.Wrap(err, "starting transaction")
 		}
 
 		result, err := tx.ExecContext(ctx, `
@@ -412,18 +413,20 @@ func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) error {
 			)`, storyID, batchSize)
 		if err != nil {
 			_ = tx.Rollback()
-			return errors.Wrap(err, "batch delete from dataset")
+			return totalRowsAffected, errors.Wrap(err, "batch delete from dataset")
 		}
 
 		rowsAffected, err := result.RowsAffected()
 		if err != nil {
 			_ = tx.Rollback()
-			return errors.Wrap(err, "getting rows affected")
+			return totalRowsAffected, errors.Wrap(err, "getting rows affected")
 		}
 
 		if err := tx.Commit(); err != nil {
-			return errors.Wrap(err, "commit transaction")
+			return totalRowsAffected, errors.Wrap(err, "commit transaction")
 		}
+
+		totalRowsAffected += rowsAffected
 
 		// No more rows left to delete
 		if rowsAffected < batchSize {
@@ -434,10 +437,10 @@ func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) error {
 	// Finally, delete the story record
 	_, err := ndb.db.ExecContext(ctx, `DELETE FROM stories WHERE id = ?`, storyID)
 	if err != nil {
-		return errors.Wrap(err, "delete from stories")
+		return totalRowsAffected, errors.Wrap(err, "delete from stories")
 	}
 
-	return nil
+	return totalRowsAffected, nil
 }
 
 func (ndb newsDatabase) selectStoryDetails(ctx context.Context, id int) (Story, error) {

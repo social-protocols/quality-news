@@ -281,6 +281,7 @@ func (app app) archiveWorker(ctx context.Context) {
 func (app app) processPurgeOperations(ctx context.Context) error {
 	logger := app.logger
 	var purgedCount int
+	var totalRowsPurged int64
 
 	// Count stories needing purge
 	storiesNeedingPurge, err := app.ndb.countStoriesNeedingPurge(ctx)
@@ -304,9 +305,13 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 		if storyID != 0 {
 			// Found a story to purge
 			logger.Info("Purging story", "storyID", storyID)
-			if err := app.ndb.purgeStory(ctx, storyID); err != nil {
+			rowsPurged, err := app.ndb.purgeStory(ctx, storyID)
+			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
-					logger.Info("Purge operation cancelled due to deadline", "storyID", storyID, "storiesPurged", purgedCount)
+					logger.Info("Purge operation cancelled due to deadline",
+						"storyID", storyID,
+						"storiesPurged", purgedCount,
+						"totalRowsPurged", totalRowsPurged)
 					return nil
 				}
 				logger.Error("Failed to purge story", err, "storyID", storyID)
@@ -314,11 +319,15 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 				continue
 			}
 			purgedCount++
+			totalRowsPurged += rowsPurged
 			storiesPurgedTotal.Inc()
-			logger.Info("Successfully purged story", "storyID", storyID, "totalPurged", purgedCount)
+			logger.Info("Successfully purged story",
+				"storyID", storyID,
+				"rowsPurged", rowsPurged,
+				"storiesPurged", purgedCount,
+				"totalRowsPurged", totalRowsPurged)
 			continue
 		}
-
 		// If no story to purge, try to delete old data
 		rowsDeleted, err := app.ndb.deleteOldData(ctx)
 		if err != nil {
@@ -330,7 +339,8 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 		}
 
 		if rowsDeleted > 0 {
-			logger.Info("Deleted old data", "rowsDeleted", rowsDeleted)
+			logger.Info("Deleted old data",
+				"rowsDeleted", rowsDeleted)
 		}
 		return nil
 	}
