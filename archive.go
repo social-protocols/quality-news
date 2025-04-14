@@ -337,7 +337,7 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 	rowsDeleted, err := app.ndb.deleteOldData(ctx)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			logger.Info("Delete old data operation cancelled due to deadline")
+			logger.Info("Delete old data operation cancelled due to deadline", rowsDeleted, "rowsDeleted")
 			return nil
 		}
 		logger.Error("Failed to delete old data", err)
