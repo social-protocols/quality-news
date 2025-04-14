@@ -298,7 +298,7 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 			logger.Info("Purging story", "storyID", storyID)
 			if err := app.ndb.purgeStory(ctx, storyID); err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
-					logger.Info("Purge operation cancelled due to deadline", "storyID", storyID)
+					logger.Info("Purge operation cancelled due to deadline", "storyID", storyID, "storiesPurged", purgedCount)
 					return nil
 				}
 				logger.Error("Failed to purge story", err, "storyID", storyID)
