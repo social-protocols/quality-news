@@ -90,12 +90,6 @@ func main() {
 		logger.Info("Server shut down")
 	}()
 
-	// Check fragmentation and vacuum if needed
-	err := app.ndb.vacuumIfNeeded(ctx, app.logger)
-	if err != nil {
-		app.logger.Error("vacuumIfNeeded", err)
-	}
-
 	app.mainLoop(ctx)
 }
 

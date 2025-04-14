@@ -280,6 +280,26 @@ func (app app) archiveWorker(ctx context.Context) {
 // cancellation and timeout scenarios.
 func (app app) processPurgeOperations(ctx context.Context) error {
 	logger := app.logger
+
+	// If no stories to purge, try to perform incremental vacuum
+	// Use a reasonable number of pages (e.g., 1000) to avoid long operations
+	logger.Debug("Getting DB stats")
+	size, freelist, fragmentation, err := app.ndb.getDatabaseStats()
+	if err != nil {
+		return errors.Wrap(err, "getDatabaseStats")
+	}
+	logger.Info("Database stats",
+		"size_mb", float64(size)/(1024*1024),
+		"freelist_pages", freelist,
+		"fragmentation_pct", fragmentation)
+
+	const maxVacuumPages = 1000
+	if err := app.ndb.incrementalVacuum(ctx, maxVacuumPages); err != nil {
+		logger.Error("Failed to perform incremental vacuum", err)
+		// Don't return the error - vacuuming is optional
+	}
+	logger.Debug("Finished vacuum")
+
 	var purgedCount int
 	var totalRowsPurged int64
 
@@ -332,18 +352,23 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 			break
 		}
 	}
-	// If no story to purge, try to delete old data
-	// logger.Info("Deleting old data")
-	// rowsDeleted, err := app.ndb.deleteOldData(ctx)
-	// if err != nil {
-	// 	if errors.Is(err, context.DeadlineExceeded) {
-	// 		logger.Info("Delete old data operation cancelled due to deadline", rowsDeleted, "rowsDeleted")
-	// 		return nil
-	// 	}
-	// 	logger.Error("Failed to delete old data", err)
-	// }
 
-	// logger.Info("Deleted old data",
-	// 	"rowsDeleted", rowsDeleted)
+	const deleteOldData = false
+
+	// If no story to purge, try to delete old data
+	if deleteOldData {
+		logger.Info("Deleting old data")
+		rowsDeleted, err := app.ndb.deleteOldData(ctx)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				logger.Info("Delete old data operation cancelled due to deadline", rowsDeleted, "rowsDeleted")
+				return nil
+			}
+			logger.Error("Failed to delete old data", err)
+		}
+		logger.Info("Deleted old data",
+			"rowsDeleted", rowsDeleted)
+	}
+
 	return nil
 }

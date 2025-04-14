@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"time"
 
 	stdlib "github.com/multiprocessio/go-sqlite3-stdlib"
 	"github.com/pkg/errors"
@@ -74,6 +73,12 @@ func createDataDirIfNotExists(sqliteDataDir string) {
 }
 
 func (ndb newsDatabase) initFrontpageDB() error {
+	// Enable incremental auto-vacuum
+	_, err := ndb.db.Exec("PRAGMA auto_vacuum=INCREMENTAL")
+	if err != nil {
+		return errors.Wrap(err, "enabling auto_vacuum")
+	}
+
 	seedStatements := []string{
 		`
 		CREATE TABLE IF NOT EXISTS stories(
@@ -126,7 +131,6 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		`
 		drop view if exists previousCrawl
 		`,
-		`PRAGMA auto_vacuum=NONE`,
 	}
 
 	for _, s := range seedStatements {
@@ -529,57 +533,17 @@ func (ndb newsDatabase) storyCount(tx *sql.Tx) (int, error) {
 	return count, nil
 }
 
-func (ndb newsDatabase) vacuumIfNeeded(ctx context.Context, logger *slog.Logger) error {
-	size, freelist, fragmentation, err := ndb.getDatabaseStats()
-	if err != nil {
-		return errors.Wrap(err, "getDatabaseStats")
-	}
-
-	logger.Info("Database stats",
-		"size_mb", float64(size)/(1024*1024),
-		"freelist_pages", freelist,
-		"fragmentation_pct", fragmentation)
-
-	if fragmentation > 20.0 {
-		logger.Info("Starting vacuum operation",
-			"fragmentation_pct", fragmentation)
-
-		startTime := time.Now()
-		_, err := ndb.db.ExecContext(ctx, "VACUUM")
-		if err != nil {
-			return errors.Wrap(err, "vacuum database")
-		}
-
-		newSize, _, newFragmentation, err := ndb.getDatabaseStats()
-		if err != nil {
-			return errors.Wrap(err, "getDatabaseStats after vacuum")
-		}
-
-		logger.Info("Vacuum completed",
-			"duration_seconds", time.Since(startTime).Seconds(),
-			"size_before_mb", float64(size)/(1024*1024),
-			"size_after_mb", float64(newSize)/(1024*1024),
-			"space_reclaimed_mb", float64(size-newSize)/(1024*1024),
-			"fragmentation_before", fragmentation,
-			"fragmentation_after", newFragmentation)
-
-		vacuumOperationsTotal.Inc()
-	}
-
-	return nil
-}
-
 func (ndb newsDatabase) getDatabaseStats() (size int64, freelist int64, fragmentation float64, err error) {
 	err = ndb.db.QueryRow(`
-		SELECT 
-			(SELECT page_count FROM pragma_page_count()) * 
-			(SELECT page_size FROM pragma_page_size()) as total_bytes,
-			(SELECT freelist_count FROM pragma_freelist_count()) as free_pages,
-			ROUND(
-				100.0 * (SELECT freelist_count FROM pragma_freelist_count()) /
-				(SELECT page_count FROM pragma_page_count()), 1
-			) as fragmentation_pct
-	`).Scan(&size, &freelist, &fragmentation)
+        SELECT
+            (SELECT page_count FROM pragma_page_count()) *
+            (SELECT page_size FROM pragma_page_size()) as total_bytes,
+            (SELECT freelist_count FROM pragma_freelist_count()) as free_pages,
+            ROUND(
+                100.0 * (SELECT freelist_count FROM pragma_freelist_count()) /
+                (SELECT page_count FROM pragma_page_count()), 1
+            ) as fragmentation_pct
+    `).Scan(&size, &freelist, &fragmentation)
 	return
 }
 
@@ -687,4 +651,63 @@ func (ndb newsDatabase) countStoriesNeedingPurge(ctx context.Context) (int, erro
 	}
 
 	return count, nil
+}
+
+// incrementalVacuum performs a controlled vacuum operation during idle time
+// maxPages specifies the maximum number of pages to vacuum in this operation
+func (ndb newsDatabase) incrementalVacuum(ctx context.Context, maxPages int) error {
+	// Get initial fragmentation stats
+	var initialFragmentation float64
+	var initialFreePages int64
+	err := ndb.db.QueryRowContext(ctx, `
+		SELECT 
+			(SELECT freelist_count FROM pragma_freelist_count()) as free_pages,
+			ROUND(
+				100.0 * (SELECT freelist_count FROM pragma_freelist_count()) /
+				(SELECT page_count FROM pragma_page_count()), 1
+			) as fragmentation_pct
+	`).Scan(&initialFreePages, &initialFragmentation)
+	if err != nil {
+		return errors.Wrap(err, "checking initial fragmentation")
+	}
+
+	if initialFreePages == 0 {
+		return nil // Nothing to vacuum
+	}
+
+	// Calculate how many pages to vacuum (min of free pages and maxPages)
+	pagesToVacuum := initialFreePages
+	if int64(maxPages) < pagesToVacuum {
+		pagesToVacuum = int64(maxPages)
+	}
+
+	// Perform the incremental vacuum
+	_, err = ndb.db.ExecContext(ctx, fmt.Sprintf("PRAGMA incremental_vacuum(%d)", pagesToVacuum))
+	if err != nil {
+		return errors.Wrap(err, "incremental vacuum")
+	}
+
+	// Get final fragmentation stats
+	var finalFragmentation float64
+	var finalFreePages int64
+	err = ndb.db.QueryRowContext(ctx, `
+		SELECT 
+			(SELECT freelist_count FROM pragma_freelist_count()) as free_pages,
+			ROUND(
+				100.0 * (SELECT freelist_count FROM pragma_freelist_count()) /
+				(SELECT page_count FROM pragma_page_count()), 1
+			) as fragmentation_pct
+	`).Scan(&finalFreePages, &finalFragmentation)
+	if err != nil {
+		return errors.Wrap(err, "checking final fragmentation")
+	}
+
+	// Log the results
+	slog.Info("Incremental vacuum completed",
+		"pages_vacuumed", initialFreePages-finalFreePages,
+		"initial_fragmentation_pct", initialFragmentation,
+		"final_fragmentation_pct", finalFragmentation,
+		"remaining_free_pages", finalFreePages)
+
+	return nil
 }
