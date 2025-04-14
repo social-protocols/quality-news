@@ -295,7 +295,7 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 	// or until nothing is to be done.
 	for {
 		// Try to purge one story first
-		logger.Info("Selecting stories to purge")
+		logger.Info("Selecting story to purge")
 		storyID, err := app.ndb.selectStoryToPurge(ctx)
 		if err != nil {
 			logger.Error("Failed to select story for purging", err)
@@ -327,21 +327,25 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 				"storiesPurged", purgedCount,
 				"totalRowsPurged", totalRowsPurged)
 			continue
+		} else {
+			logger.Info("No stories to purge")
+			break
 		}
-		// If no story to purge, try to delete old data
-		rowsDeleted, err := app.ndb.deleteOldData(ctx)
-		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				logger.Info("Delete old data operation cancelled due to deadline")
-				return nil
-			}
-			logger.Error("Failed to delete old data", err)
-		}
-
-		if rowsDeleted > 0 {
-			logger.Info("Deleted old data",
-				"rowsDeleted", rowsDeleted)
-		}
-		return nil
 	}
+	// If no story to purge, try to delete old data
+	logger.Info("Deleting old data")
+	rowsDeleted, err := app.ndb.deleteOldData(ctx)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			logger.Info("Delete old data operation cancelled due to deadline")
+			return nil
+		}
+		logger.Error("Failed to delete old data", err)
+	}
+
+	if rowsDeleted > 0 {
+		logger.Info("Deleted old data",
+			"rowsDeleted", rowsDeleted)
+	}
+	return nil
 }
