@@ -282,6 +282,14 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 	logger := app.logger
 	var purgedCount int
 
+	// Count stories needing purge
+	storiesNeedingPurge, err := app.ndb.countStoriesNeedingPurge(ctx)
+	if err != nil {
+		logger.Error("Failed to count stories needing purge", err)
+		return err
+	}
+	logger.Info("Starting purge operations", "storiesNeedingPurge", storiesNeedingPurge)
+
 	// Keep processing purge operations until context is cancelled
 	// or until nothing is to be done.
 	for {

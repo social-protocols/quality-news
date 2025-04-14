@@ -668,3 +668,20 @@ func (ndb newsDatabase) selectStoryToPurge(ctx context.Context) (int, error) {
 
 	return storyID, nil
 }
+
+func (ndb newsDatabase) countStoriesNeedingPurge(ctx context.Context) (int, error) {
+	var count int
+
+	sqlStatement := `
+		SELECT COUNT(DISTINCT id) FROM stories 
+		join dataset using (id)
+		WHERE archived = true
+	`
+
+	err := ndb.db.QueryRowContext(ctx, sqlStatement).Scan(&count)
+	if err != nil {
+		return 0, errors.Wrap(err, "countStoriesNeedingPurge")
+	}
+
+	return count, nil
+}
