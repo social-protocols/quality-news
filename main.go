@@ -15,7 +15,6 @@ const maxShutDownTimeout = 5 * time.Second
 
 func main() {
 	app := initApp()
-	app.initDatabaseMetrics()
 	defer app.cleanup()
 
 	logger := app.logger

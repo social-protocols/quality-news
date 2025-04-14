@@ -131,7 +131,7 @@ func (rs rawStory) Clean() (ScrapedStory, error) {
 
 			story.AgeApprox = int64(n) * units
 		} else {
-			return story, fmt.Errorf("Parse age %s", rs.AgeApprox)
+			return story, fmt.Errorf("parse age %s", rs.AgeApprox)
 		}
 
 		// parse rank. we know the rank because of the order it appears in.

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
@@ -17,32 +16,6 @@ type ArchiveData struct {
 	UpvotesPlotData [][]any `json:"UpvotesPlotData"`
 	MaxSampleTime   int     `json:"MaxSampleTime"`
 	Story                   // embed Story
-}
-
-type responseBuffer struct {
-	header http.Header
-	body   []byte
-	status int
-}
-
-func newResponseBuffer() *responseBuffer {
-	return &responseBuffer{
-		header: make(http.Header),
-		status: http.StatusOK,
-	}
-}
-
-func (r *responseBuffer) Header() http.Header {
-	return r.header
-}
-
-func (r *responseBuffer) Write(b []byte) (int, error) {
-	r.body = append(r.body, b...)
-	return len(b), nil
-}
-
-func (r *responseBuffer) WriteHeader(statusCode int) {
-	r.status = statusCode
 }
 
 func (app app) generateArchiveJSON(ctx context.Context, storyID int) ([]byte, error) {

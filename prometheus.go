@@ -20,16 +20,13 @@ var (
 	requestErrorsTotal          = metrics.NewCounter(`errors_total{type="request"}`)
 	crawlDuration               = metrics.NewHistogram("crawl_duration_seconds")
 	crawlPostprocessingDuration = metrics.NewHistogram("crawl_postprocessing_duration_seconds")
-	archivingAndPurgeDuration   = metrics.NewHistogram("archiving_and_purge_duration_seconds")
 
 	upvotesTotal         = metrics.NewCounter(`upvotes_total`)
 	submissionsTotal     = metrics.NewCounter(`submissions_total`)
 	storiesArchivedTotal = metrics.NewCounter(`stories_archived_total`)
 	storiesPurgedTotal   = metrics.NewCounter(`stories_purged_total`)
 
-	databaseSizeBytes            *metrics.Gauge
-	databaseFragmentationPercent *metrics.Gauge
-	vacuumOperationsTotal        = metrics.NewCounter(`database_vacuum_operations_total{database="frontpage"}`)
+	vacuumOperationsTotal = metrics.NewCounter(`database_vacuum_operations_total{database="frontpage"}`)
 
 	// Store histograms per route to avoid duplicate registration
 	routeHistograms = make(map[string]*metrics.Histogram)
@@ -84,24 +81,4 @@ func prometheusMiddleware[P any](routeName string, h httperror.XHandler[P]) http
 
 		return err
 	}
-}
-
-func (app *app) initDatabaseMetrics() {
-	databaseSizeBytes = metrics.NewGauge(`database_size_bytes{database="frontpage"}`, func() float64 {
-		size, _, _, err := app.ndb.getDatabaseStats()
-		if err != nil {
-			app.logger.Error("getDatabaseStats", err)
-			return 0
-		}
-		return float64(size)
-	})
-
-	databaseFragmentationPercent = metrics.NewGauge(`database_fragmentation_percent{database="frontpage"}`, func() float64 {
-		_, _, fragmentation, err := app.ndb.getDatabaseStats()
-		if err != nil {
-			app.logger.Error("getDatabaseStats", err)
-			return 0
-		}
-		return fragmentation
-	})
 }
