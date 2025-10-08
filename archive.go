@@ -403,7 +403,7 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 		}
 	}
 
-	const deleteOldData = true
+	const deleteOldData = false
 
 	// If no story to purge, try to delete old data
 	if deleteOldData {
