@@ -401,7 +401,7 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 }
 
 func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) (int64, error) {
-	const batchSize = 5000  // Increased from 1000 for faster purging
+	const batchSize = 3000 // Balance between speed and lock duration
 	var totalRowsAffected int64
 
 	for {
@@ -618,11 +618,12 @@ func (ndb *newsDatabase) markStoryArchived(ctx context.Context, storyID int) err
 func (ndb newsDatabase) selectStoryToPurge(ctx context.Context) (int, error) {
 	var storyID int
 
-	// Use DISTINCT to avoid scanning all dataset rows
-	// Just get any one archived story ID
+	// Must join with dataset to ensure story actually has data to purge
+	// Use DISTINCT to get one story ID efficiently
 	sqlStatement := `
-		SELECT id FROM stories 
-		WHERE archived = 1
+		SELECT DISTINCT stories.id FROM stories 
+		JOIN dataset ON dataset.id = stories.id
+		WHERE stories.archived = 1
 		LIMIT 1
 	`
 

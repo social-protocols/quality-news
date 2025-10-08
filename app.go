@@ -38,17 +38,22 @@ func initApp() app {
 	logLevelString := os.Getenv("LOG_LEVEL")
 	logFormatString := os.Getenv("LOG_FORMAT")
 	logger := newLogger(logLevelString, logFormatString)
+	
+	logger.Info("Initializing application")
 
 	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
 	if sqliteDataDir == "" {
 		panic("SQLITE_DATA_DIR not set")
 	}
 
+	logger.Info("Opening database", "dataDir", sqliteDataDir)
 	db, err := openNewsDatabase(sqliteDataDir)
 	if err != nil {
 		LogFatal(logger, "openNewsDatabase", err)
 	}
+	logger.Info("Database opened successfully")
 
+	logger.Info("Initializing HTTP client")
 	retryClient := retryablehttp.NewClient()
 	retryClient.RetryMax = 3
 	retryClient.RetryWaitMin = 1 * time.Second
@@ -59,6 +64,8 @@ func initApp() app {
 	httpClient := retryClient.StandardClient()
 
 	hnClient := hn.NewClient(httpClient)
+	
+	logger.Info("Application initialization complete")
 
 	return app{
 		httpClient:         httpClient,
