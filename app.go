@@ -66,7 +66,7 @@ func initApp() app {
 		logger:             logger,
 		ndb:                db,
 		cacheSize:          cacheSize,
-		archiveTriggerChan: make(chan context.Context, 1), // Buffer size 1: one signal can queue while processing
+		archiveTriggerChan: make(chan context.Context, 1),
 	}
 }
 
