@@ -24,8 +24,11 @@ func main() {
 
 	shutdownPrometheusServer := servePrometheusMetrics()
 
-	// Start the archive worker
+	// Start the archive worker (runs every 5 minutes)
 	go app.archiveWorker(ctx)
+
+	// Start the purge worker (runs during idle time between crawls)
+	go app.purgeWorker(ctx)
 
 	// Listen for a soft kill signal (INT, TERM, HUP)
 	c := make(chan os.Signal, 1)
@@ -157,14 +160,14 @@ func (app app) mainLoop(ctx context.Context) {
 			} else {
 				app.logger.Info("Finished crawl and postprocess")
 
-				// Only send idle context if we have enough time (at least 10 seconds)
+				// Only send idle context if we have enough time (at least 5 seconds)
 				if delay >= 5 {
-					// Try to send the same context to the archive worker
+					// Try to send the context to the purge worker (non-blocking)
 					select {
 					case app.archiveTriggerChan <- crawlCtx:
-						app.logger.Debug("Sent idle context to archive worker")
+						app.logger.Debug("Sent idle context to purge worker", "available_seconds", delay)
 					default:
-						app.logger.Debug("Archive trigger channel full, skipping signal")
+						app.logger.Warn("Purge trigger channel full, signal dropped - purge worker may be backed up")
 					}
 				} else {
 					app.logger.Debug("Skipping idle context - not enough time", "delay", delay)
