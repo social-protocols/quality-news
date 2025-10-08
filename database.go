@@ -149,8 +149,9 @@ func (ndb newsDatabase) initFrontpageDB(logger *slog.Logger) error {
 		`alter table stories add column archived boolean default false not null`,
 		`DROP INDEX if exists archived`,
 		`CREATE INDEX IF NOT EXISTS dataset_sampletime on dataset(sampletime)`,
+		`CREATE INDEX IF NOT EXISTS dataset_archive_candidates on dataset(id, sampleTime, score)`,
 		`CREATE INDEX IF NOT EXISTS stories_archived on stories(archived) WHERE archived = 1`,
-
+		
 		// NOTE: Removed UPDATE statement that was running on every startup and blocking for minutes.
 		// This was a one-time migration to backfill upvoteRate for historical data.
 		// New rows get upvoteRate calculated properly on insert.
@@ -373,15 +374,16 @@ func (ndb newsDatabase) selectLastCrawlTime() (int, error) {
 func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, error) {
 	var storyIDs []int
 
+	// Query stories table first (small), then check dataset for matching records
+	// This is much faster than scanning 64M dataset rows
 	sqlStatement := `
-		with latest as (
-			select dataset.id, score, sampleTime from dataset
-			join stories on dataset.id = stories.id
-			where sampleTime <= strftime('%s', 'now') - 21*24*60*60
-			and score > 2
-			and stories.archived = 0
-		)
-		select distinct(id) from latest limit 5
+		select distinct stories.id
+		from stories
+		join dataset on stories.id = dataset.id
+		where stories.archived = 0
+		  and dataset.sampleTime <= strftime('%s', 'now') - 21*24*60*60
+		  and dataset.score > 2
+		limit 5
 	`
 
 	// Check context before query
