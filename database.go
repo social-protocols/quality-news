@@ -149,7 +149,6 @@ func (ndb newsDatabase) initFrontpageDB(logger *slog.Logger) error {
 		`alter table stories add column archived boolean default false not null`,
 		`DROP INDEX if exists archived`,
 		`CREATE INDEX IF NOT EXISTS dataset_sampletime on dataset(sampletime)`,
-		`CREATE INDEX IF NOT EXISTS dataset_id_sampletime_lookup on dataset(id, sampleTime)`,
 		`CREATE INDEX IF NOT EXISTS stories_archived on stories(archived) WHERE archived = 1`,
 
 		// NOTE: Removed UPDATE statement that was running on every startup and blocking for minutes.
