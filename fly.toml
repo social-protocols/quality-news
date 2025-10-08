@@ -8,7 +8,7 @@ primary_region = "ewr"
 
 [build]
   builder = "paketobuildpacks/builder:base"
-  buildpacks = ["paketobuildpacks/go"]
+  buildpacks = ["docker.io/paketobuildpacks/go"]
 
 [env]
   PORT = "8080"
