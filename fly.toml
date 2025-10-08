@@ -7,8 +7,7 @@ processes = []
 primary_region = "ewr"
 
 [build]
-  builder = "paketobuildpacks/builder:base"
-  buildpacks = ["docker.io/paketobuildpacks/go"]
+  builder = "paketobuildpacks/builder:0.3.292-base"
 
 [env]
   PORT = "8080"
