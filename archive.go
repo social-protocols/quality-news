@@ -119,12 +119,19 @@ func (app app) uploadStoryArchive(ctx context.Context, sc *StorageClient, storyI
 	return archiveResult{storyID: storyID}
 }
 
-// processArchivingOperations handles a batch of archiving operations using a worker pool.
-// It selects stories eligible for archiving, then processes
-// each story in parallel using the provided worker pool.
+// processArchivingOperations handles old story cleanup by either archiving or marking for deletion.
+// It operates in three phases:
+//  1. Selects stories older than 21 days that haven't been processed yet
+//  2. For high-score stories (score > 2): generates JSON and uploads to S3 for backup
+//     For low-score stories (score ≤ 2): skips S3 upload (no backup needed)
+//  3. Marks all processed stories as archived (ready for deletion by purge worker)
 //
-// The function handles errors at both the batch and individual story level, ensuring
-// that failures in one story don't prevent others from being processed.
+// The function uses goroutine pools to parallelize the work, with a default
+// concurrency of 10 workers. Results are collected via a buffered channel, and errors
+// are logged but don't stop the processing of other stories.
+//
+// This approach ensures valuable high-score stories are preserved in S3 while allowing
+// low-score stories to be cleaned up without the cost of backup storage.
 //
 // The operation has a 4 minute and 30 second timeout to ensure it completes before
 // the next scheduled run.
@@ -135,7 +142,7 @@ func (app app) processArchivingOperations(ctx context.Context) error {
 	timeoutCtx, cancel := context.WithTimeout(ctx, 4*time.Minute+30*time.Second)
 	defer cancel()
 
-	logger.Info("Selecting stories to archive (stories older than 21 days with score > 2 and not yet archived)")
+	logger.Info("Selecting stories to process (stories older than 21 days not yet archived)")
 
 	// Get stories to archive
 	storyIDs, err := app.ndb.selectStoriesToArchive(timeoutCtx)
@@ -146,9 +153,9 @@ func (app app) processArchivingOperations(ctx context.Context) error {
 	}
 
 	if len(storyIDs) == 0 {
-		logger.Info("No stories found that need archiving")
+		logger.Info("No old stories found to process")
 	} else {
-		logger.Info("Found stories to archive", "count", len(storyIDs), "story_ids", storyIDs)
+		logger.Info("Found old stories to process", "count", len(storyIDs), "story_ids", storyIDs)
 	}
 
 	if len(storyIDs) == 0 {
@@ -204,23 +211,40 @@ func (app app) processArchivingOperations(ctx context.Context) error {
 	for _, storyID := range storyIDs {
 		sid := storyID
 		pool.Submit(func() {
-			// Perform the upload
+			// Check context
 			if err := timeoutCtx.Err(); err != nil {
 				archiveErrorsTotal.Inc()
-				results <- archiveResult{storyID: sid, err: errors.Wrap(err, "context cancelled before starting upload")}
+				results <- archiveResult{storyID: sid, err: errors.Wrap(err, "context cancelled")}
 				return
 			}
-			results <- app.uploadStoryArchive(timeoutCtx, sc, sid)
+			
+			// Get max score to decide whether to upload to S3
+			maxScore, err := app.ndb.getMaxScore(timeoutCtx, sid)
+			if err != nil {
+				archiveErrorsTotal.Inc()
+				results <- archiveResult{storyID: sid, err: errors.Wrap(err, "failed to get max score")}
+				return
+			}
+			
+			if maxScore > 2 {
+				// High-score story: upload to S3 for backup
+				logger.Debug("Archiving story to S3", "storyID", sid, "maxScore", maxScore)
+				results <- app.uploadStoryArchive(timeoutCtx, sc, sid)
+			} else {
+				// Low-score story: skip S3 upload, just mark for deletion
+				logger.Debug("Marking low-score story for deletion (no S3 backup)", "storyID", sid, "maxScore", maxScore)
+				results <- archiveResult{storyID: sid, err: nil}
+			}
 		})
 	}
 
 	pool.StopAndWait()
 	wg.Wait()
 
-	app.logger.Info("Finished archiving",
+	app.logger.Info("Finished processing old stories",
 		"found", len(storyIDs),
-		"archived", archived,
-		"archive_errors", uploadErrors,
+		"marked_for_deletion", archived,
+		"errors", uploadErrors,
 	)
 
 	return nil

@@ -149,9 +149,9 @@ func (ndb newsDatabase) initFrontpageDB(logger *slog.Logger) error {
 		`alter table stories add column archived boolean default false not null`,
 		`DROP INDEX if exists archived`,
 		`CREATE INDEX IF NOT EXISTS dataset_sampletime on dataset(sampletime)`,
-		`CREATE INDEX IF NOT EXISTS dataset_archive_candidates on dataset(id, sampleTime, score)`,
+		`CREATE INDEX IF NOT EXISTS dataset_id_sampletime_lookup on dataset(id, sampleTime)`,
 		`CREATE INDEX IF NOT EXISTS stories_archived on stories(archived) WHERE archived = 1`,
-		
+
 		// NOTE: Removed UPDATE statement that was running on every startup and blocking for minutes.
 		// This was a one-time migration to backfill upvoteRate for historical data.
 		// New rows get upvoteRate calculated properly on insert.
@@ -371,19 +371,28 @@ func (ndb newsDatabase) selectLastCrawlTime() (int, error) {
 	return sampleTime, err
 }
 
+func (ndb newsDatabase) getMaxScore(ctx context.Context, storyID int) (int, error) {
+	var maxScore int
+	sqlStatement := `SELECT MAX(score) FROM dataset WHERE id = ?`
+	err := ndb.db.QueryRowContext(ctx, sqlStatement, storyID).Scan(&maxScore)
+	if err != nil {
+		return 0, errors.Wrap(err, "getMaxScore")
+	}
+	return maxScore, nil
+}
+
 func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, error) {
 	var storyIDs []int
 
-	// Query stories table first (small), then check dataset for matching records
-	// This is much faster than scanning 64M dataset rows
+	// Select old stories regardless of score
+	// High-score stories will be backed up to S3, low-score just marked for deletion
 	sqlStatement := `
 		select distinct stories.id
 		from stories
 		join dataset on stories.id = dataset.id
 		where stories.archived = 0
 		  and dataset.sampleTime <= strftime('%s', 'now') - 21*24*60*60
-		  and dataset.score > 2
-		limit 5
+		limit 10
 	`
 
 	// Check context before query
