@@ -230,26 +230,40 @@ func (app app) processArchivingOperations(ctx context.Context) error {
 // The worker respects context cancellation and properly handles task timeouts.
 func (app app) archiveWorker(ctx context.Context) {
 	logger := app.logger
+	
+	logger.Info("Archive worker started")
 
 	// Calculate initial delay until next 1-minute mark + 30 seconds
 	now := time.Now()
 	nextRun := now.Truncate(1 * time.Minute).Add(30 * time.Second)
 	initialDelay := nextRun.Sub(now)
-
-	<-time.After(initialDelay)
+	
+	logger.Debug("Archive worker waiting for initial delay", "delay_seconds", initialDelay.Seconds())
 
 	// Create a ticker for periodic archiving
 	archiveTicker := time.NewTicker(5 * time.Minute)
 	defer archiveTicker.Stop()
-
-	// Run initial archiving after delay
-	if err := app.processArchivingOperations(ctx); err != nil {
-		logger.Error("Initial archiving operation failed", err)
-	}
+	
+	// Use a timer for the initial delay so we can select on it
+	initialTimer := time.NewTimer(initialDelay)
+	defer initialTimer.Stop()
+	
+	// Wait for initial delay in the select loop
+	initialRun := true
 
 	for {
 		select {
+		case <-initialTimer.C:
+			if initialRun {
+				initialRun = false
+				logger.Info("Running initial archiving operation")
+				if err := app.processArchivingOperations(ctx); err != nil {
+					logger.Error("Initial archiving operation failed", err)
+				}
+			}
+			
 		case <-archiveTicker.C:
+			logger.Info("Running scheduled archiving operation")
 			if err := app.processArchivingOperations(ctx); err != nil {
 				logger.Error("Scheduled archiving operation failed", err)
 				// Continue running even if archiving fails - don't crash the worker
