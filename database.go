@@ -146,6 +146,7 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		`alter table stories add column archived boolean default false not null`,
 		`DROP INDEX if exists archived`,
 		`CREATE INDEX IF NOT EXISTS dataset_sampletime on dataset(sampletime)`,
+		`CREATE INDEX IF NOT EXISTS stories_archived on stories(archived) WHERE archived = 1`,
 
 		`update dataset set upvoteRate = ( cumulativeUpvotes + 2.3 ) / ( cumulativeExpectedUpvotes + 2.3) where upvoteRate = 0`,
 	}
@@ -401,7 +402,7 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 }
 
 func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) (int64, error) {
-	const batchSize = 3000 // Balance between speed and lock duration
+	const batchSize = 1000 // Small batches to minimize lock time
 	var totalRowsAffected int64
 
 	for {
