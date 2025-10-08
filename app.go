@@ -38,7 +38,7 @@ func initApp() app {
 	logLevelString := os.Getenv("LOG_LEVEL")
 	logFormatString := os.Getenv("LOG_FORMAT")
 	logger := newLogger(logLevelString, logFormatString)
-	
+
 	logger.Info("Initializing application")
 
 	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
@@ -47,7 +47,7 @@ func initApp() app {
 	}
 
 	logger.Info("Opening database", "dataDir", sqliteDataDir)
-	db, err := openNewsDatabase(sqliteDataDir)
+	db, err := openNewsDatabase(sqliteDataDir, logger)
 	if err != nil {
 		LogFatal(logger, "openNewsDatabase", err)
 	}
@@ -64,7 +64,7 @@ func initApp() app {
 	httpClient := retryClient.StandardClient()
 
 	hnClient := hn.NewClient(httpClient)
-	
+
 	logger.Info("Application initialization complete")
 
 	return app{

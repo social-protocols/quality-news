@@ -72,13 +72,15 @@ func createDataDirIfNotExists(sqliteDataDir string) {
 	}
 }
 
-func (ndb newsDatabase) initFrontpageDB() error {
+func (ndb newsDatabase) initFrontpageDB(logger *slog.Logger) error {
+	logger.Info("Setting PRAGMA auto_vacuum=INCREMENTAL")
 	// Enable incremental auto-vacuum
 	_, err := ndb.db.Exec("PRAGMA auto_vacuum=INCREMENTAL")
 	if err != nil {
 		return errors.Wrap(err, "enabling auto_vacuum")
 	}
 
+	logger.Info("Creating tables and indexes")
 	seedStatements := []string{
 		`
 		CREATE TABLE IF NOT EXISTS stories(
@@ -140,6 +142,7 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		}
 	}
 
+	logger.Info("Running ALTER statements and creating additional indexes")
 	alterStatements := []string{
 		`alter table dataset add column upvoteRateWindow int`,
 		`alter table dataset add column upvoteRate float default 0 not null`,
@@ -151,10 +154,12 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		`update dataset set upvoteRate = ( cumulativeUpvotes + 2.3 ) / ( cumulativeExpectedUpvotes + 2.3) where upvoteRate = 0`,
 	}
 
-	for _, s := range alterStatements {
+	for i, s := range alterStatements {
+		logger.Debug("Executing ALTER statement", "index", i, "statement", s[:min(50, len(s))])
 		_, _ = ndb.db.Exec(s)
 	}
 
+	logger.Info("ALTER statements complete")
 	return nil
 }
 
@@ -199,7 +204,8 @@ func (ndb newsDatabase) initUpvotesDB() error {
 	return errors.Wrap(err, "attach frontpage database")
 }
 
-func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
+func openNewsDatabase(sqliteDataDir string, logger *slog.Logger) (newsDatabase, error) {
+	logger.Info("Creating data directory if needed")
 	createDataDirIfNotExists(sqliteDataDir)
 
 	frontpageDatabaseFilename := fmt.Sprintf("%s/%s", sqliteDataDir, sqliteDataFilename)
@@ -208,9 +214,11 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	var err error
 
+	logger.Info("Registering SQLite extensions")
 	// Register some extension functions from go-sqlite3-stdlib so we can actually do math in sqlite3.
 	stdlib.Register("sqlite3_ext")
 
+	logger.Info("Opening database connection", "file", frontpageDatabaseFilename)
 	// Connect to database
 	ndb.db, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", frontpageDatabaseFilename))
 
@@ -223,10 +231,12 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	// 	return ndb, errors.Wrap(err, "ndb.registerExtensions()")
 	// }
 
-	err = ndb.initFrontpageDB()
+	logger.Info("Initializing frontpage database schema")
+	err = ndb.initFrontpageDB(logger)
 	if err != nil {
 		return ndb, errors.Wrap(err, "init frontpageDatabase")
 	}
+	logger.Info("Frontpage database initialized")
 
 	{
 		upvotesDatabaseFilename := fmt.Sprintf("%s/upvotes.sqlite", sqliteDataDir)
