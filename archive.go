@@ -230,24 +230,24 @@ func (app app) processArchivingOperations(ctx context.Context) error {
 // The worker respects context cancellation and properly handles task timeouts.
 func (app app) archiveWorker(ctx context.Context) {
 	logger := app.logger
-	
+
 	logger.Info("Archive worker started")
 
 	// Calculate initial delay until next 1-minute mark + 30 seconds
 	now := time.Now()
 	nextRun := now.Truncate(1 * time.Minute).Add(30 * time.Second)
 	initialDelay := nextRun.Sub(now)
-	
+
 	logger.Debug("Archive worker waiting for initial delay", "delay_seconds", initialDelay.Seconds())
 
 	// Create a ticker for periodic archiving
 	archiveTicker := time.NewTicker(5 * time.Minute)
 	defer archiveTicker.Stop()
-	
+
 	// Use a timer for the initial delay so we can select on it
 	initialTimer := time.NewTimer(initialDelay)
 	defer initialTimer.Stop()
-	
+
 	// Wait for initial delay in the select loop
 	initialRun := true
 
@@ -261,7 +261,7 @@ func (app app) archiveWorker(ctx context.Context) {
 					logger.Error("Initial archiving operation failed", err)
 				}
 			}
-			
+
 		case <-archiveTicker.C:
 			logger.Info("Running scheduled archiving operation")
 			if err := app.processArchivingOperations(ctx); err != nil {
@@ -294,7 +294,7 @@ func (app app) purgeWorker(ctx context.Context) {
 		case idleCtx := <-app.archiveTriggerChan:
 			// Create a timeout context to ensure we don't block too long
 			// Give ourselves a reasonable amount of time but ensure we're done before next crawl
-			timeoutCtx, cancel := context.WithTimeout(idleCtx, 45*time.Second)
+			timeoutCtx, cancel := context.WithTimeout(idleCtx, 50*time.Second)
 
 			if err := app.processPurgeOperations(timeoutCtx); err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
