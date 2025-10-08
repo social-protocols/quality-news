@@ -150,8 +150,10 @@ func (ndb newsDatabase) initFrontpageDB(logger *slog.Logger) error {
 		`DROP INDEX if exists archived`,
 		`CREATE INDEX IF NOT EXISTS dataset_sampletime on dataset(sampletime)`,
 		`CREATE INDEX IF NOT EXISTS stories_archived on stories(archived) WHERE archived = 1`,
-
-		`update dataset set upvoteRate = ( cumulativeUpvotes + 2.3 ) / ( cumulativeExpectedUpvotes + 2.3) where upvoteRate = 0`,
+		
+		// NOTE: Removed UPDATE statement that was running on every startup and blocking for minutes.
+		// This was a one-time migration to backfill upvoteRate for historical data.
+		// New rows get upvoteRate calculated properly on insert.
 	}
 
 	for i, s := range alterStatements {
