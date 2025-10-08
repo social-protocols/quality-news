@@ -375,9 +375,11 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 
 	sqlStatement := `
 		with latest as (
-			select id, score, sampleTime from dataset
+			select dataset.id, score, sampleTime from dataset
+			join stories on dataset.id = stories.id
 			where sampleTime <= strftime('%s', 'now') - 21*24*60*60
 			and score > 2
+			and stories.archived = 0
 		)
 		select distinct(id) from latest limit 5
 	`
