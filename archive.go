@@ -135,7 +135,7 @@ func (app app) processArchivingOperations(ctx context.Context) error {
 	timeoutCtx, cancel := context.WithTimeout(ctx, 4*time.Minute+30*time.Second)
 	defer cancel()
 
-	logger.Info("Selecting stories to archive")
+	logger.Info("Selecting stories to archive (stories older than 21 days with score > 2 and not yet archived)")
 
 	// Get stories to archive
 	storyIDs, err := app.ndb.selectStoriesToArchive(timeoutCtx)
@@ -145,9 +145,14 @@ func (app app) processArchivingOperations(ctx context.Context) error {
 		return err
 	}
 
-	logger.Info("Found stories to archive", "count", len(storyIDs))
+	if len(storyIDs) == 0 {
+		logger.Info("No stories found that need archiving")
+	} else {
+		logger.Info("Found stories to archive", "count", len(storyIDs), "story_ids", storyIDs)
+	}
 
 	if len(storyIDs) == 0 {
+		logger.Debug("Archiving cycle complete - no work to do")
 		return nil
 	}
 
