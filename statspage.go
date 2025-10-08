@@ -86,8 +86,6 @@ func (app app) loadStoryAndStats(ctx context.Context, storyID int, modelParams O
 
 	// If story doesn't exist in DB or is archived, try to load from archive
 	if !dbRecordExists || isArchived {
-		app.logger.Info("Loading story from archive", "storyID", storyID, "dbRecordExists", dbRecordExists, "isArchived", isArchived)
-
 		sc, err := NewStorageClient()
 		if err != nil {
 			return Story{}, StatsData{}, errors.Wrap(err, "create storage client")
