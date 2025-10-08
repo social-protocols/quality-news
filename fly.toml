@@ -7,7 +7,7 @@ processes = []
 primary_region = "ewr"
 
 [build]
-  builder = "paketobuildpacks/builder:full"
+  builder = "paketobuildpacks/builder:jammy-full"
 
 [env]
   PORT = "8080"
