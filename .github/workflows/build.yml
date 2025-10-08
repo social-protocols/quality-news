@@ -21,6 +21,8 @@ jobs:
   build:
     name: "Build"
     runs-on: ubuntu-22.04
+    # Skip for master pushes since deploy workflow will build anyway
+    if: github.event_name != 'push' || github.ref != 'refs/heads/master'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -39,6 +41,8 @@ jobs:
   lint:
     name: "Lint"
     runs-on: ubuntu-22.04
+    # Skip for master pushes since deploy workflow will build anyway
+    if: github.event_name != 'push' || github.ref != 'refs/heads/master'
     steps:
       - uses: actions/checkout@v3
         with:
