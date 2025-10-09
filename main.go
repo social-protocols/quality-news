@@ -15,7 +15,6 @@ const maxShutDownTimeout = 5 * time.Second
 
 func main() {
 	app := initApp()
-	app.initDatabaseMetrics()
 	defer app.cleanup()
 
 	logger := app.logger
@@ -24,6 +23,12 @@ func main() {
 	defer cancelContext()
 
 	shutdownPrometheusServer := servePrometheusMetrics()
+
+	// Start the archive worker (runs every 5 minutes)
+	go app.archiveWorker(ctx)
+
+	// Start the purge worker (runs during idle time between crawls)
+	go app.purgeWorker(ctx)
 
 	// Listen for a soft kill signal (INT, TERM, HUP)
 	c := make(chan os.Signal, 1)
@@ -88,12 +93,6 @@ func main() {
 		logger.Info("Server shut down")
 	}()
 
-	// Check fragmentation and vacuum if needed
-	err := app.ndb.vacuumIfNeeded(ctx, app.logger)
-	if err != nil {
-		app.logger.Error("vacuumIfNeeded", err)
-	}
-
 	app.mainLoop(ctx)
 }
 
@@ -139,34 +138,40 @@ func (app app) mainLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ticker:
-
 			t := time.Now().Unix()
 			// Set the next tick at the minute mark. We use this instead of using
 			// time.NewTicker because in dev mode our app can be suspended, and I
 			// want to see all the timestamps in the DB as multiples of 60.
 			delay := 60 - t%60
+			nextTickTime := t + delay
 			go func() {
 				<-time.After(time.Duration(delay) * time.Second)
-				ticker <- t + delay
+				ticker <- nextTickTime
 			}()
 
 			logger.Info("Beginning crawl")
 
-			// cancel crawl if it doesn't complete 1 second before the next
-			// crawl is supposed to start
-			ctx, cancel := context.WithDeadline(ctx, time.Unix(t+delay-1, 0))
+			// Create a context with deadline for both crawl and idle period
+			crawlCtx, cancel := context.WithDeadline(ctx, time.Unix(nextTickTime-1, 0))
 			defer cancel()
 
-			if err = app.crawlAndPostprocess(ctx); err != nil {
+			if err = app.crawlAndPostprocess(crawlCtx); err != nil {
 				logger.Error("crawlAndPostprocess", err)
 			} else {
 				app.logger.Info("Finished crawl and postprocess")
 
-				// err := app.archiveAndPurgeOldStatsData(ctx)
-				// if err != nil {
-				// 	archiveErrorsTotal.Inc()
-				// 	app.logger.Error("archiveAndPurgeOldStatsData", err)
-				// }
+				// Only send idle context if we have enough time (at least 5 seconds)
+				if delay >= 5 {
+					// Try to send the context to the purge worker (non-blocking)
+					select {
+					case app.archiveTriggerChan <- crawlCtx:
+						app.logger.Debug("Sent idle context to purge worker", "available_seconds", delay)
+					default:
+						app.logger.Warn("Purge trigger channel full, signal dropped - purge worker may be backed up")
+					}
+				} else {
+					app.logger.Debug("Skipping idle context - not enough time", "delay", delay)
+				}
 			}
 
 		case <-ctx.Done():

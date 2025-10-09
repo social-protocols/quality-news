@@ -80,109 +80,66 @@ func (app app) loadStoryAndStats(ctx context.Context, storyID int, modelParams O
 	ndb := app.ndb
 
 	// Try to get story from DB first
-	s, err := ndb.selectStoryDetails(storyID)
+	s, err := ndb.selectStoryDetails(ctx, storyID)
+	dbRecordExists := (err == nil)
+	isArchived := (dbRecordExists && s.Archived)
 
-	// for debugging
-	// err = sql.ErrNoRows
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// Story not in DB, try to load from archive
-			sc, err := NewStorageClient()
-			if err != nil {
-				return Story{}, StatsData{}, errors.Wrap(err, "create storage client")
-			}
-
-			// Try v2 archive first
-			filename := fmt.Sprintf("%d.v2.json", storyID)
-			jsonData, err := sc.DownloadFile(ctx, filename)
-			isV2 := err == nil
-			if err != nil {
-				// Try legacy archive
-				filename = fmt.Sprintf("%d.json", storyID)
-				jsonData, err = sc.DownloadFile(ctx, filename)
-				if err != nil {
-					return Story{}, StatsData{}, ErrStoryIDNotFound
-				}
-			}
-
-			var archiveData ArchiveData
-			err = json.Unmarshal(jsonData, &archiveData)
-			if err != nil {
-				return Story{}, StatsData{}, errors.Wrap(err, "unmarshal archive data")
-			}
-
-			// For v2 archives, construct Story from archive data
-			if isV2 {
-				// Calculate AgeApprox as current time minus submission time
-				ageApprox := time.Now().Unix() - archiveData.SubmissionTime
-
-				s = Story{
-					ID:                        archiveData.ID,
-					By:                        archiveData.By,
-					Title:                     archiveData.Title,
-					URL:                       archiveData.URL,
-					SubmissionTime:            archiveData.SubmissionTime,
-					OriginalSubmissionTime:    archiveData.OriginalSubmissionTime,
-					AgeApprox:                 ageApprox,
-					Score:                     archiveData.Score,
-					Comments:                  archiveData.Comments,
-					CumulativeUpvotes:         archiveData.CumulativeUpvotes,
-					CumulativeExpectedUpvotes: archiveData.CumulativeExpectedUpvotes,
-					TopRank:                   archiveData.TopRank,
-					QNRank:                    archiveData.QNRank,
-					RawRank:                   archiveData.RawRank,
-					Flagged:                   archiveData.Flagged,
-					Dupe:                      archiveData.Dupe,
-					Job:                       archiveData.Job,
-				}
-			} else {
-				// For legacy archives, we need story details from DB
-				return Story{}, StatsData{}, ErrStoryIDNotFound
-			}
-
-			// Convert plot data to JSON
-			ranksJson, err := json.Marshal(archiveData.RanksPlotData)
-			if err != nil {
-				return Story{}, StatsData{}, errors.Wrap(err, "marshal ranks plot data")
-			}
-
-			upvotesJson, err := json.Marshal(archiveData.UpvotesPlotData)
-			if err != nil {
-				return Story{}, StatsData{}, errors.Wrap(err, "marshal upvotes plot data")
-			}
-
-			stats := StatsData{
-				RanksPlotDataJSON:   template.JS(string(ranksJson)),
-				UpvotesPlotDataJSON: template.JS(string(upvotesJson)),
-				MaxSampleTime:       archiveData.MaxSampleTime,
-			}
-
-			return s, stats, nil
-		}
-		return Story{}, StatsData{}, err
-	}
-
-	// Story found in DB
-	if s.Archived {
-		// Story is archived in legacy format (v2 format deletes from DB)
+	// If story doesn't exist in DB or is archived, try to load from archive
+	if !dbRecordExists || isArchived {
 		sc, err := NewStorageClient()
 		if err != nil {
 			return Story{}, StatsData{}, errors.Wrap(err, "create storage client")
 		}
 
-		app.logger.Debug("Loading legacy archive data", "storyID", storyID)
-		// Only try legacy format since story is still in DB
-		filename := fmt.Sprintf("%d.json", storyID)
+		// Try v2 archive first
+		filename := fmt.Sprintf("%d.v2.json", storyID)
 		jsonData, err := sc.DownloadFile(ctx, filename)
+		isV2 := err == nil
 		if err != nil {
-			return Story{}, StatsData{}, fmt.Errorf("Missing archive file for story id %d", storyID)
+			// Try legacy archive
+			filename = fmt.Sprintf("%d.json", storyID)
+			jsonData, err = sc.DownloadFile(ctx, filename)
+			if err != nil {
+				if !dbRecordExists {
+					return Story{}, StatsData{}, ErrStoryIDNotFound
+				}
+				return Story{}, StatsData{}, errors.Wrapf(err, "failed to load archive file %s for story marked as archived", filename)
+			}
 		}
 
 		var archiveData ArchiveData
 		err = json.Unmarshal(jsonData, &archiveData)
 		if err != nil {
 			return Story{}, StatsData{}, errors.Wrap(err, "unmarshal archive data")
+		}
+
+		if isV2 {
+			// Calculate AgeApprox as current time minus submission time
+			ageApprox := time.Now().Unix() - archiveData.SubmissionTime
+
+			s = Story{
+				ID:                        archiveData.ID,
+				By:                        archiveData.By,
+				Title:                     archiveData.Title,
+				URL:                       archiveData.URL,
+				SubmissionTime:            archiveData.SubmissionTime,
+				OriginalSubmissionTime:    archiveData.OriginalSubmissionTime,
+				AgeApprox:                 ageApprox,
+				Score:                     archiveData.Score,
+				Comments:                  archiveData.Comments,
+				CumulativeUpvotes:         archiveData.CumulativeUpvotes,
+				CumulativeExpectedUpvotes: archiveData.CumulativeExpectedUpvotes,
+				TopRank:                   archiveData.TopRank,
+				QNRank:                    archiveData.QNRank,
+				RawRank:                   archiveData.RawRank,
+				Flagged:                   archiveData.Flagged,
+				Dupe:                      archiveData.Dupe,
+				Job:                       archiveData.Job,
+				Archived:                  archiveData.Archived,
+			}
+		} else {
+			// For legacy archives, we need story details from DB
+			return Story{}, StatsData{}, ErrStoryIDNotFound
 		}
 
 		// Convert plot data to JSON
@@ -203,16 +160,15 @@ func (app app) loadStoryAndStats(ctx context.Context, storyID int, modelParams O
 		}
 
 		return s, stats, nil
-
 	}
 
 	// Story is not archived, get stats from DB
-	maxSampleTime, err := maxSampleTime(ndb, storyID)
+	maxSampleTime, err := maxSampleTime(ctx, ndb, storyID)
 	if err != nil {
 		return Story{}, StatsData{}, errors.Wrap(err, "maxSampleTime")
 	}
 
-	ranks, err := rankDatapoints(ndb, storyID)
+	ranks, err := rankDatapoints(ctx, ndb, storyID)
 	if err != nil {
 		return Story{}, StatsData{}, errors.Wrap(err, "rankDatapoints")
 	}
@@ -222,7 +178,7 @@ func (app app) loadStoryAndStats(ctx context.Context, storyID int, modelParams O
 		return Story{}, StatsData{}, errors.Wrap(err, "marshal ranks plot data")
 	}
 
-	upvotes, err := upvotesDatapoints(ndb, storyID, modelParams.WithDefaults())
+	upvotes, err := upvotesDatapoints(ctx, ndb, storyID, modelParams.WithDefaults())
 	if err != nil {
 		return Story{}, StatsData{}, errors.Wrap(err, "upvotesDatapoints")
 	}

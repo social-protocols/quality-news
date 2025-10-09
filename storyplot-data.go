@@ -1,14 +1,15 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 
 	"github.com/pkg/errors"
 )
 
-func maxSampleTime(ndb newsDatabase, storyID int) (int, error) {
+func maxSampleTime(ctx context.Context, ndb newsDatabase, storyID int) (int, error) {
 	var n int
-	err := ndb.db.QueryRow(`
+	err := ndb.db.QueryRowContext(ctx, `
 			select max(sampleTime) from dataset
 			where id = ?
 		`, storyID).Scan(&n)
@@ -16,9 +17,9 @@ func maxSampleTime(ndb newsDatabase, storyID int) (int, error) {
 	return n, errors.Wrap(err, "QueryRow count: select max(sampleTime)")
 }
 
-func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
+func rankDatapoints(ctx context.Context, ndb newsDatabase, storyID int) ([][]any, error) {
 	var n int
-	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
+	if err := ndb.db.QueryRowContext(ctx, "select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
 		return nil, errors.Wrap(err, "QueryRow: select count")
 	}
 
@@ -27,14 +28,13 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	}
 
 	var submissionTime int64
-	if err := ndb.db.QueryRow("select timestamp from stories where id = ?", storyID).Scan(&submissionTime); err != nil {
+	if err := ndb.db.QueryRowContext(ctx, "select timestamp from stories where id = ?", storyID).Scan(&submissionTime); err != nil {
 		return nil, errors.Wrap(err, "QueryRow: select submissionTime")
 	}
 
 	ranks := make([][]any, n)
 
-	// rows, err := ndb.db.Query("select sampleTime, (case when qnRank > 90 then 91 else qnRank end) as qnRank, topRank, newRank, bestRank, askRank, showRank, rawRank from dataset where id = ?", storyID)
-	rows, err := ndb.db.Query("select sampleTime, rawRank, topRank, newRank, bestRank, askRank, showRank from dataset where id = ?", storyID)
+	rows, err := ndb.db.QueryContext(ctx, "select sampleTime, rawRank, topRank, newRank, bestRank, askRank, showRank from dataset where id = ?", storyID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Query: select ranks")
 	}
@@ -74,9 +74,9 @@ func rankDatapoints(ndb newsDatabase, storyID int) ([][]any, error) {
 	return ranks, errors.Wrap(err, "rows.Err")
 }
 
-func upvotesDatapoints(ndb newsDatabase, storyID int, modelParams ModelParams) ([][]any, error) {
+func upvotesDatapoints(ctx context.Context, ndb newsDatabase, storyID int, modelParams ModelParams) ([][]any, error) {
 	var n int
-	if err := ndb.db.QueryRow("select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
+	if err := ndb.db.QueryRowContext(ctx, "select count(*) from dataset where id = ?", storyID).Scan(&n); err != nil {
 		return nil, errors.Wrap(err, "QueryRow: select count")
 	}
 
@@ -85,13 +85,13 @@ func upvotesDatapoints(ndb newsDatabase, storyID int, modelParams ModelParams) (
 	}
 
 	var submissionTime int64
-	if err := ndb.db.QueryRow("select timestamp from stories where id = ?", storyID).Scan(&submissionTime); err != nil {
+	if err := ndb.db.QueryRowContext(ctx, "select timestamp from stories where id = ?", storyID).Scan(&submissionTime); err != nil {
 		return nil, errors.Wrap(err, "QueryRow: select submissionTime")
 	}
 
 	upvotesData := make([][]any, n)
 
-	rows, err := ndb.db.Query(`select sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes
+	rows, err := ndb.db.QueryContext(ctx, `select sampleTime, cumulativeUpvotes, cumulativeExpectedUpvotes
  	 from dataset where id = ?`, storyID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Query: select upvotes")
@@ -103,7 +103,6 @@ func upvotesDatapoints(ndb newsDatabase, storyID int, modelParams ModelParams) (
 		var sampleTime int64
 		var upvotes int
 		var expectedUpvotes float64
-		// var upvoteRate float64
 
 		err = rows.Scan(&sampleTime, &upvotes, &expectedUpvotes)
 
@@ -116,7 +115,6 @@ func upvotesDatapoints(ndb newsDatabase, storyID int, modelParams ModelParams) (
 			int32(upvotes),
 			expectedUpvotes,
 			modelParams.upvoteRate(upvotes, expectedUpvotes),
-			// upvoteRate,
 		}
 		i++
 	}

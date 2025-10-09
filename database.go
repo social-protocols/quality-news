@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"time"
 
 	stdlib "github.com/multiprocessio/go-sqlite3-stdlib"
 	"github.com/pkg/errors"
@@ -73,7 +72,15 @@ func createDataDirIfNotExists(sqliteDataDir string) {
 	}
 }
 
-func (ndb newsDatabase) initFrontpageDB() error {
+func (ndb newsDatabase) initFrontpageDB(logger *slog.Logger) error {
+	logger.Info("Setting PRAGMA auto_vacuum=INCREMENTAL")
+	// Enable incremental auto-vacuum
+	_, err := ndb.db.Exec("PRAGMA auto_vacuum=INCREMENTAL")
+	if err != nil {
+		return errors.Wrap(err, "enabling auto_vacuum")
+	}
+
+	logger.Info("Creating tables and indexes")
 	seedStatements := []string{
 		`
 		CREATE TABLE IF NOT EXISTS stories(
@@ -83,6 +90,7 @@ func (ndb newsDatabase) initFrontpageDB() error {
 			, url text not null
 			, timestamp int not null
 			, job boolean not null default false
+			, archived boolean not null default false
 		);
 		`,
 		`
@@ -125,7 +133,6 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		`
 		drop view if exists previousCrawl
 		`,
-		`PRAGMA auto_vacuum=NONE`,
 	}
 
 	for _, s := range seedStatements {
@@ -135,20 +142,30 @@ func (ndb newsDatabase) initFrontpageDB() error {
 		}
 	}
 
+	logger.Info("Running ALTER statements and creating additional indexes")
 	alterStatements := []string{
 		`alter table dataset add column upvoteRateWindow int`,
 		`alter table dataset add column upvoteRate float default 0 not null`,
 		`alter table stories add column archived boolean default false not null`,
 		`DROP INDEX if exists archived`,
 		`CREATE INDEX IF NOT EXISTS dataset_sampletime on dataset(sampletime)`,
+		`CREATE INDEX IF NOT EXISTS stories_archived on stories(archived) WHERE archived = 1`,
 
-		`update dataset set upvoteRate = ( cumulativeUpvotes + 2.3 ) / ( cumulativeExpectedUpvotes + 2.3) where upvoteRate = 0`,
+		// NOTE: Removed UPDATE statement that was running on every startup and blocking for minutes.
+		// This was a one-time migration to backfill upvoteRate for historical data.
+		// New rows get upvoteRate calculated properly on insert.
 	}
 
-	for _, s := range alterStatements {
+	for i, s := range alterStatements {
+		preview := s
+		if len(s) > 50 {
+			preview = s[:50]
+		}
+		logger.Debug("Executing ALTER statement", "index", i, "statement", preview)
 		_, _ = ndb.db.Exec(s)
 	}
 
+	logger.Info("ALTER statements complete")
 	return nil
 }
 
@@ -193,7 +210,8 @@ func (ndb newsDatabase) initUpvotesDB() error {
 	return errors.Wrap(err, "attach frontpage database")
 }
 
-func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
+func openNewsDatabase(sqliteDataDir string, logger *slog.Logger) (newsDatabase, error) {
+	logger.Info("Creating data directory if needed")
 	createDataDirIfNotExists(sqliteDataDir)
 
 	frontpageDatabaseFilename := fmt.Sprintf("%s/%s", sqliteDataDir, sqliteDataFilename)
@@ -202,9 +220,11 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 
 	var err error
 
+	logger.Info("Registering SQLite extensions")
 	// Register some extension functions from go-sqlite3-stdlib so we can actually do math in sqlite3.
 	stdlib.Register("sqlite3_ext")
 
+	logger.Info("Opening database connection", "file", frontpageDatabaseFilename)
 	// Connect to database
 	ndb.db, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", frontpageDatabaseFilename))
 
@@ -217,10 +237,12 @@ func openNewsDatabase(sqliteDataDir string) (newsDatabase, error) {
 	// 	return ndb, errors.Wrap(err, "ndb.registerExtensions()")
 	// }
 
-	err = ndb.initFrontpageDB()
+	logger.Info("Initializing frontpage database schema")
+	err = ndb.initFrontpageDB(logger)
 	if err != nil {
 		return ndb, errors.Wrap(err, "init frontpageDatabase")
 	}
+	logger.Info("Frontpage database initialized")
 
 	{
 		upvotesDatabaseFilename := fmt.Sprintf("%s/upvotes.sqlite", sqliteDataDir)
@@ -348,17 +370,28 @@ func (ndb newsDatabase) selectLastCrawlTime() (int, error) {
 	return sampleTime, err
 }
 
+func (ndb newsDatabase) getMaxScore(ctx context.Context, storyID int) (int, error) {
+	var maxScore int
+	sqlStatement := `SELECT MAX(score) FROM dataset WHERE id = ?`
+	err := ndb.db.QueryRowContext(ctx, sqlStatement, storyID).Scan(&maxScore)
+	if err != nil {
+		return 0, errors.Wrap(err, "getMaxScore")
+	}
+	return maxScore, nil
+}
+
 func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, error) {
 	var storyIDs []int
 
+	// Select old stories regardless of score
+	// High-score stories will be backed up to S3, low-score just marked for deletion
 	sqlStatement := `
-		with latest as (
-			select id, score, sampleTime from dataset
-			where sampleTime <= strftime('%s', 'now') - 21*24*60*60
-			and score > 2
-			order by sampleTime
-		)
-		select distinct(id) from latest limit 10
+		select distinct stories.id
+		from stories
+		join dataset on stories.id = dataset.id
+		where stories.archived = 0
+		  and dataset.sampleTime <= strftime('%s', 'now') - 21*24*60*60
+		limit 100
 	`
 
 	// Check context before query
@@ -396,39 +429,54 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 	return storyIDs, nil
 }
 
-func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) error {
-	tx, err := ndb.db.Begin()
-	if err != nil {
-		return errors.Wrap(err, "starting transaction")
-	}
+func (ndb newsDatabase) purgeStory(ctx context.Context, storyID int) (int64, error) {
+	const batchSize = 1000 // Small batches to minimize lock time
+	var totalRowsAffected int64
 
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		} else if err != nil {
-			_ = tx.Rollback()
-		} else {
-			err = tx.Commit()
+	for {
+		tx, err := ndb.db.Begin()
+		if err != nil {
+			return totalRowsAffected, errors.Wrap(err, "starting transaction")
 		}
-	}()
 
-	// Delete all data points
-	_, err = tx.ExecContext(ctx, `DELETE FROM dataset WHERE id = ?`, storyID)
-	if err != nil {
-		return errors.Wrap(err, "delete from dataset")
+		result, err := tx.ExecContext(ctx, `
+			DELETE FROM dataset
+			WHERE rowid IN (
+				SELECT rowid FROM dataset WHERE id = ? LIMIT ?
+			)`, storyID, batchSize)
+		if err != nil {
+			_ = tx.Rollback()
+			return totalRowsAffected, errors.Wrap(err, "batch delete from dataset")
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			_ = tx.Rollback()
+			return totalRowsAffected, errors.Wrap(err, "getting rows affected")
+		}
+
+		if err := tx.Commit(); err != nil {
+			return totalRowsAffected, errors.Wrap(err, "commit transaction")
+		}
+
+		totalRowsAffected += rowsAffected
+
+		// No more rows left to delete
+		if rowsAffected < batchSize {
+			break
+		}
 	}
 
-	// Delete story record
-	_, err = tx.ExecContext(ctx, `DELETE FROM stories WHERE id = ?`, storyID)
+	// Finally, delete the story record
+	_, err := ndb.db.ExecContext(ctx, `DELETE FROM stories WHERE id = ?`, storyID)
 	if err != nil {
-		return errors.Wrap(err, "delete from stories")
+		return totalRowsAffected, errors.Wrap(err, "delete from stories")
 	}
 
-	return nil
+	return totalRowsAffected, nil
 }
 
-func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
+func (ndb newsDatabase) selectStoryDetails(ctx context.Context, id int) (Story, error) {
 	var s Story
 
 	sqlStatement := `
@@ -452,14 +500,18 @@ func (ndb newsDatabase) selectStoryDetails(id int) (Story, error) {
 		, job
 		, archived
 	from stories
-	JOIN dataset
+	LEFT JOIN dataset
 	USING (id)
 	WHERE id = ?
 	ORDER BY sampleTime DESC
 	LIMIT 1
 	`
 
-	err := ndb.db.QueryRow(sqlStatement, id).Scan(&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime, &s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes, &s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job, &s.Archived)
+	err := ndb.db.QueryRowContext(ctx, sqlStatement, id).Scan(
+		&s.ID, &s.By, &s.Title, &s.URL, &s.SubmissionTime, &s.OriginalSubmissionTime,
+		&s.AgeApprox, &s.Score, &s.Comments, &s.CumulativeUpvotes, &s.CumulativeExpectedUpvotes,
+		&s.TopRank, &s.QNRank, &s.RawRank, &s.Flagged, &s.Dupe, &s.Job, &s.Archived,
+	)
 	if err != nil {
 		return s, err
 	}
@@ -510,76 +562,183 @@ func (ndb newsDatabase) storyCount(tx *sql.Tx) (int, error) {
 	return count, nil
 }
 
-func (ndb newsDatabase) vacuumIfNeeded(ctx context.Context, logger *slog.Logger) error {
-	size, freelist, fragmentation, err := ndb.getDatabaseStats()
-	if err != nil {
-		return errors.Wrap(err, "getDatabaseStats")
+func (ndb newsDatabase) getDatabaseStats() (size int64, freelist int64, fragmentation float64, err error) {
+	err = ndb.db.QueryRow(`
+        SELECT
+            (SELECT page_count FROM pragma_page_count()) *
+            (SELECT page_size FROM pragma_page_size()) as total_bytes,
+            (SELECT freelist_count FROM pragma_freelist_count()) as free_pages,
+            ROUND(
+                100.0 * (SELECT freelist_count FROM pragma_freelist_count()) /
+                (SELECT page_count FROM pragma_page_count()), 1
+            ) as fragmentation_pct
+    `).Scan(&size, &freelist, &fragmentation)
+	return
+}
+
+func (ndb newsDatabase) deleteOldData(ctx context.Context) (int64, error) {
+	const batchSize = 1000
+	var totalRowsAffected int64
+
+	for {
+		tx, err := ndb.db.Begin()
+		if err != nil {
+			return totalRowsAffected, errors.Wrap(err, "starting transaction")
+		}
+
+		result, err := tx.ExecContext(ctx, `
+			DELETE FROM dataset 
+			WHERE rowid IN (
+				SELECT rowid FROM dataset 
+				WHERE sampleTime <= unixepoch()-30*24*60*60 
+				LIMIT ?
+			)`, batchSize)
+		if err != nil {
+			_ = tx.Rollback()
+			return totalRowsAffected, errors.Wrap(err, "batch delete from dataset")
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			_ = tx.Rollback()
+			return totalRowsAffected, errors.Wrap(err, "getting rows affected")
+		}
+
+		if err := tx.Commit(); err != nil {
+			return totalRowsAffected, errors.Wrap(err, "commit transaction")
+		}
+
+		totalRowsAffected += rowsAffected
+
+		// No more rows left to delete
+		if rowsAffected < batchSize {
+			break
+		}
 	}
 
-	logger.Info("Database stats",
-		"size_mb", float64(size)/(1024*1024),
-		"freelist_pages", freelist,
-		"fragmentation_pct", fragmentation)
+	return totalRowsAffected, nil
+}
 
-	if fragmentation > 20.0 {
-		logger.Info("Starting vacuum operation",
-			"fragmentation_pct", fragmentation)
+// markStoryArchived marks a story as archived in the database.
+// If the story is already archived, this is a no-op and returns nil.
+func (ndb *newsDatabase) markStoryArchived(ctx context.Context, storyID int) error {
+	result, err := ndb.db.ExecContext(ctx, `
+		UPDATE stories 
+		SET archived = 1
+		WHERE id = ? AND archived = 0`, storyID)
+	if err != nil {
+		return fmt.Errorf("failed to mark story as archived: %w", err)
+	}
 
-		startTime := time.Now()
-		_, err := ndb.db.ExecContext(ctx, "VACUUM")
-		if err != nil {
-			return errors.Wrap(err, "vacuum database")
-		}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 
-		newSize, _, newFragmentation, err := ndb.getDatabaseStats()
-		if err != nil {
-			return errors.Wrap(err, "getDatabaseStats after vacuum")
-		}
-
-		logger.Info("Vacuum completed",
-			"duration_seconds", time.Since(startTime).Seconds(),
-			"size_before_mb", float64(size)/(1024*1024),
-			"size_after_mb", float64(newSize)/(1024*1024),
-			"space_reclaimed_mb", float64(size-newSize)/(1024*1024),
-			"fragmentation_before", fragmentation,
-			"fragmentation_after", newFragmentation)
-
-		vacuumOperationsTotal.Inc()
+	// If no rows were affected, the story was already archived
+	// This is not an error condition
+	if rowsAffected == 0 {
+		return nil
 	}
 
 	return nil
 }
 
-func (ndb newsDatabase) getDatabaseStats() (size int64, freelist int64, fragmentation float64, err error) {
-	err = ndb.db.QueryRow(`
+func (ndb newsDatabase) selectStoryToPurge(ctx context.Context) (int, error) {
+	var storyID int
+
+	// Must join with dataset to ensure story actually has data to purge
+	// Use DISTINCT to get one story ID efficiently
+	sqlStatement := `
+		SELECT DISTINCT stories.id FROM stories 
+		JOIN dataset ON dataset.id = stories.id
+		WHERE stories.archived = 1
+		LIMIT 1
+	`
+
+	err := ndb.db.QueryRowContext(ctx, sqlStatement).Scan(&storyID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, errors.Wrap(err, "selectStoryToPurge")
+	}
+
+	return storyID, nil
+}
+
+func (ndb newsDatabase) countStoriesNeedingPurge(ctx context.Context) (int, error) {
+	var count int
+
+	sqlStatement := `
+		SELECT COUNT(DISTINCT id) FROM stories 
+		join dataset using (id)
+		WHERE archived = true
+	`
+
+	err := ndb.db.QueryRowContext(ctx, sqlStatement).Scan(&count)
+	if err != nil {
+		return 0, errors.Wrap(err, "countStoriesNeedingPurge")
+	}
+
+	return count, nil
+}
+
+// incrementalVacuum performs a controlled vacuum operation during idle time
+// maxPages specifies the maximum number of pages to vacuum in this operation
+func (ndb newsDatabase) incrementalVacuum(ctx context.Context, maxPages int) error {
+	// Get initial fragmentation stats
+	var initialFragmentation float64
+	var initialFreePages int64
+	err := ndb.db.QueryRowContext(ctx, `
 		SELECT 
-			(SELECT page_count FROM pragma_page_count()) * 
-			(SELECT page_size FROM pragma_page_size()) as total_bytes,
 			(SELECT freelist_count FROM pragma_freelist_count()) as free_pages,
 			ROUND(
 				100.0 * (SELECT freelist_count FROM pragma_freelist_count()) /
 				(SELECT page_count FROM pragma_page_count()), 1
 			) as fragmentation_pct
-	`).Scan(&size, &freelist, &fragmentation)
-	return
-}
-
-func (ndb newsDatabase) deleteOldData(ctx context.Context) (int64, error) {
-	// Delete data older than one month. Stories whose first datapoint is more than 21 days old with score greater than 2 are already being archived. So this
-	// should delete what's left -- as long as archiving is working!
-	sqlStatement := `
-		delete from dataset where sampleTime <= unixepoch()-30*24*60*60
-	`
-
-	result, err := ndb.db.ExecContext(ctx, sqlStatement)
+	`).Scan(&initialFreePages, &initialFragmentation)
 	if err != nil {
-		return 0, errors.Wrap(err, "executing delete old data query")
+		return errors.Wrap(err, "checking initial fragmentation")
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return 0, errors.Wrap(err, "getting rows affected")
+	if initialFreePages == 0 {
+		return nil // Nothing to vacuum
 	}
 
-	return rowsAffected, nil
+	// Calculate how many pages to vacuum (min of free pages and maxPages)
+	pagesToVacuum := initialFreePages
+	if int64(maxPages) < pagesToVacuum {
+		pagesToVacuum = int64(maxPages)
+	}
+
+	// Perform the incremental vacuum
+	_, err = ndb.db.ExecContext(ctx, fmt.Sprintf("PRAGMA incremental_vacuum(%d)", pagesToVacuum))
+	if err != nil {
+		return errors.Wrap(err, "incremental vacuum")
+	}
+
+	// Get final fragmentation stats
+	var finalFragmentation float64
+	var finalFreePages int64
+	err = ndb.db.QueryRowContext(ctx, `
+		SELECT 
+			(SELECT freelist_count FROM pragma_freelist_count()) as free_pages,
+			ROUND(
+				100.0 * (SELECT freelist_count FROM pragma_freelist_count()) /
+				(SELECT page_count FROM pragma_page_count()), 1
+			) as fragmentation_pct
+	`).Scan(&finalFreePages, &finalFragmentation)
+	if err != nil {
+		return errors.Wrap(err, "checking final fragmentation")
+	}
+
+	// Log the results
+	slog.Info("Incremental vacuum completed",
+		"pages_vacuumed", initialFreePages-finalFreePages,
+		"initial_fragmentation_pct", initialFragmentation,
+		"final_fragmentation_pct", finalFragmentation,
+		"remaining_free_pages", finalFreePages)
+
+	return nil
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"strconv"
@@ -13,11 +14,12 @@ import (
 )
 
 type app struct {
-	ndb        newsDatabase
-	hnClient   *hn.Client
-	httpClient *http.Client
-	logger     *slog.Logger
-	cacheSize  int
+	ndb                newsDatabase
+	hnClient           *hn.Client
+	httpClient         *http.Client
+	logger             *slog.Logger
+	cacheSize          int
+	archiveTriggerChan chan context.Context
 }
 
 func initApp() app {
@@ -28,7 +30,7 @@ func initApp() app {
 		if s != "" {
 			cacheSize, err = strconv.Atoi(s)
 			if err != nil {
-				panic("Couldn't parse CACHE_SIZE")
+				LogFatal(slog.Default(), "CACHE_SIZE", err)
 			}
 		}
 	}
@@ -37,16 +39,21 @@ func initApp() app {
 	logFormatString := os.Getenv("LOG_FORMAT")
 	logger := newLogger(logLevelString, logFormatString)
 
+	logger.Info("Initializing application")
+
 	sqliteDataDir := os.Getenv("SQLITE_DATA_DIR")
 	if sqliteDataDir == "" {
 		panic("SQLITE_DATA_DIR not set")
 	}
 
-	db, err := openNewsDatabase(sqliteDataDir)
+	logger.Info("Opening database", "dataDir", sqliteDataDir)
+	db, err := openNewsDatabase(sqliteDataDir, logger)
 	if err != nil {
 		LogFatal(logger, "openNewsDatabase", err)
 	}
+	logger.Info("Database opened successfully")
 
+	logger.Info("Initializing HTTP client")
 	retryClient := retryablehttp.NewClient()
 	retryClient.RetryMax = 3
 	retryClient.RetryWaitMin = 1 * time.Second
@@ -58,12 +65,15 @@ func initApp() app {
 
 	hnClient := hn.NewClient(httpClient)
 
+	logger.Info("Application initialization complete")
+
 	return app{
-		httpClient: httpClient,
-		hnClient:   hnClient,
-		logger:     logger,
-		ndb:        db,
-		cacheSize:  cacheSize,
+		httpClient:         httpClient,
+		hnClient:           hnClient,
+		logger:             logger,
+		ndb:                db,
+		cacheSize:          cacheSize,
+		archiveTriggerChan: make(chan context.Context, 1), // Buffer size 1: one signal can queue while processing
 	}
 }
 
