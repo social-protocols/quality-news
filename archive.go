@@ -377,24 +377,18 @@ func (app app) purgeWorker(ctx context.Context) {
 func (app app) processPurgeOperations(ctx context.Context) error {
 	logger := app.logger
 
-	// If no stories to purge, try to perform incremental vacuum
-	// Use a reasonable number of pages (e.g., 1000) to avoid long operations
+	// Log database stats for monitoring
+	// Weekly VACUUM (Sunday 3 AM) handles fragmentation
 	logger.Debug("Getting DB stats")
 	size, freelist, fragmentation, err := app.ndb.getDatabaseStats()
 	if err != nil {
-		return errors.Wrap(err, "getDatabaseStats")
+		logger.Error("Failed to get database stats", err)
+	} else {
+		logger.Debug("Database stats",
+			"size_mb", float64(size)/(1024*1024),
+			"freelist_pages", freelist,
+			"fragmentation_pct", fragmentation)
 	}
-	logger.Info("Database stats",
-		"size_mb", float64(size)/(1024*1024),
-		"freelist_pages", freelist,
-		"fragmentation_pct", fragmentation)
-
-	const maxVacuumPages = 1000
-	if err := app.ndb.incrementalVacuum(ctx, maxVacuumPages); err != nil {
-		logger.Error("Failed to perform incremental vacuum", err)
-		// Don't return the error - vacuuming is optional
-	}
-	logger.Debug("Finished vacuum")
 
 	var purgedCount int
 	var totalRowsPurged int64
@@ -517,7 +511,7 @@ func (app app) vacuumWorker(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			now := time.Now()
-			
+
 			// Only run on Sunday between 3 AM and 4 AM
 			if now.Weekday() != time.Sunday {
 				continue
@@ -572,12 +566,12 @@ func (app app) performWeeklyVacuum(ctx context.Context) error {
 	// Create compacted copy using VACUUM INTO
 	newDBPath := fmt.Sprintf("%s/frontpage_new.sqlite", ndb.sqliteDataDir)
 	oldDBPath := fmt.Sprintf("%s/frontpage.sqlite", ndb.sqliteDataDir)
-	backupPath := fmt.Sprintf("%s/frontpage_backup_%s.sqlite", 
-		ndb.sqliteDataDir, 
+	backupPath := fmt.Sprintf("%s/frontpage_backup_%s.sqlite",
+		ndb.sqliteDataDir,
 		time.Now().Format("2006_01_02"))
 
 	logger.Info("Creating compacted database copy", "target", newDBPath)
-	
+
 	// Use VACUUM INTO to create compacted copy (doesn't block reads)
 	_, err := ndb.db.Exec(fmt.Sprintf("VACUUM INTO '%s'", newDBPath))
 	if err != nil {
@@ -609,7 +603,7 @@ func (app app) performWeeklyVacuum(ctx context.Context) error {
 
 	// Reconnect to new database
 	logger.Info("Reconnecting to compacted database")
-	newDB, err := sql.Open("sqlite3_ext", 
+	newDB, err := sql.Open("sqlite3_ext",
 		fmt.Sprintf("file:%s?_journal_mode=WAL&_busy_timeout=5000", oldDBPath))
 	if err != nil {
 		return errors.Wrap(err, "failed to reconnect to database")
