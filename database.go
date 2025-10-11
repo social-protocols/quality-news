@@ -385,13 +385,14 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 
 	// Select old stories regardless of score
 	// High-score stories will be backed up to S3, low-score just marked for deletion
+	// Keep batch size small to avoid memory exhaustion
 	sqlStatement := `
 		select distinct stories.id
 		from stories
 		join dataset on stories.id = dataset.id
 		where stories.archived = 0
 		  and dataset.sampleTime <= strftime('%s', 'now') - 21*24*60*60
-		limit 100
+		limit 5
 	`
 
 	// Check context before query

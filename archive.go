@@ -211,13 +211,22 @@ func (app app) processArchivingOperations(ctx context.Context) error {
 	for _, storyID := range storyIDs {
 		sid := storyID
 		pool.Submit(func() {
+			// Recover from panics in worker tasks
+			defer func() {
+				if r := recover(); r != nil {
+					archiveErrorsTotal.Inc()
+					logger.Error("Archive task panic", fmt.Errorf("panic in story %d: %v", sid, r), "storyID", sid)
+					results <- archiveResult{storyID: sid, err: fmt.Errorf("panic: %v", r)}
+				}
+			}()
+
 			// Check context
 			if err := timeoutCtx.Err(); err != nil {
 				archiveErrorsTotal.Inc()
 				results <- archiveResult{storyID: sid, err: errors.Wrap(err, "context cancelled")}
 				return
 			}
-			
+
 			// Get max score to decide whether to upload to S3
 			maxScore, err := app.ndb.getMaxScore(timeoutCtx, sid)
 			if err != nil {
@@ -225,7 +234,7 @@ func (app app) processArchivingOperations(ctx context.Context) error {
 				results <- archiveResult{storyID: sid, err: errors.Wrap(err, "failed to get max score")}
 				return
 			}
-			
+
 			if maxScore > 2 {
 				// High-score story: upload to S3 for backup
 				logger.Debug("Archiving story to S3", "storyID", sid, "maxScore", maxScore)
@@ -259,6 +268,14 @@ func (app app) processArchivingOperations(ctx context.Context) error {
 // The worker respects context cancellation and properly handles task timeouts.
 func (app app) archiveWorker(ctx context.Context) {
 	logger := app.logger
+
+	// Recover from panics to prevent worker from dying
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error("Archive worker panic recovered", fmt.Errorf("panic: %v", r))
+			// Worker will exit but at least we'll know why
+		}
+	}()
 
 	logger.Info("Archive worker started")
 
@@ -315,6 +332,14 @@ func (app app) archiveWorker(ctx context.Context) {
 // The worker respects context cancellation and properly handles operation timeouts.
 func (app app) purgeWorker(ctx context.Context) {
 	logger := app.logger
+
+	// Recover from panics to prevent worker from dying
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error("Purge worker panic recovered", fmt.Errorf("panic: %v", r))
+			// Worker will exit but at least we'll know why
+		}
+	}()
 
 	logger.Info("Purge worker started")
 
