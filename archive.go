@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -483,6 +485,151 @@ func (app app) processPurgeOperations(ctx context.Context) error {
 		logger.Info("Deleted old data",
 			"rowsDeleted", rowsDeleted)
 	}
+
+	return nil
+}
+
+// vacuumWorker runs in a separate goroutine and performs weekly database compaction.
+// It runs on Sunday mornings at 3 AM to minimize impact on users.
+//
+// The worker uses VACUUM INTO to create a compacted copy of the database without
+// blocking read operations. Once complete, it swaps the files during a brief pause.
+//
+// This prevents database file size from growing indefinitely due to fragmentation
+// from the continuous cycle of deleting old data and adding new data.
+func (app app) vacuumWorker(ctx context.Context) {
+	logger := app.logger
+
+	// Recover from panics to prevent worker from dying
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error("Vacuum worker panic recovered", fmt.Errorf("panic: %v", r))
+		}
+	}()
+
+	logger.Info("Vacuum worker started - will run Sundays at 3 AM")
+
+	// Check every hour if it's time to vacuum
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			now := time.Now()
+			
+			// Only run on Sunday between 3 AM and 4 AM
+			if now.Weekday() != time.Sunday {
+				continue
+			}
+			if now.Hour() != 3 {
+				continue
+			}
+
+			logger.Info("Starting weekly database VACUUM")
+
+			// Check if vacuum is needed
+			_, freelist, fragmentation, err := app.ndb.getDatabaseStats()
+			if err != nil {
+				logger.Error("Failed to get database stats", err)
+				continue
+			}
+
+			logger.Info("Database stats before VACUUM",
+				"fragmentation_pct", fragmentation,
+				"freelist_pages", freelist)
+
+			if fragmentation < 15.0 {
+				logger.Info("Fragmentation low - skipping VACUUM",
+					"fragmentation_pct", fragmentation)
+				continue
+			}
+
+			// Perform VACUUM INTO (creates compacted copy)
+			err = app.performWeeklyVacuum(ctx)
+			if err != nil {
+				logger.Error("Weekly VACUUM failed", err)
+				continue
+			}
+
+			logger.Info("Weekly VACUUM completed successfully")
+
+			// Sleep for remainder of hour to avoid running multiple times
+			time.Sleep(55 * time.Minute)
+
+		case <-ctx.Done():
+			logger.Info("Vacuum worker shutting down")
+			return
+		}
+	}
+}
+
+// performWeeklyVacuum creates a compacted copy of the database and swaps it in
+func (app app) performWeeklyVacuum(ctx context.Context) error {
+	logger := app.logger
+	ndb := app.ndb
+
+	// Create compacted copy using VACUUM INTO
+	newDBPath := fmt.Sprintf("%s/frontpage_new.sqlite", ndb.sqliteDataDir)
+	oldDBPath := fmt.Sprintf("%s/frontpage.sqlite", ndb.sqliteDataDir)
+	backupPath := fmt.Sprintf("%s/frontpage_backup_%s.sqlite", 
+		ndb.sqliteDataDir, 
+		time.Now().Format("2006_01_02"))
+
+	logger.Info("Creating compacted database copy", "target", newDBPath)
+	
+	// Use VACUUM INTO to create compacted copy (doesn't block reads)
+	_, err := ndb.db.Exec(fmt.Sprintf("VACUUM INTO '%s'", newDBPath))
+	if err != nil {
+		return errors.Wrap(err, "VACUUM INTO failed")
+	}
+
+	logger.Info("Compacted database created successfully")
+	logger.Info("Swapping database files - brief service interruption expected")
+
+	// Close current connection
+	err = ndb.db.Close()
+	if err != nil {
+		return errors.Wrap(err, "failed to close database")
+	}
+
+	// Rename old database as backup
+	err = os.Rename(oldDBPath, backupPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to backup old database")
+	}
+
+	// Move new database into place
+	err = os.Rename(newDBPath, oldDBPath)
+	if err != nil {
+		// Try to restore backup
+		os.Rename(backupPath, oldDBPath)
+		return errors.Wrap(err, "failed to move new database")
+	}
+
+	// Reconnect to new database
+	logger.Info("Reconnecting to compacted database")
+	newDB, err := sql.Open("sqlite3_ext", 
+		fmt.Sprintf("file:%s?_journal_mode=WAL&_busy_timeout=5000", oldDBPath))
+	if err != nil {
+		return errors.Wrap(err, "failed to reconnect to database")
+	}
+
+	ndb.db = newDB
+
+	// Get new stats
+	_, freelist, fragmentation, err := ndb.getDatabaseStats()
+	if err != nil {
+		logger.Error("Failed to get stats after VACUUM", err)
+	} else {
+		logger.Info("Database stats after VACUUM",
+			"fragmentation_pct", fragmentation,
+			"freelist_pages", freelist)
+	}
+
+	logger.Info("Database swap complete",
+		"old_backup", backupPath,
+		"note", "Old database kept as backup for 24 hours")
 
 	return nil
 }

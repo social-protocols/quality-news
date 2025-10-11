@@ -30,6 +30,9 @@ func main() {
 	// Start the purge worker (runs during idle time between crawls)
 	go app.purgeWorker(ctx)
 
+	// Start the vacuum worker (runs Sunday early morning)
+	go app.vacuumWorker(ctx)
+
 	// Listen for a soft kill signal (INT, TERM, HUP)
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
