@@ -225,8 +225,9 @@ func openNewsDatabase(sqliteDataDir string, logger *slog.Logger) (newsDatabase, 
 	stdlib.Register("sqlite3_ext")
 
 	logger.Info("Opening database connection", "file", frontpageDatabaseFilename)
-	// Connect to database
-	ndb.db, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", frontpageDatabaseFilename))
+	// Connect to database with busy timeout to handle concurrent access
+	// _busy_timeout=5000 means SQLite will retry for 5 seconds before returning "database is locked"
+	ndb.db, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL&_busy_timeout=5000", frontpageDatabaseFilename))
 
 	if err != nil {
 		return ndb, errors.Wrap(err, "open frontpageDatabase")
@@ -247,7 +248,7 @@ func openNewsDatabase(sqliteDataDir string, logger *slog.Logger) (newsDatabase, 
 	{
 		upvotesDatabaseFilename := fmt.Sprintf("%s/upvotes.sqlite", sqliteDataDir)
 
-		ndb.upvotesDB, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", upvotesDatabaseFilename))
+		ndb.upvotesDB, err = sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL&_busy_timeout=5000", upvotesDatabaseFilename))
 		if err != nil {
 			return ndb, errors.Wrap(err, "open upvotesDB")
 		}
@@ -523,13 +524,13 @@ func (ndb newsDatabase) selectStoryDetails(ctx context.Context, id int) (Story, 
 func (ndb *newsDatabase) resetConnection() error {
 	// Create new connections first
 	frontpageDatabaseFilename := fmt.Sprintf("%s/%s", ndb.sqliteDataDir, sqliteDataFilename)
-	newDB, err := sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", frontpageDatabaseFilename))
+	newDB, err := sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL&_busy_timeout=5000", frontpageDatabaseFilename))
 	if err != nil {
 		return errors.Wrap(err, "reopen frontpageDatabase")
 	}
 
 	upvotesDatabaseFilename := fmt.Sprintf("%s/upvotes.sqlite", ndb.sqliteDataDir)
-	newUpvotesDB, err := sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL", upvotesDatabaseFilename))
+	newUpvotesDB, err := sql.Open("sqlite3_ext", fmt.Sprintf("file:%s?_journal_mode=WAL&_busy_timeout=5000", upvotesDatabaseFilename))
 	if err != nil {
 		newDB.Close()
 		return errors.Wrap(err, "reopen upvotesDB")
