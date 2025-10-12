@@ -87,42 +87,10 @@ func main() {
 		logger.Info("Server shut down")
 	}()
 
-	// Check if we need to do a one-time VACUUM on startup
-	// This runs before starting workers to clean up high fragmentation
-	logger.Info("Checking database fragmentation on startup")
-	_, _, fragmentation, err := app.ndb.getDatabaseStats()
-	if err != nil {
-		logger.Error("Failed to get database stats on startup", err)
-	} else {
-		logger.Info("Database fragmentation check", "fragmentation_pct", fragmentation)
-		if fragmentation > 15.0 {
-			logger.Info("High fragmentation detected - performing startup VACUUM", 
-				"fragmentation_pct", fragmentation,
-				"note", "This is a one-time operation, web server remains available")
-			
-			// Run VACUUM in background so we don't block health checks
-			go func() {
-				vacuumErr := app.performWeeklyVacuum(ctx)
-				if vacuumErr != nil {
-					logger.Error("Startup VACUUM failed", vacuumErr)
-					logger.Warn("Will retry next Sunday during scheduled maintenance")
-				} else {
-					logger.Info("Startup VACUUM completed successfully")
-					// Log new stats
-					_, _, newFrag, statErr := app.ndb.getDatabaseStats()
-					if statErr == nil {
-						logger.Info("Database fragmentation after VACUUM", "fragmentation_pct", newFrag)
-					}
-				}
-			}()
-			
-			// Give VACUUM a moment to start before launching workers
-			time.Sleep(2 * time.Second)
-		} else {
-			logger.Info("Fragmentation acceptable - skipping startup VACUUM", 
-				"fragmentation_pct", fragmentation)
-		}
-	}
+	// STARTUP VACUUM DISABLED - causes database corruption
+	// The in-place swap doesn't work because workers are still accessing the database
+	// Weekly scheduled VACUUM also needs to be fixed before re-enabling
+	logger.Info("Startup VACUUM disabled - using weekly scheduled VACUUM only")
 
 	// Start the archive worker (runs every 5 minutes)
 	go app.archiveWorker(ctx)
@@ -130,8 +98,8 @@ func main() {
 	// Start the purge worker (runs during idle time between crawls)
 	go app.purgeWorker(ctx)
 
-	// Start the vacuum worker (runs Sunday early morning)
-	go app.vacuumWorker(ctx)
+	// Vacuum worker DISABLED - needs fix to stop workers before database swap
+	// go app.vacuumWorker(ctx)
 
 	app.mainLoop(ctx)
 }
