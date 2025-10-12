@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,7 +16,7 @@ const maxShutDownTimeout = 5 * time.Second
 
 func runRecoveryMode() {
 	logger := newLogger(os.Getenv("LOG_LEVEL"), os.Getenv("LOG_FORMAT"))
-	
+
 	logger.Info("===========================================")
 	logger.Info("RECOVERY MODE ACTIVE")
 	logger.Info("Database access disabled - safe for manual restoration")
@@ -43,7 +44,7 @@ func runRecoveryMode() {
 	}
 
 	logger.Info("HTTP server listening in recovery mode", "address", ":8080")
-	
+
 	// Block forever (or until killed)
 	if err := server.ListenAndServe(); err != nil {
 		logger.Error("Recovery mode server error", err)
@@ -130,10 +131,29 @@ func main() {
 		logger.Info("Server shut down")
 	}()
 
-	// STARTUP VACUUM DISABLED - causes database corruption
-	// The in-place swap doesn't work because workers are still accessing the database
-	// Weekly scheduled VACUUM also needs to be fixed before re-enabling
-	logger.Info("Startup VACUUM disabled - using weekly scheduled VACUUM only")
+	// Check if VACUUM is pending from previous weekly run OR if fragmentation is high
+	// This runs BEFORE starting workers to avoid wasted work during VACUUM
+	logger.Info("Checking for pending VACUUM operation or high fragmentation")
+
+	// One-time check: if fragmentation > 15%, trigger VACUUM immediately on this startup
+	_, _, fragmentation, err := app.ndb.getDatabaseStats()
+	if err == nil && fragmentation > 15.0 {
+		markerPath := fmt.Sprintf("%s/.vacuum_pending", app.ndb.sqliteDataDir)
+		if _, statErr := os.Stat(markerPath); os.IsNotExist(statErr) {
+			logger.Info("High fragmentation detected - triggering immediate VACUUM",
+				"fragmentation_pct", fragmentation)
+			if markerFile, createErr := os.Create(markerPath); createErr == nil {
+				markerFile.Close()
+				logger.Info("VACUUM marker created - will execute before starting workers")
+			}
+		}
+	}
+
+	if err := performVacuumOnStartup(app.ndb, logger); err != nil {
+		logger.Error("Startup VACUUM failed", err)
+		logger.Warn("Will retry next Sunday during scheduled maintenance")
+		// Continue starting workers even if VACUUM fails
+	}
 
 	// Start the archive worker (runs every 5 minutes)
 	go app.archiveWorker(ctx)
@@ -141,8 +161,8 @@ func main() {
 	// Start the purge worker (runs during idle time between crawls)
 	go app.purgeWorker(ctx)
 
-	// Vacuum worker DISABLED - needs fix to stop workers before database swap
-	// go app.vacuumWorker(ctx)
+	// Start the vacuum worker (runs Sunday early morning)
+	go app.vacuumWorker(ctx)
 
 	app.mainLoop(ctx)
 }

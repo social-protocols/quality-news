@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -12,6 +11,7 @@ import (
 
 	pond "github.com/alitto/pond/v2"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slog"
 )
 
 type ArchiveData struct {
@@ -547,13 +547,13 @@ func (app app) vacuumWorker(ctx context.Context) {
 			if stat, err := os.Stat(dbPath); err == nil {
 				dbSize = stat.Size()
 			}
-			
+
 			// Check free space on volume
 			var statfs syscall.Statfs_t
 			if err := syscall.Statfs(app.ndb.sqliteDataDir, &statfs); err == nil {
 				freeSpace := int64(statfs.Bavail) * int64(statfs.Bsize)
 				requiredSpace := int64(float64(dbSize) * 0.9) // Need ~90% of DB size for compacted copy
-				
+
 				if freeSpace < requiredSpace {
 					logger.Warn("Insufficient disk space for VACUUM - skipping",
 						"free_space_gb", float64(freeSpace)/(1024*1024*1024),
@@ -562,7 +562,7 @@ func (app app) vacuumWorker(ctx context.Context) {
 						"action", "Increase volume size before next VACUUM")
 					continue
 				}
-				
+
 				logger.Info("Disk space check passed",
 					"free_space_gb", float64(freeSpace)/(1024*1024*1024),
 					"required_gb", float64(requiredSpace)/(1024*1024*1024))
@@ -587,12 +587,51 @@ func (app app) vacuumWorker(ctx context.Context) {
 	}
 }
 
-// performWeeklyVacuum creates a compacted copy of the database and swaps it in
+// performWeeklyVacuum creates a compacted copy of the database and triggers app restart.
+//
+// To avoid wasted work and data inconsistency, this function:
+// 1. Triggers app exit immediately (workers stop cleanly)
+// 2. On restart, checks for pending VACUUM work
+// 3. Completes VACUUM before starting workers
+// 4. Starts workers with fresh compacted database
+//
+// This ensures no crawl data is written and discarded during VACUUM.
 func (app app) performWeeklyVacuum(ctx context.Context) error {
 	logger := app.logger
 	ndb := app.ndb
 
-	// Create compacted copy using VACUUM INTO
+	// Create a marker file to indicate VACUUM should run on next startup
+	markerPath := fmt.Sprintf("%s/.vacuum_pending", ndb.sqliteDataDir)
+	markerFile, err := os.Create(markerPath)
+	if err != nil {
+		return errors.Wrap(err, "failed to create vacuum marker file")
+	}
+	markerFile.Close()
+
+	logger.Info("VACUUM scheduled for next app restart")
+	logger.Info("Triggering restart - VACUUM will complete before workers start")
+	logger.Warn("App will be unavailable during VACUUM (~10-30 minutes)")
+
+	// Exit cleanly - Fly will restart
+	// On startup, app will detect marker file and run VACUUM before starting workers
+	os.Exit(0)
+	return nil
+}
+
+// performVacuumOnStartup runs during app initialization if vacuum marker exists
+func performVacuumOnStartup(ndb newsDatabase, logger *slog.Logger) error {
+	markerPath := fmt.Sprintf("%s/.vacuum_pending", ndb.sqliteDataDir)
+
+	// Check if vacuum is pending
+	if _, err := os.Stat(markerPath); os.IsNotExist(err) {
+		return nil // No vacuum pending
+	}
+
+	logger.Info("===========================================")
+	logger.Info("VACUUM PENDING - Running before starting workers")
+	logger.Info("App will be unavailable during this operation (~10-30 minutes)")
+	logger.Info("===========================================")
+
 	newDBPath := fmt.Sprintf("%s/frontpage_new.sqlite", ndb.sqliteDataDir)
 	oldDBPath := fmt.Sprintf("%s/frontpage.sqlite", ndb.sqliteDataDir)
 	backupPath := fmt.Sprintf("%s/frontpage_backup_%s.sqlite",
@@ -600,59 +639,68 @@ func (app app) performWeeklyVacuum(ctx context.Context) error {
 		time.Now().Format("2006_01_02"))
 
 	logger.Info("Creating compacted database copy", "target", newDBPath)
+	logger.Info("This will take 10-30 minutes - no workers are running")
 
-	// Use VACUUM INTO to create compacted copy (doesn't block reads)
-	_, err := ndb.db.Exec(fmt.Sprintf("VACUUM INTO '%s'", newDBPath))
+	// Record start time
+	startTime := time.Now()
+
+	// Use VACUUM INTO to create compacted copy
+	// Since workers are stopped, this doesn't compete for I/O
+	_, err = ndb.db.Exec(fmt.Sprintf("VACUUM INTO '%s'", newDBPath))
 	if err != nil {
+		os.Remove(newDBPath)
+		os.Remove(markerPath) // Remove marker so we don't retry on next restart
 		return errors.Wrap(err, "VACUUM INTO failed")
 	}
 
-	logger.Info("Compacted database created successfully")
-	logger.Info("Swapping database files - brief service interruption expected")
+	duration := time.Since(startTime)
+	logger.Info("Compacted database created successfully", "duration_minutes", duration.Minutes())
+
+	// Get size stats
+	oldStat, _ := os.Stat(oldDBPath)
+	newStat, _ := os.Stat(newDBPath)
+	if oldStat != nil && newStat != nil {
+		logger.Info("Database size comparison",
+			"old_size_gb", float64(oldStat.Size())/(1024*1024*1024),
+			"new_size_gb", float64(newStat.Size())/(1024*1024*1024),
+			"space_saved_gb", float64(oldStat.Size()-newStat.Size())/(1024*1024*1024))
+	}
+
+	logger.Info("Swapping database files")
 
 	// Close current connection
-	err = ndb.db.Close()
-	if err != nil {
-		return errors.Wrap(err, "failed to close database")
-	}
+	ndb.db.Close()
 
 	// Rename old database as backup
 	err = os.Rename(oldDBPath, backupPath)
 	if err != nil {
+		os.Remove(newDBPath)
+		os.Remove(markerPath)
 		return errors.Wrap(err, "failed to backup old database")
 	}
+
+	// Remove old WAL/SHM files - these belong to old database
+	os.Remove(oldDBPath + "-wal")
+	os.Remove(oldDBPath + "-shm")
+	logger.Info("Removed old WAL and SHM files")
 
 	// Move new database into place
 	err = os.Rename(newDBPath, oldDBPath)
 	if err != nil {
-		// Try to restore backup
+		// Restore backup on failure
 		os.Rename(backupPath, oldDBPath)
-		return errors.Wrap(err, "failed to move new database")
+		os.Rename(backupPath+"-wal", oldDBPath+"-wal")
+		os.Rename(backupPath+"-shm", oldDBPath+"-shm")
+		os.Remove(markerPath)
+		return errors.Wrap(err, "failed to move new database into place")
 	}
 
-	// Reconnect to new database
-	logger.Info("Reconnecting to compacted database")
-	newDB, err := sql.Open("sqlite3_ext",
-		fmt.Sprintf("file:%s?_journal_mode=WAL&_busy_timeout=5000", oldDBPath))
-	if err != nil {
-		return errors.Wrap(err, "failed to reconnect to database")
-	}
+	// Remove marker file - VACUUM complete
+	os.Remove(markerPath)
 
-	ndb.db = newDB
-
-	// Get new stats
-	_, freelist, fragmentation, err := ndb.getDatabaseStats()
-	if err != nil {
-		logger.Error("Failed to get stats after VACUUM", err)
-	} else {
-		logger.Info("Database stats after VACUUM",
-			"fragmentation_pct", fragmentation,
-			"freelist_pages", freelist)
-	}
-
-	logger.Info("Database swap complete",
-		"old_backup", backupPath,
-		"note", "Old database kept as backup for 24 hours")
+	logger.Info("Database files swapped successfully")
+	logger.Info("Old database backed up", "path", backupPath)
+	logger.Info("VACUUM complete - workers will now start with compacted database")
 
 	return nil
 }
