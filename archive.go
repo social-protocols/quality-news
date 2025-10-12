@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"syscall"
 	"time"
 
 	pond "github.com/alitto/pond/v2"
@@ -537,6 +538,34 @@ func (app app) vacuumWorker(ctx context.Context) {
 				logger.Info("Fragmentation low - skipping VACUUM",
 					"fragmentation_pct", fragmentation)
 				continue
+			}
+
+			// Check available disk space before attempting VACUUM
+			// VACUUM INTO needs space for both old and new database
+			dbPath := fmt.Sprintf("%s/frontpage.sqlite", app.ndb.sqliteDataDir)
+			var dbSize int64
+			if stat, err := os.Stat(dbPath); err == nil {
+				dbSize = stat.Size()
+			}
+			
+			// Check free space on volume
+			var statfs syscall.Statfs_t
+			if err := syscall.Statfs(app.ndb.sqliteDataDir, &statfs); err == nil {
+				freeSpace := int64(statfs.Bavail) * int64(statfs.Bsize)
+				requiredSpace := int64(float64(dbSize) * 0.9) // Need ~90% of DB size for compacted copy
+				
+				if freeSpace < requiredSpace {
+					logger.Warn("Insufficient disk space for VACUUM - skipping",
+						"free_space_gb", float64(freeSpace)/(1024*1024*1024),
+						"required_gb", float64(requiredSpace)/(1024*1024*1024),
+						"db_size_gb", float64(dbSize)/(1024*1024*1024),
+						"action", "Increase volume size before next VACUUM")
+					continue
+				}
+				
+				logger.Info("Disk space check passed",
+					"free_space_gb", float64(freeSpace)/(1024*1024*1024),
+					"required_gb", float64(requiredSpace)/(1024*1024*1024))
 			}
 
 			// Perform VACUUM INTO (creates compacted copy)
