@@ -13,7 +13,50 @@ import (
 
 const maxShutDownTimeout = 5 * time.Second
 
+func runRecoveryMode() {
+	logger := newLogger(os.Getenv("LOG_LEVEL"), os.Getenv("LOG_FORMAT"))
+	
+	logger.Info("===========================================")
+	logger.Info("RECOVERY MODE ACTIVE")
+	logger.Info("Database access disabled - safe for manual restoration")
+	logger.Info("===========================================")
+	logger.Info("To restore database:")
+	logger.Info("1. fly ssh console")
+	logger.Info("2. cd /data")
+	logger.Info("3. rm frontpage.sqlite frontpage.sqlite-wal frontpage.sqlite-shm")
+	logger.Info("4. cp frontpage_backup_YYYY_MM_DD.sqlite frontpage.sqlite")
+	logger.Info("5. exit")
+	logger.Info("6. fly secrets unset RECOVERY_MODE")
+	logger.Info("7. App will auto-restart in normal mode")
+	logger.Info("===========================================")
+
+	// Simple HTTP server for health checks
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("RECOVERY MODE - Database restoration in progress\n"))
+	})
+
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
+
+	logger.Info("HTTP server listening in recovery mode", "address", ":8080")
+	
+	// Block forever (or until killed)
+	if err := server.ListenAndServe(); err != nil {
+		logger.Error("Recovery mode server error", err)
+	}
+}
+
 func main() {
+	// Check for recovery mode - minimal app for database restoration
+	if os.Getenv("RECOVERY_MODE") == "true" {
+		runRecoveryMode()
+		return
+	}
+
 	app := initApp()
 	defer app.cleanup()
 
