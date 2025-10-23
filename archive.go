@@ -646,7 +646,7 @@ func performVacuumOnStartup(ndb newsDatabase, logger *slog.Logger) error {
 
 	// Use VACUUM INTO to create compacted copy
 	// Since workers are stopped, this doesn't compete for I/O
-	_, err = ndb.db.Exec(fmt.Sprintf("VACUUM INTO '%s'", newDBPath))
+	_, err := ndb.db.Exec(fmt.Sprintf("VACUUM INTO '%s'", newDBPath))
 	if err != nil {
 		os.Remove(newDBPath)
 		os.Remove(markerPath) // Remove marker so we don't retry on next restart
