@@ -393,7 +393,7 @@ func (ndb newsDatabase) selectStoriesToArchive(ctx context.Context) ([]int, erro
 		join dataset on stories.id = dataset.id
 		where stories.archived = 0
 		  and dataset.sampleTime <= strftime('%s', 'now') - 21*24*60*60
-		limit 5
+		limit 20
 	`
 
 	// Check context before query
