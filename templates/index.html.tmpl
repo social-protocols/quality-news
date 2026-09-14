@@ -58,7 +58,7 @@ var userID {{if .UserID.Valid}} = {{.UserID}} {{end}}
 
 	{{else if .IsPenaltiesPage}}
 
-			This page shows stories whose rank on the Hacker News front page is significantly lower than their <a href="/about#raw-rank">raw rank</a>. That gap is a demotion / penalty signal, but it is not exclusively moderator action: flags, the anti-flamewar algorithm, author adjustments, and moderator penalties may all contribute. Stories marked [flagged] on HN are omitted. See <a href="https://www.righto.com/2013/11/how-hacker-news-ranking-really-works.html">this blog post</a> for a discussion of how Hacker News ranking adjustments work.
+			This page shows stories whose rank on the Hacker News front page is significantly lower than their <a href="/about#raw-rank">raw rank</a>. That gap is a demotion / penalty signal, but it is not exclusively moderator action: flags, the anti-flamewar algorithm, and moderator penalties may all contribute. Stories marked [flagged] on HN are omitted. See <a href="https://www.righto.com/2013/11/how-hacker-news-ranking-really-works.html">this blog post</a> for a discussion of how Hacker News ranking adjustments work.
 
 	{{else if .IsBoostsPage}}
 
