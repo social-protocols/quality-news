@@ -34,7 +34,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: go build *.go
+      - run: go build -o news .
+      - run: go test -count=1 .
       - name: Check if working directory is clean
         run: git diff --quiet --exit-code || (git status && false)
 

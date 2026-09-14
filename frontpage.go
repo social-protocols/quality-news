@@ -372,7 +372,9 @@ func whereClause(ranking string) string {
 	case "boosts":
 		return "topRank < rawRank"
 	case "penalties":
-		return "ifnull(topRank,91) > rawRank"
+		// Rank gap vs raw rank. Stories HN has marked [flagged] are omitted;
+		// user flags can still contribute to a silent demotion without that label.
+		return "ifnull(topRank,91) > rawRank and flagged = 0"
 	case "resubmissions":
 		return "submissionTime != timestamp"
 	default:
